@@ -180,6 +180,10 @@ export function useGeminiLive(): UseGeminiLiveReturn {
       const ctx = new AudioContext({ sampleRate: SEND_SAMPLE_RATE });
       audioContextRef.current = ctx;
 
+      // Separate playback context at 24kHz for Gemini audio output
+      const playbackCtx = new AudioContext({ sampleRate: RECEIVE_SAMPLE_RATE });
+      playbackContextRef.current = playbackCtx;
+
       const source = ctx.createMediaStreamSource(stream);
       const analyser = ctx.createAnalyser();
       analyser.fftSize = 256;
