@@ -18,6 +18,7 @@ export interface UseGeminiLiveReturn {
   startSession: () => Promise<void>;
   endSession: () => void;
   inputLevel: number;
+  audioChunksReceived: number;
 }
 
 const SEND_SAMPLE_RATE = 16000;
