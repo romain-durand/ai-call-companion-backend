@@ -147,6 +147,11 @@ export function useGeminiLive(): UseGeminiLiveReturn {
       audioContextRef.current = null;
     }
 
+    if (playbackContextRef.current) {
+      void playbackContextRef.current.close();
+      playbackContextRef.current = null;
+    }
+
     analyserRef.current = null;
     playbackQueueRef.current = [];
     isPlayingRef.current = false;
