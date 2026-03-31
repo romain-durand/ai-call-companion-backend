@@ -384,5 +384,8 @@ export function useGeminiLive(): UseGeminiLiveReturn {
     startSession,
     endSession,
     inputLevel,
+    audioChunksReceived,
+  };
+}
   };
 }
