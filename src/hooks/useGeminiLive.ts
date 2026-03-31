@@ -130,30 +130,27 @@ export function useGeminiLive(): UseGeminiLiveReturn {
       processor.connect(ctx.destination);
       processorRef.current = processor;
 
-      // Connect WebSocket
-      const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${apiKey}`;
+      // Connect WebSocket (v1beta for API key auth)
+      const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${apiKey}`;
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
       ws.onopen = () => {
-        // Send setup message
-        const setup = {
-          setup: {
+        // Send config message (official camelCase format)
+        const configMessage = {
+          config: {
             model: MODEL,
-            generation_config: {
-              response_modalities: ["AUDIO"],
-              speech_config: {
-                voice_config: {
-                  prebuilt_voice_config: { voice_name: "Charon" }
-                }
+            responseModalities: ["AUDIO"],
+            speechConfig: {
+              voiceConfig: {
+                prebuiltVoiceConfig: { voiceName: "Charon" }
               }
             },
-            system_instruction: {
-              parts: [{ text: SYSTEM_INSTRUCTION }],
-              role: "user"
+            systemInstruction: {
+              parts: [{ text: SYSTEM_INSTRUCTION }]
             },
             tools: [{
-              function_declarations: [{
+              functionDeclarations: [{
                 name: "getWeather",
                 parameters: {
                   type: "OBJECT",
@@ -165,10 +162,10 @@ export function useGeminiLive(): UseGeminiLiveReturn {
             }]
           }
         };
-        ws.send(JSON.stringify(setup));
+        ws.send(JSON.stringify(configMessage));
         setStatus("connected");
 
-        // Start sending audio
+        // Start sending audio (official realtimeInput.audio format)
         processor.onaudioprocess = (e) => {
           if (ws.readyState !== WebSocket.OPEN) return;
           const input = e.inputBuffer.getChannelData(0);
@@ -178,11 +175,11 @@ export function useGeminiLive(): UseGeminiLiveReturn {
           }
           const base64 = btoa(String.fromCharCode(...new Uint8Array(int16.buffer)));
           ws.send(JSON.stringify({
-            realtime_input: {
-              media_chunks: [{
-                mime_type: "audio/pcm",
-                data: base64
-              }]
+            realtimeInput: {
+              audio: {
+                data: base64,
+                mimeType: "audio/pcm;rate=16000"
+              }
             }
           }));
         };
