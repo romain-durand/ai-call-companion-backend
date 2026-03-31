@@ -228,13 +228,13 @@ export function useGeminiLive(): UseGeminiLiveReturn {
                 };
                 setToolCalls(prev => [...prev, tc]);
 
-                // Respond to tool call
+                // Respond to tool call (official camelCase format)
                 ws.send(JSON.stringify({
-                  tool_response: {
-                    function_responses: [{
+                  toolResponse: {
+                    functionResponses: [{
                       id: call.id,
                       name: call.name,
-                      response: { result: "Message transmis à Romain." }
+                      response: { result: { message: "Message transmis à Romain." } }
                     }]
                   }
                 }));
