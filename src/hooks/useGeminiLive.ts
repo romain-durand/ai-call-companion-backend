@@ -164,6 +164,7 @@ export function useGeminiLive(): UseGeminiLiveReturn {
     setError(null);
     setStatus("connecting");
     setToolCalls([]);
+    setAudioChunksReceived(0);
     manualCloseRef.current = false;
     isSetupCompleteRef.current = false;
 
