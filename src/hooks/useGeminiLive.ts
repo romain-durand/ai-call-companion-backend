@@ -216,13 +216,15 @@ export function useGeminiLive(): UseGeminiLiveReturn {
       wsRef.current = ws;
 
       ws.onopen = () => {
-        const configMessage = {
-          config: {
+        const setupMessage = {
+          setup: {
             model: MODEL,
-            responseModalities: ["AUDIO"],
-            speechConfig: {
-              voiceConfig: {
-                prebuiltVoiceConfig: { voiceName: "Charon" },
+            generationConfig: {
+              responseModalities: ["AUDIO"],
+              speechConfig: {
+                voiceConfig: {
+                  prebuiltVoiceConfig: { voiceName: "Charon" },
+                },
               },
             },
             systemInstruction: {
@@ -232,8 +234,8 @@ export function useGeminiLive(): UseGeminiLiveReturn {
           },
         };
 
-        console.log("Sending Gemini config", configMessage);
-        ws.send(JSON.stringify(configMessage));
+        console.log("Sending Gemini setup", setupMessage);
+        ws.send(JSON.stringify(setupMessage));
       };
 
       ws.onmessage = async (event) => {
