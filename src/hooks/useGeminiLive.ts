@@ -18,6 +18,7 @@ export interface UseGeminiLiveReturn {
   startSession: () => Promise<void>;
   endSession: () => void;
   inputLevel: number;
+  audioChunksReceived: number;
 }
 
 const SEND_SAMPLE_RATE = 16000;
@@ -81,8 +82,11 @@ export function useGeminiLive(): UseGeminiLiveReturn {
   const [error, setError] = useState<string | null>(null);
   const [inputLevel, setInputLevel] = useState(0);
 
+  const [audioChunksReceived, setAudioChunksReceived] = useState(0);
+
   const wsRef = useRef<WebSocket | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const playbackContextRef = useRef<AudioContext | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const processorRef = useRef<ScriptProcessorNode | null>(null);
   const playbackQueueRef = useRef<Float32Array[]>([]);
@@ -93,7 +97,7 @@ export function useGeminiLive(): UseGeminiLiveReturn {
   const manualCloseRef = useRef(false);
 
   const playNextChunk = useCallback(() => {
-    const ctx = audioContextRef.current;
+    const ctx = playbackContextRef.current;
     if (!ctx || playbackQueueRef.current.length === 0) {
       isPlayingRef.current = false;
       setIsSpeaking(false);
@@ -116,6 +120,8 @@ export function useGeminiLive(): UseGeminiLiveReturn {
 
   const enqueueAudio = useCallback(
     (pcmBase64: string) => {
+      console.log("🔊 Audio chunk received, base64 length:", pcmBase64.length);
+      setAudioChunksReceived((prev) => prev + 1);
       playbackQueueRef.current.push(decodeAudioChunk(pcmBase64));
       if (!isPlayingRef.current) playNextChunk();
     },
@@ -141,6 +147,11 @@ export function useGeminiLive(): UseGeminiLiveReturn {
       audioContextRef.current = null;
     }
 
+    if (playbackContextRef.current) {
+      void playbackContextRef.current.close();
+      playbackContextRef.current = null;
+    }
+
     analyserRef.current = null;
     playbackQueueRef.current = [];
     isPlayingRef.current = false;
@@ -153,6 +164,7 @@ export function useGeminiLive(): UseGeminiLiveReturn {
     setError(null);
     setStatus("connecting");
     setToolCalls([]);
+    setAudioChunksReceived(0);
     manualCloseRef.current = false;
     isSetupCompleteRef.current = false;
 
@@ -167,6 +179,10 @@ export function useGeminiLive(): UseGeminiLiveReturn {
 
       const ctx = new AudioContext({ sampleRate: SEND_SAMPLE_RATE });
       audioContextRef.current = ctx;
+
+      // Separate playback context at 24kHz for Gemini audio output
+      const playbackCtx = new AudioContext({ sampleRate: RECEIVE_SAMPLE_RATE });
+      playbackContextRef.current = playbackCtx;
 
       const source = ctx.createMediaStreamSource(stream);
       const analyser = ctx.createAnalyser();
@@ -380,5 +396,6 @@ export function useGeminiLive(): UseGeminiLiveReturn {
     startSession,
     endSession,
     inputLevel,
+    audioChunksReceived,
   };
 }

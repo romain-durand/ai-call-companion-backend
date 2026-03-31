@@ -6,7 +6,7 @@ import { ToolCallLog } from "@/components/ToolCallLog";
 import { useGeminiLive } from "@/hooks/useGeminiLive";
 
 const Index = () => {
-  const { status, isSpeaking, toolCalls, error, startSession, endSession, inputLevel } = useGeminiLive();
+  const { status, isSpeaking, toolCalls, error, startSession, endSession, inputLevel, audioChunksReceived } = useGeminiLive();
 
   const isConnected = status === "connected";
 
@@ -81,7 +81,13 @@ const Index = () => {
           {status === "connected" && (isSpeaking ? "L'assistant parle..." : "En écoute...")}
         </motion.p>
 
-        {/* Error */}
+        {/* Debug: audio chunks counter */}
+        {isConnected && (
+          <p className="text-xs font-mono text-muted-foreground">
+            🔊 Chunks audio reçus : {audioChunksReceived}
+          </p>
+        )}
+
         {error && (
           <motion.div
             initial={{ opacity: 0 }}
