@@ -81,7 +81,13 @@ const Index = () => {
           {status === "connected" && (isSpeaking ? "L'assistant parle..." : "En écoute...")}
         </motion.p>
 
-        {/* Error */}
+        {/* Debug: audio chunks counter */}
+        {isConnected && (
+          <p className="text-xs font-mono text-muted-foreground">
+            🔊 Chunks audio reçus : {audioChunksReceived}
+          </p>
+        )}
+
         {error && (
           <motion.div
             initial={{ opacity: 0 }}
