@@ -61,7 +61,7 @@ export function useGeminiLive(): UseGeminiLiveReturn {
 
     const chunk = playbackQueueRef.current.shift()!;
     const buffer = ctx.createBuffer(1, chunk.length, RECEIVE_SAMPLE_RATE);
-    buffer.copyToChannel(chunk, 0);
+    buffer.copyToChannel(new Float32Array(chunk), 0);
     const source = ctx.createBufferSource();
     source.buffer = buffer;
     source.connect(ctx.destination);
