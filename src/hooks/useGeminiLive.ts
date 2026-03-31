@@ -22,7 +22,7 @@ export interface UseGeminiLiveReturn {
 
 const SEND_SAMPLE_RATE = 16000;
 const RECEIVE_SAMPLE_RATE = 24000;
-const MODEL = "models/gemini-2.0-flash-exp";
+const MODEL = "models/gemini-3.1-flash-live-preview";
 
 const SYSTEM_INSTRUCTION = `Tu es l'assistant IA de Romain, tu réponds aux appels entrants et tu filtre comme un secrétaire. Tu commences par dire "Bonjour je suis l'assistant IA de Romain. En quoi puis je vous aider". Tu n'en dis pas plus et tu attends de comprendre le context de l'appel. L'objectif est de filtrer les appels indésirables, mais de me notifier en cas d'appel urgent (par exemple si c'est un livreur ou si l'appelle vient d'un de mes contact privilégiés).
 
@@ -130,30 +130,27 @@ export function useGeminiLive(): UseGeminiLiveReturn {
       processor.connect(ctx.destination);
       processorRef.current = processor;
 
-      // Connect WebSocket
-      const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${apiKey}`;
+      // Connect WebSocket (v1beta for API key auth)
+      const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${apiKey}`;
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
       ws.onopen = () => {
-        // Send setup message
-        const setup = {
-          setup: {
+        // Send config message (official camelCase format)
+        const configMessage = {
+          config: {
             model: MODEL,
-            generation_config: {
-              response_modalities: ["AUDIO"],
-              speech_config: {
-                voice_config: {
-                  prebuilt_voice_config: { voice_name: "Charon" }
-                }
+            responseModalities: ["AUDIO"],
+            speechConfig: {
+              voiceConfig: {
+                prebuiltVoiceConfig: { voiceName: "Charon" }
               }
             },
-            system_instruction: {
-              parts: [{ text: SYSTEM_INSTRUCTION }],
-              role: "user"
+            systemInstruction: {
+              parts: [{ text: SYSTEM_INSTRUCTION }]
             },
             tools: [{
-              function_declarations: [{
+              functionDeclarations: [{
                 name: "getWeather",
                 parameters: {
                   type: "OBJECT",
@@ -165,10 +162,10 @@ export function useGeminiLive(): UseGeminiLiveReturn {
             }]
           }
         };
-        ws.send(JSON.stringify(setup));
+        ws.send(JSON.stringify(configMessage));
         setStatus("connected");
 
-        // Start sending audio
+        // Start sending audio (official realtimeInput.audio format)
         processor.onaudioprocess = (e) => {
           if (ws.readyState !== WebSocket.OPEN) return;
           const input = e.inputBuffer.getChannelData(0);
@@ -178,11 +175,11 @@ export function useGeminiLive(): UseGeminiLiveReturn {
           }
           const base64 = btoa(String.fromCharCode(...new Uint8Array(int16.buffer)));
           ws.send(JSON.stringify({
-            realtime_input: {
-              media_chunks: [{
-                mime_type: "audio/pcm",
-                data: base64
-              }]
+            realtimeInput: {
+              audio: {
+                data: base64,
+                mimeType: "audio/pcm;rate=16000"
+              }
             }
           }));
         };
@@ -192,8 +189,11 @@ export function useGeminiLive(): UseGeminiLiveReturn {
         try {
           const msg = JSON.parse(event.data);
           
-          // Handle setup complete
-          if (msg.setupComplete) {
+          // Log full message for debugging
+          console.log("Gemini WS message:", JSON.stringify(msg).slice(0, 200));
+
+          // Handle setup complete (may appear as setupComplete or config acknowledgment)
+          if (msg.setupComplete || msg.configComplete) {
             console.log("Gemini Live session established");
             return;
           }
@@ -231,13 +231,13 @@ export function useGeminiLive(): UseGeminiLiveReturn {
                 };
                 setToolCalls(prev => [...prev, tc]);
 
-                // Respond to tool call
+                // Respond to tool call (official camelCase format)
                 ws.send(JSON.stringify({
-                  tool_response: {
-                    function_responses: [{
+                  toolResponse: {
+                    functionResponses: [{
                       id: call.id,
                       name: call.name,
-                      response: { result: "Message transmis à Romain." }
+                      response: { result: { message: "Message transmis à Romain." } }
                     }]
                   }
                 }));
