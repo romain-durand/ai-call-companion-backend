@@ -82,8 +82,11 @@ export function useGeminiLive(): UseGeminiLiveReturn {
   const [error, setError] = useState<string | null>(null);
   const [inputLevel, setInputLevel] = useState(0);
 
+  const [audioChunksReceived, setAudioChunksReceived] = useState(0);
+
   const wsRef = useRef<WebSocket | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const playbackContextRef = useRef<AudioContext | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const processorRef = useRef<ScriptProcessorNode | null>(null);
   const playbackQueueRef = useRef<Float32Array[]>([]);
