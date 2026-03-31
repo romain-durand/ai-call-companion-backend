@@ -189,8 +189,11 @@ export function useGeminiLive(): UseGeminiLiveReturn {
         try {
           const msg = JSON.parse(event.data);
           
-          // Handle setup complete
-          if (msg.setupComplete) {
+          // Log full message for debugging
+          console.log("Gemini WS message:", JSON.stringify(msg).slice(0, 200));
+
+          // Handle setup complete (may appear as setupComplete or config acknowledgment)
+          if (msg.setupComplete || msg.configComplete) {
             console.log("Gemini Live session established");
             return;
           }
