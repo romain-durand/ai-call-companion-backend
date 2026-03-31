@@ -97,7 +97,7 @@ export function useGeminiLive(): UseGeminiLiveReturn {
   const manualCloseRef = useRef(false);
 
   const playNextChunk = useCallback(() => {
-    const ctx = audioContextRef.current;
+    const ctx = playbackContextRef.current;
     if (!ctx || playbackQueueRef.current.length === 0) {
       isPlayingRef.current = false;
       setIsSpeaking(false);
