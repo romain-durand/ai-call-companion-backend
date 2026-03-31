@@ -120,6 +120,8 @@ export function useGeminiLive(): UseGeminiLiveReturn {
 
   const enqueueAudio = useCallback(
     (pcmBase64: string) => {
+      console.log("🔊 Audio chunk received, base64 length:", pcmBase64.length);
+      setAudioChunksReceived((prev) => prev + 1);
       playbackQueueRef.current.push(decodeAudioChunk(pcmBase64));
       if (!isPlayingRef.current) playNextChunk();
     },
