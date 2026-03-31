@@ -299,6 +299,7 @@ export function useGeminiLive(): UseGeminiLiveReturn {
           }
 
           if (msg.toolCall?.functionCalls) {
+            console.log("🔧 toolCall received!", JSON.stringify(msg.toolCall));
             for (const call of msg.toolCall.functionCalls) {
               const toolCall: ToolCall = {
                 id: call.id || crypto.randomUUID(),
@@ -310,6 +311,7 @@ export function useGeminiLive(): UseGeminiLiveReturn {
               setToolCalls((prev) => [...prev, toolCall]);
 
               // Notify n8n webhook via edge function
+              console.log("📡 Calling notify-n8n edge function...");
               supabase.functions
                 .invoke("notify-n8n", {
                   body: {
@@ -318,9 +320,9 @@ export function useGeminiLive(): UseGeminiLiveReturn {
                     message: call.args?.city || JSON.stringify(call.args),
                   },
                 })
-                .then(({ error: n8nErr }) => {
-                  if (n8nErr) console.error("n8n notification failed:", n8nErr);
-                  else console.log("✅ n8n notified");
+                .then(({ data, error: n8nErr }) => {
+                  if (n8nErr) console.error("❌ n8n notification failed:", n8nErr);
+                  else console.log("✅ n8n notified, response:", data);
                 });
 
               ws.send(
