@@ -6,7 +6,7 @@ import { ToolCallLog } from "@/components/ToolCallLog";
 import { useGeminiLive } from "@/hooks/useGeminiLive";
 
 const Index = () => {
-  const { status, isSpeaking, toolCalls, error, startSession, endSession, inputLevel } = useGeminiLive();
+  const { status, isSpeaking, toolCalls, error, startSession, endSession, inputLevel, audioChunksReceived } = useGeminiLive();
 
   const isConnected = status === "connected";
 
