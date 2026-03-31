@@ -32,6 +32,48 @@ Si l'appel vient d'un de mes contact privilégié tu dis que tu vas tenter de me
 
 Dans les autres cas tu dis que tu prends le message et que tu me le transmettra. Tu appelles l'outil météo avec le message en question.`;
 
+const TOOL_DECLARATIONS = [
+  {
+    name: "getWeather",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        city: { type: "STRING" },
+      },
+      required: ["city"],
+    },
+  },
+];
+
+function encodeAudioChunk(input: Float32Array) {
+  const int16 = new Int16Array(input.length);
+  for (let i = 0; i < input.length; i++) {
+    int16[i] = Math.max(-32768, Math.min(32767, Math.round(input[i] * 32768)));
+  }
+  return btoa(String.fromCharCode(...new Uint8Array(int16.buffer)));
+}
+
+function decodeAudioChunk(pcmBase64: string) {
+  const raw = atob(pcmBase64);
+  const bytes = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+
+  const int16 = new Int16Array(bytes.buffer);
+  const float32 = new Float32Array(int16.length);
+  for (let i = 0; i < int16.length; i++) {
+    float32[i] = int16[i] / 32768;
+  }
+
+  return float32;
+}
+
+async function readSocketMessage(data: string | Blob | ArrayBuffer) {
+  if (typeof data === "string") return data;
+  if (data instanceof Blob) return await data.text();
+  if (data instanceof ArrayBuffer) return new TextDecoder().decode(data);
+  return String(data);
+}
+
 export function useGeminiLive(): UseGeminiLiveReturn {
   const [status, setStatus] = useState<ConnectionStatus>("disconnected");
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -47,6 +89,8 @@ export function useGeminiLive(): UseGeminiLiveReturn {
   const isPlayingRef = useRef(false);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animFrameRef = useRef<number>(0);
+  const isSetupCompleteRef = useRef(false);
+  const manualCloseRef = useRef(false);
 
   const playNextChunk = useCallback(() => {
     const ctx = audioContextRef.current;
@@ -62,6 +106,7 @@ export function useGeminiLive(): UseGeminiLiveReturn {
     const chunk = playbackQueueRef.current.shift()!;
     const buffer = ctx.createBuffer(1, chunk.length, RECEIVE_SAMPLE_RATE);
     buffer.copyToChannel(new Float32Array(chunk), 0);
+
     const source = ctx.createBufferSource();
     source.buffer = buffer;
     source.connect(ctx.destination);
@@ -69,41 +114,60 @@ export function useGeminiLive(): UseGeminiLiveReturn {
     source.start();
   }, []);
 
-  const enqueueAudio = useCallback((pcmBase64: string) => {
-    const raw = atob(pcmBase64);
-    const bytes = new Uint8Array(raw.length);
-    for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
-    
-    const int16 = new Int16Array(bytes.buffer);
-    const float32 = new Float32Array(int16.length);
-    for (let i = 0; i < int16.length; i++) {
-      float32[i] = int16[i] / 32768;
+  const enqueueAudio = useCallback(
+    (pcmBase64: string) => {
+      playbackQueueRef.current.push(decodeAudioChunk(pcmBase64));
+      if (!isPlayingRef.current) playNextChunk();
+    },
+    [playNextChunk],
+  );
+
+  const cleanup = useCallback(() => {
+    cancelAnimationFrame(animFrameRef.current);
+
+    if (processorRef.current) {
+      processorRef.current.onaudioprocess = null;
+      processorRef.current.disconnect();
+      processorRef.current = null;
     }
 
-    playbackQueueRef.current.push(float32);
-    if (!isPlayingRef.current) playNextChunk();
-  }, [playNextChunk]);
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+
+    if (audioContextRef.current) {
+      void audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+
+    analyserRef.current = null;
+    playbackQueueRef.current = [];
+    isPlayingRef.current = false;
+    isSetupCompleteRef.current = false;
+    setIsSpeaking(false);
+    setInputLevel(0);
+  }, []);
 
   const startSession = useCallback(async () => {
     setError(null);
     setStatus("connecting");
     setToolCalls([]);
+    manualCloseRef.current = false;
+    isSetupCompleteRef.current = false;
 
     try {
-      // Get API key from edge function
       const { data, error: fnError } = await supabase.functions.invoke("gemini-key");
-      if (fnError || !data?.key) throw new Error("Impossible de récupérer la clé API");
-      const apiKey = data.key;
+      if (fnError || !data?.key) {
+        throw new Error("Impossible de récupérer la clé API");
+      }
 
-      // Request microphone
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
-      // Create audio context
       const ctx = new AudioContext({ sampleRate: SEND_SAMPLE_RATE });
       audioContextRef.current = ctx;
 
-      // Setup input analyser for level metering
       const source = ctx.createMediaStreamSource(stream);
       const analyser = ctx.createAnalyser();
       analyser.fftSize = 256;
@@ -114,91 +178,86 @@ export function useGeminiLive(): UseGeminiLiveReturn {
         if (!analyserRef.current) return;
         const data = new Uint8Array(analyserRef.current.frequencyBinCount);
         analyserRef.current.getByteTimeDomainData(data);
+
         let sum = 0;
         for (let i = 0; i < data.length; i++) {
           const v = (data[i] - 128) / 128;
           sum += v * v;
         }
+
         setInputLevel(Math.sqrt(sum / data.length));
         animFrameRef.current = requestAnimationFrame(updateLevel);
       };
       updateLevel();
 
-      // Setup audio capture
       const processor = ctx.createScriptProcessor(4096, 1, 1);
       source.connect(processor);
       processor.connect(ctx.destination);
       processorRef.current = processor;
 
-      // Connect WebSocket (v1beta for API key auth)
-      const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${apiKey}`;
+      const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${data.key}`;
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
       ws.onopen = () => {
-        // Send config message (official camelCase format)
-        const configMessage = {
-          config: {
+        const setupMessage = {
+          setup: {
             model: MODEL,
-            responseModalities: ["AUDIO"],
-            speechConfig: {
-              voiceConfig: {
-                prebuiltVoiceConfig: { voiceName: "Charon" }
-              }
+            generationConfig: {
+              responseModalities: ["AUDIO"],
+              speechConfig: {
+                voiceConfig: {
+                  prebuiltVoiceConfig: { voiceName: "Charon" },
+                },
+              },
             },
             systemInstruction: {
-              parts: [{ text: SYSTEM_INSTRUCTION }]
+              parts: [{ text: SYSTEM_INSTRUCTION }],
             },
-            tools: [{
-              functionDeclarations: [{
-                name: "getWeather",
-                parameters: {
-                  type: "OBJECT",
-                  properties: {
-                    city: { type: "STRING" }
-                  }
-                }
-              }]
-            }]
-          }
+            tools: [{ functionDeclarations: TOOL_DECLARATIONS }],
+          },
         };
-        ws.send(JSON.stringify(configMessage));
-        setStatus("connected");
 
-        // Start sending audio (official realtimeInput.audio format)
-        processor.onaudioprocess = (e) => {
-          if (ws.readyState !== WebSocket.OPEN) return;
-          const input = e.inputBuffer.getChannelData(0);
-          const int16 = new Int16Array(input.length);
-          for (let i = 0; i < input.length; i++) {
-            int16[i] = Math.max(-32768, Math.min(32767, Math.round(input[i] * 32768)));
-          }
-          const base64 = btoa(String.fromCharCode(...new Uint8Array(int16.buffer)));
-          ws.send(JSON.stringify({
-            realtimeInput: {
-              audio: {
-                data: base64,
-                mimeType: "audio/pcm;rate=16000"
-              }
-            }
-          }));
-        };
+        console.log("Sending Gemini setup", setupMessage);
+        ws.send(JSON.stringify(setupMessage));
       };
 
-      ws.onmessage = (event) => {
+      ws.onmessage = async (event) => {
         try {
-          const msg = JSON.parse(event.data);
-          
-          // Log full message for debugging
-          console.log("Gemini WS message:", JSON.stringify(msg).slice(0, 200));
+          const rawMessage = await readSocketMessage(event.data as string | Blob | ArrayBuffer);
+          const msg = JSON.parse(rawMessage);
 
-          // Handle setup complete (may appear as setupComplete or config acknowledgment)
-          if (msg.setupComplete || msg.configComplete) {
-            console.log("Gemini Live session established");
+          console.log("Gemini WS message:", JSON.stringify(msg).slice(0, 500));
+
+          if (msg.setupComplete) {
+            isSetupCompleteRef.current = true;
+            setError(null);
+            setStatus("connected");
+
+            processor.onaudioprocess = (audioEvent) => {
+              if (!isSetupCompleteRef.current || ws.readyState !== WebSocket.OPEN) return;
+
+              const input = audioEvent.inputBuffer.getChannelData(0);
+              ws.send(
+                JSON.stringify({
+                  realtimeInput: {
+                    audio: {
+                      data: encodeAudioChunk(input),
+                      mimeType: "audio/pcm;rate=16000",
+                    },
+                  },
+                }),
+              );
+            };
+
             return;
           }
 
-          // Handle server content (audio response)
+          if (msg.goAway) {
+            setError("Gemini ferme bientôt la session.");
+            return;
+          }
+
           if (msg.serverContent) {
             const parts = msg.serverContent.modelTurn?.parts;
             if (parts) {
@@ -208,94 +267,118 @@ export function useGeminiLive(): UseGeminiLiveReturn {
                 }
               }
             }
-            // Handle turn complete - clear audio queue for interruption support
-            if (msg.serverContent.turnComplete) {
-              // Turn is complete, audio will finish playing naturally
+
+            if (msg.serverContent.inputTranscription?.text) {
+              console.log("Gemini input transcription:", msg.serverContent.inputTranscription.text);
             }
+
+            if (msg.serverContent.outputTranscription?.text) {
+              console.log("Gemini output transcription:", msg.serverContent.outputTranscription.text);
+            }
+
             if (msg.serverContent.interrupted) {
               playbackQueueRef.current = [];
               setIsSpeaking(false);
             }
           }
 
-          // Handle tool calls
-          if (msg.toolCall) {
-            const calls = msg.toolCall.functionCalls;
-            if (calls) {
-              for (const call of calls) {
-                const tc: ToolCall = {
-                  id: call.id || crypto.randomUUID(),
-                  name: call.name,
-                  args: call.args || {},
-                  timestamp: new Date(),
-                };
-                setToolCalls(prev => [...prev, tc]);
+          if (msg.toolCall?.functionCalls) {
+            for (const call of msg.toolCall.functionCalls) {
+              const toolCall: ToolCall = {
+                id: call.id || crypto.randomUUID(),
+                name: call.name,
+                args: (call.args || {}) as Record<string, string>,
+                timestamp: new Date(),
+              };
 
-                // Respond to tool call (official camelCase format)
-                ws.send(JSON.stringify({
+              setToolCalls((prev) => [...prev, toolCall]);
+
+              ws.send(
+                JSON.stringify({
                   toolResponse: {
-                    functionResponses: [{
-                      id: call.id,
-                      name: call.name,
-                      response: { result: { message: "Message transmis à Romain." } }
-                    }]
-                  }
-                }));
-              }
+                    functionResponses: [
+                      {
+                        id: call.id,
+                        name: call.name,
+                        response: {
+                          result: { message: "Message transmis à Romain." },
+                        },
+                      },
+                    ],
+                  },
+                }),
+              );
             }
           }
-        } catch (e) {
-          console.error("Error parsing WS message:", e);
+        } catch (parseError) {
+          console.error("Error parsing WS message:", parseError);
+          setError("Réponse Gemini invalide.");
         }
       };
 
-      ws.onerror = (e) => {
-        console.error("WebSocket error:", e);
-        setError("Erreur de connexion WebSocket");
-        setStatus("disconnected");
+      ws.onerror = (event) => {
+        console.error("Gemini WebSocket error:", event);
+        setError("Erreur de connexion WebSocket Gemini.");
       };
 
-      ws.onclose = () => {
-        setStatus("disconnected");
+      ws.onclose = (event) => {
+        const closedBeforeReady = !isSetupCompleteRef.current;
+
+        console.log("Gemini WebSocket closed", {
+          code: event.code,
+          reason: event.reason,
+          wasClean: event.wasClean,
+        });
+
+        wsRef.current = null;
         cleanup();
+        setStatus("disconnected");
+
+        if (!manualCloseRef.current) {
+          if (closedBeforeReady) {
+            setError(
+              event.reason
+                ? `Gemini a fermé la session pendant le handshake : ${event.reason}`
+                : `Gemini a fermé la session pendant le handshake (code ${event.code}).`,
+            );
+          } else if (event.code !== 1000) {
+            setError(
+              event.reason
+                ? `Session interrompue : ${event.reason}`
+                : `Session interrompue (code ${event.code}).`,
+            );
+          }
+        }
+
+        manualCloseRef.current = false;
       };
-
-    } catch (err: any) {
+    } catch (err) {
       console.error("Start session error:", err);
-      setError(err.message || "Erreur lors du démarrage");
+      cleanup();
       setStatus("disconnected");
+      setError(err instanceof Error ? err.message : "Erreur lors du démarrage");
     }
-  }, [enqueueAudio]);
-
-  const cleanup = useCallback(() => {
-    cancelAnimationFrame(animFrameRef.current);
-    if (processorRef.current) {
-      processorRef.current.disconnect();
-      processorRef.current = null;
-    }
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(t => t.stop());
-      streamRef.current = null;
-    }
-    if (audioContextRef.current) {
-      audioContextRef.current.close();
-      audioContextRef.current = null;
-    }
-    analyserRef.current = null;
-    playbackQueueRef.current = [];
-    isPlayingRef.current = false;
-    setIsSpeaking(false);
-    setInputLevel(0);
-  }, []);
+  }, [cleanup, enqueueAudio]);
 
   const endSession = useCallback(() => {
+    manualCloseRef.current = true;
+
     if (wsRef.current) {
-      wsRef.current.close();
-      wsRef.current = null;
+      wsRef.current.close(1000, "User ended session");
+      return;
     }
+
     cleanup();
     setStatus("disconnected");
   }, [cleanup]);
 
-  return { status, isSpeaking, toolCalls, error, startSession, endSession, inputLevel };
+  return {
+    status,
+    isSpeaking,
+    toolCalls,
+    error,
+    startSession,
+    endSession,
+    inputLevel,
+  };
 }
