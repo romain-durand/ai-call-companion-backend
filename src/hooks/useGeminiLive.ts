@@ -47,13 +47,14 @@ const TOOL_DECLARATIONS = [
   },
   {
     name: "GetCalendar",
-    description: "Consulte le calendrier de Romain pour vérifier ses disponibilités",
+    description: "Consulte le calendrier de Romain pour vérifier ses disponibilités sur une période donnée",
     parameters: {
       type: "OBJECT",
       properties: {
-        query: { type: "STRING", description: "La demande concernant le calendrier (ex: disponibilités, prochains rendez-vous)" },
+        StartTime: { type: "STRING", description: "Date/heure de début au format ISO 8601 (ex: 2026-04-01T09:00:00+02:00)" },
+        EndTime: { type: "STRING", description: "Date/heure de fin au format ISO 8601 (ex: 2026-04-01T18:00:00+02:00)" },
       },
-      required: ["query"],
+      required: ["StartTime", "EndTime"],
     },
   },
 ];
