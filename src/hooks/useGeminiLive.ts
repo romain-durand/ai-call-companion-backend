@@ -343,7 +343,7 @@ export function useGeminiLive(systemInstruction?: string): UseGeminiLiveReturn {
                     body: {
                       toolName: call.name,
                       args: call.args,
-                      message: call.args?.query || JSON.stringify(call.args),
+                      message: call.args?.query || call.args?.StartTime || JSON.stringify(call.args),
                       webhookUrl: asyncWebhookUrl,
                       waitForResponse: true,
                     },
