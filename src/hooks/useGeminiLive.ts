@@ -332,36 +332,72 @@ export function useGeminiLive(systemInstruction?: string): UseGeminiLiveReturn {
 
               setToolCalls((prev) => [...prev, toolCall]);
 
-              // Notify n8n webhook via edge function
-              console.log("📡 Calling notify-n8n edge function...");
-              supabase.functions
-                .invoke("notify-n8n", {
-                  body: {
-                    toolName: call.name,
-                    args: call.args,
-                    message: call.args?.city || JSON.stringify(call.args),
-                  },
-                })
-                .then(({ data, error: n8nErr }) => {
-                  if (n8nErr) console.error("❌ n8n notification failed:", n8nErr);
-                  else console.log("✅ n8n notified, response:", data);
-                });
+              const asyncWebhookUrl = ASYNC_TOOLS[call.name];
 
-              ws.send(
-                JSON.stringify({
-                  toolResponse: {
-                    functionResponses: [
-                      {
-                        id: call.id,
-                        name: call.name,
-                        response: {
-                          result: { message: "Message transmis à Romain." },
+              if (asyncWebhookUrl) {
+                // Async tool: call n8n, wait for response, send back to Gemini
+                console.log(`📡 Async tool ${call.name}: calling n8n and waiting for response...`);
+                supabase.functions
+                  .invoke("notify-n8n", {
+                    body: {
+                      toolName: call.name,
+                      args: call.args,
+                      message: call.args?.query || JSON.stringify(call.args),
+                      webhookUrl: asyncWebhookUrl,
+                      waitForResponse: true,
+                    },
+                  })
+                  .then(({ data, error: n8nErr }) => {
+                    if (n8nErr) {
+                      console.error("❌ n8n async call failed:", n8nErr);
+                      ws.send(JSON.stringify({
+                        toolResponse: {
+                          functionResponses: [{
+                            id: call.id,
+                            name: call.name,
+                            response: { result: { error: "Impossible de récupérer les informations." } },
+                          }],
                         },
-                      },
-                    ],
+                      }));
+                    } else {
+                      console.log("✅ n8n async response:", data);
+                      ws.send(JSON.stringify({
+                        toolResponse: {
+                          functionResponses: [{
+                            id: call.id,
+                            name: call.name,
+                            response: { result: data?.body ? { data: data.body } : { data: JSON.stringify(data) } },
+                          }],
+                        },
+                      }));
+                    }
+                  });
+              } else {
+                // Fire-and-forget tool: notify n8n and respond immediately
+                console.log("📡 Fire-and-forget tool: notifying n8n...");
+                supabase.functions
+                  .invoke("notify-n8n", {
+                    body: {
+                      toolName: call.name,
+                      args: call.args,
+                      message: call.args?.city || JSON.stringify(call.args),
+                    },
+                  })
+                  .then(({ data, error: n8nErr }) => {
+                    if (n8nErr) console.error("❌ n8n notification failed:", n8nErr);
+                    else console.log("✅ n8n notified, response:", data);
+                  });
+
+                ws.send(JSON.stringify({
+                  toolResponse: {
+                    functionResponses: [{
+                      id: call.id,
+                      name: call.name,
+                      response: { result: { message: "Message transmis à Romain." } },
+                    }],
                   },
-                }),
-              );
+                }));
+              }
             }
           }
         } catch (parseError) {
