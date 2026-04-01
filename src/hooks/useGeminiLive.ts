@@ -228,7 +228,7 @@ export function useGeminiLive(systemInstruction?: string): UseGeminiLiveReturn {
               },
             },
             systemInstruction: {
-              parts: [{ text: SYSTEM_INSTRUCTION }],
+              parts: [{ text: systemInstruction || DEFAULT_SYSTEM_INSTRUCTION }],
             },
             tools: [{ functionDeclarations: TOOL_DECLARATIONS }],
           },
