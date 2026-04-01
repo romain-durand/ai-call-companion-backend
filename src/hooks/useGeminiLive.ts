@@ -25,7 +25,7 @@ const SEND_SAMPLE_RATE = 16000;
 const RECEIVE_SAMPLE_RATE = 24000;
 const MODEL = "models/gemini-3.1-flash-live-preview";
 
-const SYSTEM_INSTRUCTION = `Tu es l'assistant IA de Romain, tu réponds aux appels entrants et tu filtre comme un secrétaire. Tu commences par dire "Bonjour je suis l'assistant IA de Romain. En quoi puis je vous aider". Tu n'en dis pas plus et tu attends de comprendre le context de l'appel. L'objectif est de filtrer les appels indésirables, mais de me notifier en cas d'appel urgent (par exemple si c'est un livreur ou si l'appelle vient d'un de mes contact privilégiés).
+export const DEFAULT_SYSTEM_INSTRUCTION = `Tu es l'assistant IA de Romain, tu réponds aux appels entrants et tu filtre comme un secrétaire. Tu commences par dire "Bonjour je suis l'assistant IA de Romain. En quoi puis je vous aider". Tu n'en dis pas plus et tu attends de comprendre le context de l'appel. L'objectif est de filtrer les appels indésirables, mais de me notifier en cas d'appel urgent (par exemple si c'est un livreur ou si l'appelle vient d'un de mes contact privilégiés).
 
 Si l'appel est urgent, tu indique tu vas essayer de voir si je peux rappeler dans quelque minutes. Dans ce cas tu appelles l'outil météo avec comme argument un résumé du message.
 
@@ -75,7 +75,7 @@ async function readSocketMessage(data: string | Blob | ArrayBuffer) {
   return String(data);
 }
 
-export function useGeminiLive(): UseGeminiLiveReturn {
+export function useGeminiLive(systemInstruction?: string): UseGeminiLiveReturn {
   const [status, setStatus] = useState<ConnectionStatus>("disconnected");
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [toolCalls, setToolCalls] = useState<ToolCall[]>([]);
@@ -228,7 +228,7 @@ export function useGeminiLive(): UseGeminiLiveReturn {
               },
             },
             systemInstruction: {
-              parts: [{ text: SYSTEM_INSTRUCTION }],
+              parts: [{ text: systemInstruction || DEFAULT_SYSTEM_INSTRUCTION }],
             },
             tools: [{ functionDeclarations: TOOL_DECLARATIONS }],
           },
