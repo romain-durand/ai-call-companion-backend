@@ -6,7 +6,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const N8N_WEBHOOK_URL =
+const DEFAULT_N8N_WEBHOOK_URL =
   "https://n8n.ted.paris/webhook/466abacc-ec73-401a-9052-71a04ea95eda";
 
 serve(async (req) => {
@@ -16,11 +16,15 @@ serve(async (req) => {
 
   try {
     const body = await req.json().catch(() => ({}));
-    const { toolName, args, message } = body as {
+    const { toolName, args, message, webhookUrl, waitForResponse } = body as {
       toolName?: string;
       args?: Record<string, string>;
       message?: string;
+      webhookUrl?: string;
+      waitForResponse?: boolean;
     };
+
+    const baseUrl = webhookUrl || DEFAULT_N8N_WEBHOOK_URL;
 
     const params = new URLSearchParams();
     if (toolName) params.set("tool", toolName);
@@ -31,7 +35,7 @@ serve(async (req) => {
       }
     }
 
-    const url = `${N8N_WEBHOOK_URL}?${params.toString()}`;
+    const url = `${baseUrl}?${params.toString()}`;
     console.log("Calling n8n webhook:", url);
 
     const resp = await fetch(url, { method: "GET" });
