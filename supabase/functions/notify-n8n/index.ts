@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 const N8N_WEBHOOK_URL =
-  "https://n8n.ted.paris/webhook-test/466abacc-ec73-401a-9052-71a04ea95eda";
+  "https://n8n.ted.paris/webhook/466abacc-ec73-401a-9052-71a04ea95eda";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
