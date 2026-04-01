@@ -36,15 +36,37 @@ Dans les autres cas tu dis que tu prends le message et que tu me le transmettra.
 const TOOL_DECLARATIONS = [
   {
     name: "getWeather",
+    description: "Transmet un message ou une notification à Romain",
     parameters: {
       type: "OBJECT",
       properties: {
-        city: { type: "STRING" },
+        city: { type: "STRING", description: "Le message ou résumé à transmettre" },
       },
       required: ["city"],
     },
   },
+  {
+    name: "GetCalendar",
+    description: "Consulte le calendrier de Romain pour vérifier ses disponibilités",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        query: { type: "STRING", description: "La demande concernant le calendrier (ex: disponibilités, prochains rendez-vous)" },
+      },
+      required: ["query"],
+    },
+  },
 ];
+
+// Tools that require waiting for n8n response before replying to Gemini
+const ASYNC_TOOLS: Record<string, string> = {
+  GetCalendar: "https://n8n.ted.paris/webhook/GetCalendar",
+};
+
+// Tools that are fire-and-forget (notify only)
+const NOTIFY_TOOLS: Record<string, boolean> = {
+  getWeather: true,
+};
 
 function encodeAudioChunk(input: Float32Array) {
   const int16 = new Int16Array(input.length);
