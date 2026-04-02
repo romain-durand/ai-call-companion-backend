@@ -10,10 +10,21 @@ export interface ToolCall {
   timestamp: Date;
 }
 
+export interface ToolExchange {
+  id: string;
+  callName: string;
+  callArgs: Record<string, unknown>;
+  callTimestamp: Date;
+  response?: Record<string, unknown>;
+  responseTimestamp?: Date;
+  status: "pending" | "success" | "error";
+}
+
 export interface UseGeminiLiveReturn {
   status: ConnectionStatus;
   isSpeaking: boolean;
   toolCalls: ToolCall[];
+  toolExchanges: ToolExchange[];
   error: string | null;
   startSession: () => Promise<void>;
   endSession: () => void;
@@ -121,6 +132,7 @@ export function useGeminiLive(systemInstruction?: string): UseGeminiLiveReturn {
   const [status, setStatus] = useState<ConnectionStatus>("disconnected");
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [toolCalls, setToolCalls] = useState<ToolCall[]>([]);
+  const [toolExchanges, setToolExchanges] = useState<ToolExchange[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [inputLevel, setInputLevel] = useState(0);
 
@@ -343,8 +355,9 @@ export function useGeminiLive(systemInstruction?: string): UseGeminiLiveReturn {
           if (msg.toolCall?.functionCalls) {
             console.log("🔧 toolCall received!", JSON.stringify(msg.toolCall));
             for (const call of msg.toolCall.functionCalls) {
+              const exchangeId = call.id || crypto.randomUUID();
               const toolCall: ToolCall = {
-                id: call.id || crypto.randomUUID(),
+                id: exchangeId,
                 name: call.name,
                 args: (call.args || {}) as Record<string, string>,
                 timestamp: new Date(),
@@ -352,10 +365,29 @@ export function useGeminiLive(systemInstruction?: string): UseGeminiLiveReturn {
 
               setToolCalls((prev) => [...prev, toolCall]);
 
+              // Add exchange entry (pending)
+              const exchange: ToolExchange = {
+                id: exchangeId,
+                callName: call.name,
+                callArgs: (call.args || {}) as Record<string, unknown>,
+                callTimestamp: new Date(),
+                status: "pending",
+              };
+              setToolExchanges((prev) => [...prev, exchange]);
+
+              const updateExchange = (response: Record<string, unknown>, status: "success" | "error") => {
+                setToolExchanges((prev) =>
+                  prev.map((ex) =>
+                    ex.id === exchangeId
+                      ? { ...ex, response, responseTimestamp: new Date(), status }
+                      : ex
+                  )
+                );
+              };
+
               const asyncWebhookUrl = ASYNC_TOOLS[call.name];
 
               if (asyncWebhookUrl) {
-                // Async tool: call n8n, wait for response, send back to Gemini
                 console.log(`📡 Async tool ${call.name}: calling n8n and waiting for response...`);
                 supabase.functions
                   .invoke("notify-n8n", {
@@ -370,31 +402,37 @@ export function useGeminiLive(systemInstruction?: string): UseGeminiLiveReturn {
                   .then(({ data, error: n8nErr }) => {
                     if (n8nErr) {
                       console.error("❌ n8n async call failed:", n8nErr);
+                      const errorResponse = { error: "Impossible de récupérer les informations." };
+                      updateExchange(errorResponse, "error");
                       ws.send(JSON.stringify({
                         toolResponse: {
                           functionResponses: [{
                             id: call.id,
                             name: call.name,
-                            response: { result: { error: "Impossible de récupérer les informations." } },
+                            response: { result: errorResponse },
                           }],
                         },
                       }));
                     } else {
                       console.log("✅ n8n async response:", data);
+                      const successResponse = data?.body ? { data: data.body } : { data: JSON.stringify(data) };
+                      updateExchange(successResponse, "success");
                       ws.send(JSON.stringify({
                         toolResponse: {
                           functionResponses: [{
                             id: call.id,
                             name: call.name,
-                            response: { result: data?.body ? { data: data.body } : { data: JSON.stringify(data) } },
+                            response: { result: successResponse },
                           }],
                         },
                       }));
                     }
                   });
               } else {
-                // Fire-and-forget tool: notify n8n and respond immediately
                 console.log("📡 Fire-and-forget tool: notifying n8n...");
+                const immediateResponse = { message: "Message transmis à Romain." };
+                updateExchange(immediateResponse, "success");
+
                 supabase.functions
                   .invoke("notify-n8n", {
                     body: {
@@ -413,7 +451,7 @@ export function useGeminiLive(systemInstruction?: string): UseGeminiLiveReturn {
                     functionResponses: [{
                       id: call.id,
                       name: call.name,
-                      response: { result: { message: "Message transmis à Romain." } },
+                      response: { result: immediateResponse },
                     }],
                   },
                 }));
@@ -486,6 +524,7 @@ export function useGeminiLive(systemInstruction?: string): UseGeminiLiveReturn {
     status,
     isSpeaking,
     toolCalls,
+    toolExchanges,
     error,
     startSession,
     endSession,

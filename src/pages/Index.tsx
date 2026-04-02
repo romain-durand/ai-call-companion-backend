@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Bot, Wifi, WifiOff, Settings, Phone } from "lucide-react";
+import { Bot, Wifi, WifiOff, Settings, Phone, Terminal } from "lucide-react";
 import { CallButton } from "@/components/CallButton";
 import { AudioWave } from "@/components/AudioWave";
 import { ToolCallLog } from "@/components/ToolCallLog";
+import { ToolExchangeLog } from "@/components/ToolExchangeLog";
 import { useGeminiLive, DEFAULT_SYSTEM_INSTRUCTION } from "@/hooks/useGeminiLive";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,7 +13,7 @@ import { Button } from "@/components/ui/button";
 const Index = () => {
   const [systemPrompt, setSystemPrompt] = useState(DEFAULT_SYSTEM_INSTRUCTION);
   const [savedPrompt, setSavedPrompt] = useState(DEFAULT_SYSTEM_INSTRUCTION);
-  const { status, isSpeaking, toolCalls, error, startSession, endSession, inputLevel, audioChunksReceived } = useGeminiLive(savedPrompt);
+  const { status, isSpeaking, toolCalls, toolExchanges, error, startSession, endSession, inputLevel, audioChunksReceived } = useGeminiLive(savedPrompt);
 
   const isConnected = status === "connected";
   const hasChanges = systemPrompt !== savedPrompt;
@@ -54,6 +55,10 @@ const Index = () => {
             <TabsTrigger value="prompt" className="flex-1 gap-2">
               <Settings className="w-4 h-4" />
               Prompt
+            </TabsTrigger>
+            <TabsTrigger value="tools" className="flex-1 gap-2">
+              <Terminal className="w-4 h-4" />
+              Outils
             </TabsTrigger>
           </TabsList>
 
@@ -153,6 +158,15 @@ const Index = () => {
                   Les changements seront appliqués à la prochaine session.
                 </p>
               )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="tools">
+            <div className="flex flex-col gap-4 pt-4">
+              <p className="text-sm text-muted-foreground">
+                Appels d'outils envoyés par Gemini et réponses renvoyées après exécution.
+              </p>
+              <ToolExchangeLog exchanges={toolExchanges} />
             </div>
           </TabsContent>
         </Tabs>
