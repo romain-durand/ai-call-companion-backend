@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 const Index = () => {
   const [systemPrompt, setSystemPrompt] = useState(DEFAULT_SYSTEM_INSTRUCTION);
   const [savedPrompt, setSavedPrompt] = useState(DEFAULT_SYSTEM_INSTRUCTION);
-  const { status, isSpeaking, toolCalls, error, startSession, endSession, inputLevel, audioChunksReceived } = useGeminiLive(savedPrompt);
+  const { status, isSpeaking, toolCalls, toolExchanges, error, startSession, endSession, inputLevel, audioChunksReceived } = useGeminiLive(savedPrompt);
 
   const isConnected = status === "connected";
   const hasChanges = systemPrompt !== savedPrompt;
