@@ -498,6 +498,7 @@ export function useGeminiLive(systemInstruction?: string): UseGeminiLiveReturn {
     status,
     isSpeaking,
     toolCalls,
+    toolExchanges,
     error,
     startSession,
     endSession,
