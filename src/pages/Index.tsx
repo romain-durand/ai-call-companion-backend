@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Bot, Wifi, WifiOff, Settings, Phone } from "lucide-react";
+import { Bot, Wifi, WifiOff, Settings, Phone, Terminal } from "lucide-react";
 import { CallButton } from "@/components/CallButton";
 import { AudioWave } from "@/components/AudioWave";
 import { ToolCallLog } from "@/components/ToolCallLog";
+import { ToolExchangeLog } from "@/components/ToolExchangeLog";
 import { useGeminiLive, DEFAULT_SYSTEM_INSTRUCTION } from "@/hooks/useGeminiLive";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
