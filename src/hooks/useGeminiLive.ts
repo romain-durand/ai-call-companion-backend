@@ -57,11 +57,26 @@ const TOOL_DECLARATIONS = [
       required: ["StartTime", "EndTime"],
     },
   },
+  {
+    name: "setCalendar",
+    description: "Crée un événement dans le calendrier de Romain",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        StartTime: { type: "STRING", description: "Date/heure de début au format ISO 8601 (ex: 2026-04-01T09:00:00+02:00)" },
+        EndTime: { type: "STRING", description: "Date/heure de fin au format ISO 8601 (ex: 2026-04-01T18:00:00+02:00)" },
+        Attendees: { type: "STRING", description: "Liste des participants (noms ou emails séparés par des virgules)" },
+        Description: { type: "STRING", description: "Description ou objet de l'événement" },
+      },
+      required: ["StartTime", "EndTime", "Attendees", "Description"],
+    },
+  },
 ];
 
 // Tools that require waiting for n8n response before replying to Gemini
 const ASYNC_TOOLS: Record<string, string> = {
   GetCalendar: "https://n8n.ted.paris/webhook/GetCalendar",
+  setCalendar: "https://n8n.ted.paris/webhook/d586910a-0139-498f-a089-ddeeafbf934a",
 };
 
 // Tools that are fire-and-forget (notify only)
