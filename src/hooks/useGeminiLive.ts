@@ -10,10 +10,21 @@ export interface ToolCall {
   timestamp: Date;
 }
 
+export interface ToolExchange {
+  id: string;
+  callName: string;
+  callArgs: Record<string, unknown>;
+  callTimestamp: Date;
+  response?: Record<string, unknown>;
+  responseTimestamp?: Date;
+  status: "pending" | "success" | "error";
+}
+
 export interface UseGeminiLiveReturn {
   status: ConnectionStatus;
   isSpeaking: boolean;
   toolCalls: ToolCall[];
+  toolExchanges: ToolExchange[];
   error: string | null;
   startSession: () => Promise<void>;
   endSession: () => void;
