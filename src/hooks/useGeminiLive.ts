@@ -132,6 +132,7 @@ export function useGeminiLive(systemInstruction?: string): UseGeminiLiveReturn {
   const [status, setStatus] = useState<ConnectionStatus>("disconnected");
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [toolCalls, setToolCalls] = useState<ToolCall[]>([]);
+  const [toolExchanges, setToolExchanges] = useState<ToolExchange[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [inputLevel, setInputLevel] = useState(0);
 
