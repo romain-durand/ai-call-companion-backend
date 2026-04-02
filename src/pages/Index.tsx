@@ -160,6 +160,15 @@ const Index = () => {
               )}
             </div>
           </TabsContent>
+
+          <TabsContent value="tools">
+            <div className="flex flex-col gap-4 pt-4">
+              <p className="text-sm text-muted-foreground">
+                Appels d'outils envoyés par Gemini et réponses renvoyées après exécution.
+              </p>
+              <ToolExchangeLog exchanges={toolExchanges} />
+            </div>
+          </TabsContent>
         </Tabs>
       </div>
     </div>
