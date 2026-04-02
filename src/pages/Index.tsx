@@ -56,6 +56,10 @@ const Index = () => {
               <Settings className="w-4 h-4" />
               Prompt
             </TabsTrigger>
+            <TabsTrigger value="tools" className="flex-1 gap-2">
+              <Terminal className="w-4 h-4" />
+              Outils
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="call">
