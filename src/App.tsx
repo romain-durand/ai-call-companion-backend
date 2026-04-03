@@ -37,6 +37,7 @@ const App = () => (
             <Route path="/history" element={<CallHistory />} />
             <Route path="/calendar" element={<CalendarPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/test" element={<TestAssistant />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </DashboardLayout>
