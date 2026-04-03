@@ -12,10 +12,11 @@ export interface Call {
   transcript?: string;
   actions: CallAction[];
   urgent: boolean;
+  reasoning?: string;
 }
 
 export interface CallAction {
-  type: "appointment" | "message" | "escalation" | "callback" | "info";
+  type: "appointment" | "message" | "escalation" | "callback" | "info" | "blocked";
   description: string;
   timestamp: Date;
 }
@@ -223,11 +224,11 @@ export const smartScenarios: SmartScenario[] = [
 ];
 
 export const callerGroups: CallerGroup[] = [
-  { id: "family", label: "Proches", emoji: "👨‍👩‍👧‍👦", description: "Famille et amis proches", defaultBehavior: "always_let_through", memberCount: 8, color: "hsl(175 70% 50%)" },
-  { id: "vip", label: "VIP", emoji: "⭐", description: "Contacts prioritaires", defaultBehavior: "assistant_first", memberCount: 5, color: "hsl(45 90% 55%)" },
-  { id: "clients", label: "Clients", emoji: "💼", description: "Clients et partenaires", defaultBehavior: "propose_meeting", memberCount: 23, color: "hsl(220 70% 60%)" },
-  { id: "deliveries", label: "Livreurs", emoji: "📦", description: "Livraisons et services", defaultBehavior: "assistant_first", memberCount: 4, color: "hsl(145 60% 45%)" },
-  { id: "unknown", label: "Inconnus", emoji: "❓", description: "Numéros non identifiés", defaultBehavior: "notify_urgent", memberCount: 0, color: "hsl(0 0% 50%)" },
+  { id: "family", label: "Proches", emoji: "👨‍👩‍👧‍👦", description: "Famille et amis proches", defaultBehavior: "always_let_through", memberCount: 8, color: "hsl(170 65% 47%)" },
+  { id: "vip", label: "VIP", emoji: "⭐", description: "Contacts prioritaires", defaultBehavior: "assistant_first", memberCount: 5, color: "hsl(45 85% 55%)" },
+  { id: "clients", label: "Clients", emoji: "💼", description: "Clients et partenaires", defaultBehavior: "propose_meeting", memberCount: 23, color: "hsl(220 65% 58%)" },
+  { id: "deliveries", label: "Livreurs", emoji: "📦", description: "Livraisons et services", defaultBehavior: "assistant_first", memberCount: 4, color: "hsl(152 55% 45%)" },
+  { id: "unknown", label: "Inconnus", emoji: "❓", description: "Numéros non identifiés", defaultBehavior: "notify_urgent", memberCount: 0, color: "hsl(0 0% 45%)" },
 ];
 
 export const profiles: Profile[] = [
@@ -302,11 +303,12 @@ export const recentCalls: Call[] = [
     timestamp: mins(12),
     duration: 45,
     status: "answered",
-    summary: "Marie a demandé si tu étais disponible ce weekend pour un dîner. L'assistant a vérifié ton calendrier et confirmé que samedi soir est libre.",
-    transcript: "Assistant: Bonjour, vous êtes sur la messagerie de Romain. Comment puis-je vous aider ?\nMarie: Salut, c'est Marie ! Est-ce que Romain est libre ce weekend pour dîner ?\nAssistant: Laissez-moi vérifier son calendrier... Romain est disponible samedi soir. Souhaitez-vous que je bloque ce créneau ?\nMarie: Oui, ce serait parfait ! Merci.\nAssistant: C'est noté. Romain sera informé. Bonne journée Marie !",
+    summary: "Marie a demandé si vous étiez disponible ce weekend pour un dîner. Aria a vérifié votre calendrier et confirmé samedi soir.",
+    reasoning: "Appelante identifiée comme « Proches ». Profil Travail actif → comportement escalade. L'appel ne semble pas urgent, j'ai vérifié le calendrier et répondu directement.",
+    transcript: "Aria: Bonjour, vous êtes sur la ligne de Romain. Je suis Aria, son assistante. Comment puis-je vous aider ?\n\nMarie: Salut Aria ! C'est Marie, sa sœur. Est-ce qu'il est libre ce weekend pour dîner ?\n\nAria: Bonjour Marie ! Laissez-moi vérifier son calendrier... Romain est disponible samedi soir à partir de 19h. Souhaitez-vous que je réserve ce créneau ?\n\nMarie: Oui, parfait ! On se retrouve chez moi à 19h30.\n\nAria: C'est noté — dîner chez Marie, samedi à 19h30. Je préviens Romain. Bonne journée Marie !",
     actions: [
-      { type: "appointment", description: "Dîner samedi soir bloqué dans le calendrier", timestamp: mins(11) },
-      { type: "message", description: "Notification envoyée à Romain", timestamp: mins(11) },
+      { type: "appointment", description: "Dîner samedi 19h30 chez Marie — ajouté au calendrier", timestamp: mins(11) },
+      { type: "message", description: "Notification envoyée à Romain avec le résumé", timestamp: mins(11) },
     ],
     urgent: false,
   },
@@ -318,9 +320,11 @@ export const recentCalls: Call[] = [
     timestamp: mins(47),
     duration: 120,
     status: "answered",
-    summary: "Appel urgent du Dr. Laurent concernant des résultats d'analyses. L'assistant a escaladé immédiatement.",
+    summary: "Appel urgent du Dr. Laurent concernant des résultats d'analyses à communiquer rapidement. Escaladé immédiatement.",
+    reasoning: "Contact VIP. Le Dr. Laurent a mentionné « résultats importants » et « rappeler rapidement ». Mots-clés d'urgence détectés → escalade immédiate.",
+    transcript: "Aria: Bonjour, ligne de Romain, Aria à votre service.\n\nDr. Laurent: Bonjour Aria, c'est le Dr. Laurent. J'ai des résultats d'analyses importants pour Romain, il faut que je lui parle rapidement.\n\nAria: Bien sûr docteur, je détecte que c'est urgent. Je transfère l'appel immédiatement.\n\n[Transfert en cours...]\n\nAria: Romain, le Dr. Laurent est en ligne avec des résultats d'analyses urgents.",
     actions: [
-      { type: "escalation", description: "Appel transféré — marqué comme urgent", timestamp: mins(46) },
+      { type: "escalation", description: "Appel transféré immédiatement — urgence médicale détectée", timestamp: mins(46) },
     ],
     urgent: true,
   },
@@ -332,37 +336,44 @@ export const recentCalls: Call[] = [
     timestamp: hours(2),
     duration: 90,
     status: "answered",
-    summary: "Sophie souhaite reprogrammer la réunion de mercredi. L'assistant a proposé jeudi 14h et confirmé le nouveau créneau.",
+    summary: "Sophie souhaite reprogrammer la réunion de mercredi. Aria a trouvé un créneau jeudi 14h et confirmé la modification.",
+    reasoning: "Contact « Clients ». Demande de reprogrammation de réunion → vérification du calendrier. Créneau jeudi 14h disponible, confirmation envoyée aux deux parties.",
+    transcript: "Aria: Bonjour, cabinet de Romain, Aria à votre service.\n\nSophie: Bonjour Aria, c'est Sophie Martin de chez Nexus Digital. Je voulais reprogrammer notre réunion de mercredi, un imprévu.\n\nAria: Pas de souci Sophie. Voyons les disponibilités... Romain est libre jeudi à 10h, 14h ou vendredi matin. Quelle option vous convient ?\n\nSophie: Jeudi 14h, c'est parfait.\n\nAria: C'est confirmé. Je mets à jour les calendriers et je vous envoie une confirmation. À jeudi Sophie !",
     actions: [
-      { type: "appointment", description: "Réunion déplacée au jeudi 14h", timestamp: hours(2) },
-      { type: "message", description: "Confirmation envoyée par SMS", timestamp: hours(2) },
+      { type: "appointment", description: "Réunion replanifiée — mercredi → jeudi 14h", timestamp: hours(2) },
+      { type: "message", description: "Confirmation envoyée par email à Sophie et Romain", timestamp: hours(2) },
     ],
     urgent: false,
   },
   {
     id: "c4",
-    callerName: "Chronopost",
+    callerName: "DPD Livraison",
     callerNumber: "+33 9 69 39 10 00",
     group: "deliveries",
     timestamp: hours(3),
-    duration: 30,
+    duration: 35,
     status: "answered",
-    summary: "Livreur Chronopost pour un colis. L'assistant a donné les instructions d'accès et le code de l'immeuble.",
+    summary: "Livreur DPD avec un colis. Aria a communiqué le code d'accès et les instructions de livraison automatiquement.",
+    reasoning: "Numéro identifié comme service de livraison. Scénario « Appel de livraison » activé → transmission automatique du code et des instructions.",
+    transcript: "Aria: Bonjour, ligne de Romain. Aria, assistante personnelle.\n\nLivreur: Bonjour, DPD livraison, j'ai un colis pour M. Romain au 42 rue des Lilas. Je suis en bas de l'immeuble.\n\nAria: Parfait ! Le code de l'immeuble est 4521B. Montez au 3e étage, porte de droite. Vous pouvez laisser le colis devant la porte si personne ne répond.\n\nLivreur: Super, merci beaucoup !\n\nAria: Bonne journée !",
     actions: [
-      { type: "info", description: "Code immeuble et étage communiqués", timestamp: hours(3) },
+      { type: "info", description: "Code immeuble 4521B et étage communiqués au livreur", timestamp: hours(3) },
     ],
     urgent: false,
   },
   {
     id: "c5",
-    callerName: "Numéro inconnu",
+    callerName: "Spam — Assurance auto",
     callerNumber: "+33 1 00 00 00 00",
     group: "unknown",
     timestamp: hours(4),
     duration: 0,
     status: "blocked",
-    summary: "Appel d'un numéro inconnu identifié comme potentiel démarchage. Bloqué automatiquement.",
-    actions: [],
+    summary: "Numéro identifié comme démarchage commercial (base de signalements). Appel bloqué automatiquement.",
+    reasoning: "Numéro inconnu figurant dans la base de signalements de spam. Aucune action requise → bloqué silencieusement.",
+    actions: [
+      { type: "blocked", description: "Numéro signalé comme spam — bloqué automatiquement", timestamp: hours(4) },
+    ],
     urgent: false,
   },
   {
@@ -371,11 +382,13 @@ export const recentCalls: Call[] = [
     callerNumber: "+33 6 11 22 33 44",
     group: "family",
     timestamp: hours(5),
-    duration: 60,
+    duration: 55,
     status: "answered",
-    summary: "Ton père a appelé pour confirmer le déjeuner de dimanche. L'assistant a confirmé ta présence.",
+    summary: "Votre père a appelé pour confirmer le déjeuner familial de dimanche midi. Aria a confirmé votre présence.",
+    reasoning: "Contact « Proches ». Pas d'urgence détectée. Demande simple de confirmation → vérification calendrier et confirmation directe.",
+    transcript: "Aria: Bonjour, c'est Aria sur la ligne de Romain.\n\nPapa: Bonjour Aria ! C'est son père. Je voulais confirmer qu'on se voit dimanche midi pour le déjeuner ?\n\nAria: Bonjour ! Romain est bien disponible dimanche. À quelle heure souhaitez-vous ?\n\nPapa: 12h30 comme d'habitude, chez nous.\n\nAria: Parfait, c'est noté dans son agenda. Déjeuner familial dimanche 12h30. Il sera là !",
     actions: [
-      { type: "appointment", description: "Déjeuner dimanche 12h30 confirmé", timestamp: hours(5) },
+      { type: "appointment", description: "Déjeuner familial dimanche 12h30 — confirmé", timestamp: hours(5) },
     ],
     urgent: false,
   },
@@ -387,9 +400,11 @@ export const recentCalls: Call[] = [
     timestamp: hours(8),
     duration: 0,
     status: "voicemail",
-    summary: "Alexandre a laissé un message vocal demandant un devis pour le projet web.",
+    summary: "Alexandre a laissé un message vocal détaillé demandant un devis pour un projet de refonte web. Budget estimé 15-20k€.",
+    reasoning: "Contact « Clients ». Romain indisponible → messagerie. Le message contient une demande de devis qualifiée avec un budget mentionné. Priorité : rappel suggéré.",
     actions: [
-      { type: "callback", description: "Rappel suggéré — demande de devis", timestamp: hours(8) },
+      { type: "callback", description: "Rappel prioritaire suggéré — prospect qualifié, devis 15-20k€", timestamp: hours(8) },
+      { type: "message", description: "Transcription vocale envoyée par notification", timestamp: hours(8) },
     ],
     urgent: false,
   },
@@ -401,10 +416,40 @@ export const recentCalls: Call[] = [
     timestamp: hours(24),
     duration: 180,
     status: "answered",
-    summary: "Appel de ta mère, elle voulait discuter des vacances d'été. L'assistant a pris note des dates proposées.",
+    summary: "Votre mère a discuté des vacances d'été. Aria a pris note des dates proposées (15-30 août) et les a ajoutées en brouillon.",
+    reasoning: "Contact « Proches ». Conversation longue, sujet non urgent. Prise de notes automatique des informations clés mentionnées.",
     actions: [
-      { type: "message", description: "Note : vacances proposées du 15 au 30 août", timestamp: hours(24) },
+      { type: "message", description: "Note créée : vacances proposées du 15 au 30 août en Bretagne", timestamp: hours(24) },
     ],
+    urgent: false,
+  },
+  {
+    id: "c9",
+    callerName: "Cabinet dentaire",
+    callerNumber: "+33 1 42 55 66 77",
+    group: "unknown",
+    timestamp: hours(26),
+    duration: 40,
+    status: "answered",
+    summary: "Rappel de rendez-vous dentaire mardi prochain 10h. Aria a confirmé et ajouté un rappel au calendrier.",
+    reasoning: "Numéro inconnu mais l'appelant s'est identifié comme cabinet médical. Contenu non urgent. Confirmation automatique et ajout calendrier.",
+    transcript: "Aria: Bonjour, ligne de Romain.\n\nSecrétaire: Bonjour, c'est le cabinet dentaire du Dr. Benoit. Je vous appelle pour confirmer votre rendez-vous mardi prochain à 10h.\n\nAria: Bonjour, laissez-moi vérifier... Oui, c'est bien noté. Je confirme la présence de Romain mardi à 10h.\n\nSecrétaire: Parfait, merci et bonne journée !",
+    actions: [
+      { type: "appointment", description: "RDV dentaire mardi 10h — confirmé avec rappel J-1", timestamp: hours(26) },
+    ],
+    urgent: false,
+  },
+  {
+    id: "c10",
+    callerName: "Numéro masqué",
+    callerNumber: "Numéro masqué",
+    group: "unknown",
+    timestamp: hours(30),
+    duration: 8,
+    status: "missed",
+    summary: "Appel depuis un numéro masqué. L'appelant a raccroché après 8 secondes sans laisser de message.",
+    reasoning: "Numéro masqué, aucune identification possible. L'appelant n'a pas souhaité interagir avec l'assistante. Aucune action requise.",
+    actions: [],
     urgent: false,
   },
 ];
@@ -416,6 +461,8 @@ export const dashboardStats = {
   escalations: 1,
   blocked: 3,
   averageDuration: 65,
+  messagesLeft: 7,
+  satisfactionRate: 96,
 };
 
 export const bookingRules = {
@@ -426,3 +473,80 @@ export const bookingRules = {
   workingDays: [1, 2, 3, 4, 5],
   bufferBetween: 15,
 };
+
+// Test scenarios for the "Test my assistant" feature
+export interface TestScenario {
+  id: string;
+  label: string;
+  emoji: string;
+  description: string;
+  callerGroup: CallerGroupType;
+  isUrgent: boolean;
+  simulatedDialogue: { speaker: "caller" | "aria"; text: string }[];
+  expectedActions: string[];
+}
+
+export const testScenarios: TestScenario[] = [
+  {
+    id: "test_delivery",
+    label: "Un livreur sonne",
+    emoji: "📦",
+    description: "Un livreur Amazon appelle pour déposer un colis",
+    callerGroup: "deliveries",
+    isUrgent: false,
+    simulatedDialogue: [
+      { speaker: "aria", text: "Bonjour, vous êtes sur la ligne de Romain. Je suis Aria, son assistante." },
+      { speaker: "caller", text: "Bonjour, c'est Amazon. J'ai un colis pour M. Romain, je suis en bas." },
+      { speaker: "aria", text: "Le code de l'immeuble est 4521B. Montez au 3e étage, porte de droite." },
+      { speaker: "caller", text: "Merci !" },
+      { speaker: "aria", text: "Bonne journée ! Je notifie Romain de votre passage." },
+    ],
+    expectedActions: ["Code d'accès communiqué", "Notification envoyée"],
+  },
+  {
+    id: "test_urgent_family",
+    label: "Urgence familiale",
+    emoji: "🚑",
+    description: "Votre mère appelle en mentionnant une urgence",
+    callerGroup: "family",
+    isUrgent: true,
+    simulatedDialogue: [
+      { speaker: "aria", text: "Bonjour, ligne de Romain." },
+      { speaker: "caller", text: "Aria, c'est sa mère ! C'est urgent, son père est à l'hôpital !" },
+      { speaker: "aria", text: "Je comprends l'urgence. Je transfère immédiatement l'appel à Romain." },
+    ],
+    expectedActions: ["Urgence détectée — mots-clés : hôpital", "Appel transféré immédiatement"],
+  },
+  {
+    id: "test_new_client",
+    label: "Nouveau prospect",
+    emoji: "💼",
+    description: "Un potentiel client appelle pour la première fois",
+    callerGroup: "clients",
+    isUrgent: false,
+    simulatedDialogue: [
+      { speaker: "aria", text: "Bonjour, cabinet de Romain. Je suis Aria, son assistante. Comment puis-je vous aider ?" },
+      { speaker: "caller", text: "Bonjour, je suis Thomas de StartupXYZ. On cherche un freelance pour un projet d'app mobile." },
+      { speaker: "aria", text: "Merci Thomas ! Pouvez-vous me donner plus de détails sur le projet et votre budget approximatif ?" },
+      { speaker: "caller", text: "On vise une app iOS/Android, budget autour de 25k€, livraison en 3 mois." },
+      { speaker: "aria", text: "Parfait. Je note tout ça et je propose un créneau cette semaine. Jeudi 15h vous conviendrait ?" },
+      { speaker: "caller", text: "Jeudi 15h, c'est parfait !" },
+      { speaker: "aria", text: "C'est noté ! Vous recevrez une confirmation par email. À jeudi Thomas !" },
+    ],
+    expectedActions: ["Prospect qualifié — budget 25k€", "RDV jeudi 15h proposé et confirmé", "Fiche contact créée"],
+  },
+  {
+    id: "test_spam",
+    label: "Appel de spam",
+    emoji: "🚫",
+    description: "Un démarcheur commercial insistant",
+    callerGroup: "unknown",
+    isUrgent: false,
+    simulatedDialogue: [
+      { speaker: "aria", text: "Bonjour, ligne de Romain." },
+      { speaker: "caller", text: "Bonjour monsieur ! Vous avez été sélectionné pour une offre exceptionnelle sur—" },
+      { speaker: "aria", text: "Je vous arrête — Romain ne souhaite pas être démarché. Merci de retirer ce numéro de votre liste. Au revoir." },
+    ],
+    expectedActions: ["Démarchage détecté", "Appel terminé poliment", "Numéro ajouté à la liste de blocage"],
+  },
+];
