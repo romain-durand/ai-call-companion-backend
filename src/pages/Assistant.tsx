@@ -19,7 +19,7 @@ const Index = () => {
   const hasChanges = systemPrompt !== savedPrompt;
 
   return (
-    <div className="min-h-screen flex flex-col items-center p-6 relative overflow-hidden">
+    <div className="flex flex-col items-center relative overflow-hidden">
       {/* Background gradient */}
       <div className="absolute inset-0 bg-gradient-to-b from-background via-background to-secondary/30" />
       
