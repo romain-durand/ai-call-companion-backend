@@ -14,6 +14,7 @@ import CallHandling from "./pages/CallHandling";
 import CallHistory from "./pages/CallHistory";
 import CalendarPage from "./pages/CalendarPage";
 import SettingsPage from "./pages/SettingsPage";
+import TestAssistant from "./pages/TestAssistant";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -36,6 +37,7 @@ const App = () => (
             <Route path="/history" element={<CallHistory />} />
             <Route path="/calendar" element={<CalendarPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/test" element={<TestAssistant />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </DashboardLayout>

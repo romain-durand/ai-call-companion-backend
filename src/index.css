@@ -1,56 +1,57 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
-
 @layer base {
   :root {
-    --background: 220 20% 7%;
-    --foreground: 210 20% 90%;
+    --background: 225 15% 6%;
+    --foreground: 210 15% 92%;
 
-    --card: 220 18% 10%;
-    --card-foreground: 210 20% 90%;
+    --card: 225 12% 9%;
+    --card-foreground: 210 15% 92%;
 
-    --popover: 220 18% 10%;
-    --popover-foreground: 210 20% 90%;
+    --popover: 225 12% 9%;
+    --popover-foreground: 210 15% 92%;
 
-    --primary: 175 70% 50%;
-    --primary-foreground: 220 20% 7%;
+    --primary: 170 65% 47%;
+    --primary-foreground: 225 15% 6%;
 
-    --secondary: 220 15% 15%;
-    --secondary-foreground: 210 20% 85%;
+    --secondary: 225 10% 13%;
+    --secondary-foreground: 210 15% 80%;
 
-    --muted: 220 15% 13%;
-    --muted-foreground: 215 12% 50%;
+    --muted: 225 10% 11%;
+    --muted-foreground: 220 8% 45%;
 
-    --accent: 175 70% 50%;
-    --accent-foreground: 220 20% 7%;
+    --accent: 170 65% 47%;
+    --accent-foreground: 225 15% 6%;
 
-    --destructive: 0 72% 55%;
+    --destructive: 0 65% 52%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 220 15% 18%;
-    --input: 220 15% 18%;
-    --ring: 175 70% 50%;
+    --border: 225 10% 14%;
+    --input: 225 10% 14%;
+    --ring: 170 65% 47%;
 
-    --radius: 0.75rem;
+    --radius: 0.625rem;
 
-    --glow-primary: 175 80% 55%;
-    --glow-success: 145 70% 50%;
-    --glow-warning: 35 90% 55%;
-    --glow-danger: 0 72% 55%;
+    --glow-primary: 170 70% 50%;
+    --glow-success: 152 60% 48%;
+    --glow-warning: 38 85% 55%;
+    --glow-danger: 0 65% 52%;
 
-    --sidebar-background: 220 18% 10%;
-    --sidebar-foreground: 210 20% 85%;
-    --sidebar-primary: 175 70% 50%;
-    --sidebar-primary-foreground: 220 20% 7%;
-    --sidebar-accent: 220 15% 15%;
-    --sidebar-accent-foreground: 210 20% 85%;
-    --sidebar-border: 220 15% 18%;
-    --sidebar-ring: 175 70% 50%;
+    --sidebar-background: 225 12% 8%;
+    --sidebar-foreground: 210 15% 80%;
+    --sidebar-primary: 170 65% 47%;
+    --sidebar-primary-foreground: 225 15% 6%;
+    --sidebar-accent: 225 10% 12%;
+    --sidebar-accent-foreground: 210 15% 80%;
+    --sidebar-border: 225 10% 13%;
+    --sidebar-ring: 170 65% 47%;
+
+    --glass: 225 12% 9% / 0.6;
+    --glass-border: 225 10% 18% / 0.5;
   }
 }
 
@@ -61,18 +62,36 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    letter-spacing: -0.01em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4 {
+    letter-spacing: -0.025em;
   }
 }
 
 @layer utilities {
   .glow-primary {
-    box-shadow: 0 0 20px hsl(175 70% 50% / 0.3), 0 0 60px hsl(175 70% 50% / 0.1);
+    box-shadow: 0 0 20px hsl(170 65% 47% / 0.2), 0 0 60px hsl(170 65% 47% / 0.05);
   }
   .glow-primary-strong {
-    box-shadow: 0 0 30px hsl(175 70% 50% / 0.5), 0 0 80px hsl(175 70% 50% / 0.2);
+    box-shadow: 0 0 30px hsl(170 65% 47% / 0.35), 0 0 80px hsl(170 65% 47% / 0.1);
   }
   .glow-danger {
-    box-shadow: 0 0 20px hsl(0 72% 55% / 0.3), 0 0 60px hsl(0 72% 55% / 0.1);
+    box-shadow: 0 0 20px hsl(0 65% 52% / 0.2), 0 0 60px hsl(0 65% 52% / 0.05);
+  }
+  .glass-card {
+    background: hsl(var(--glass));
+    backdrop-filter: blur(16px);
+    border: 1px solid hsl(var(--glass-border));
+  }
+  .premium-shadow {
+    box-shadow: 0 1px 2px hsl(0 0% 0% / 0.3), 0 4px 16px hsl(0 0% 0% / 0.2);
+  }
+  .subtle-shadow {
+    box-shadow: 0 1px 3px hsl(0 0% 0% / 0.15), 0 2px 8px hsl(0 0% 0% / 0.1);
   }
 }
