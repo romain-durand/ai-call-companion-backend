@@ -6,7 +6,7 @@ export interface Call {
   callerNumber: string;
   group: CallerGroupType;
   timestamp: Date;
-  duration: number; // seconds
+  duration: number;
   status: "answered" | "missed" | "blocked" | "voicemail";
   summary: string;
   transcript?: string;
@@ -23,12 +23,73 @@ export interface CallAction {
 export type CallerGroupType = "family" | "clients" | "unknown" | "deliveries" | "vip";
 export type ProfileMode = "work" | "personal" | "night" | "focus";
 
+export type BehaviorType =
+  | "always_let_through"
+  | "assistant_first"
+  | "take_message"
+  | "propose_meeting"
+  | "notify_urgent"
+  | "never_interrupt";
+
+export interface BehaviorOption {
+  id: BehaviorType;
+  label: string;
+  description: string;
+  emoji: string;
+  preview: string;
+}
+
+export const behaviorOptions: BehaviorOption[] = [
+  {
+    id: "always_let_through",
+    label: "Laisser passer",
+    description: "L'appel vous est transféré directement",
+    emoji: "📞",
+    preview: "vous seront transférés immédiatement, sans filtrage.",
+  },
+  {
+    id: "assistant_first",
+    label: "L'assistant répond",
+    description: "Aria décroche, vous décidez ensuite",
+    emoji: "🤖",
+    preview: "seront d'abord accueillis par Aria. Vous recevrez un résumé pour décider.",
+  },
+  {
+    id: "take_message",
+    label: "Prendre un message",
+    description: "Aria prend un message et vous le transmet",
+    emoji: "✉️",
+    preview: "seront invités à laisser un message. Vous le recevrez par notification.",
+  },
+  {
+    id: "propose_meeting",
+    label: "Proposer un RDV",
+    description: "Aria propose un créneau depuis votre agenda",
+    emoji: "📅",
+    preview: "se verront proposer un rendez-vous selon vos disponibilités.",
+  },
+  {
+    id: "notify_urgent",
+    label: "Seulement si urgent",
+    description: "Vous n'êtes notifié que si c'est important",
+    emoji: "🔔",
+    preview: "ne vous dérangeront que si Aria détecte une urgence.",
+  },
+  {
+    id: "never_interrupt",
+    label: "Ne jamais déranger",
+    description: "Aucune interruption, aucune notification",
+    emoji: "🔇",
+    preview: "seront entièrement gérés par Aria, sans vous déranger.",
+  },
+];
+
 export interface CallerGroup {
   id: CallerGroupType;
   label: string;
   emoji: string;
   description: string;
-  defaultBehavior: string;
+  defaultBehavior: BehaviorType;
   memberCount: number;
   color: string;
 }
@@ -47,12 +108,126 @@ export interface ProfileRule {
   action: "answer" | "voicemail" | "block" | "escalate";
 }
 
+export interface SmartScenario {
+  id: string;
+  label: string;
+  emoji: string;
+  description: string;
+  preview: string;
+  enabled: boolean;
+  configurable: boolean;
+  config?: Record<string, string>;
+}
+
+export type UrgencyLevel = "low" | "normal" | "high";
+export type EscalationBehavior = "call_immediately" | "send_notification" | "ignore_unless_critical";
+
+export interface UrgencyConfig {
+  level: UrgencyLevel;
+  escalation: EscalationBehavior;
+}
+
+export const urgencyLevels: { id: UrgencyLevel; label: string; emoji: string; description: string; example: string }[] = [
+  {
+    id: "low",
+    label: "Détendu",
+    emoji: "😌",
+    description: "Très peu d'interruptions",
+    example: "Seuls les appels répétés de vos proches déclenchent une alerte",
+  },
+  {
+    id: "normal",
+    label: "Équilibré",
+    emoji: "⚖️",
+    description: "Alerte pour les situations raisonnablement urgentes",
+    example: "Un médecin qui rappelle, un client insistant, une livraison bloquée",
+  },
+  {
+    id: "high",
+    label: "Vigilant",
+    emoji: "🚨",
+    description: "Soyez alerté au moindre doute",
+    example: "Tout appel jugé potentiellement important déclenche une notification",
+  },
+];
+
+export const escalationOptions: { id: EscalationBehavior; label: string; emoji: string; description: string }[] = [
+  {
+    id: "call_immediately",
+    label: "M'appeler immédiatement",
+    emoji: "📱",
+    description: "Aria vous appelle directement pour vous transférer l'appel",
+  },
+  {
+    id: "send_notification",
+    label: "Envoyer une notification",
+    emoji: "🔔",
+    description: "Vous recevez une alerte avec le résumé de la situation",
+  },
+  {
+    id: "ignore_unless_critical",
+    label: "Ignorer sauf urgence vitale",
+    emoji: "🛡️",
+    description: "Seules les urgences médicales ou de sécurité passent",
+  },
+];
+
+export const smartScenarios: SmartScenario[] = [
+  {
+    id: "delivery",
+    label: "Appel de livraison",
+    emoji: "📦",
+    description: "Un livreur appelle pour votre colis",
+    preview: "Aria donne le code d'accès et les instructions automatiquement.",
+    enabled: true,
+    configurable: true,
+    config: { code: "4521B", floor: "3e étage, porte droite" },
+  },
+  {
+    id: "urgent_repeat",
+    label: "Appelant insistant",
+    emoji: "🔁",
+    description: "Quelqu'un vous appelle plusieurs fois de suite",
+    preview: "Après 2 appels en 10 minutes, Aria vous alerte immédiatement.",
+    enabled: true,
+    configurable: false,
+  },
+  {
+    id: "family_emergency",
+    label: "Urgence familiale",
+    emoji: "🚑",
+    description: "Un proche mentionne une urgence",
+    preview: "Si un membre de votre famille dit « urgence » ou « hôpital », vous êtes alerté immédiatement.",
+    enabled: true,
+    configurable: false,
+  },
+  {
+    id: "new_client",
+    label: "Nouveau prospect",
+    emoji: "💼",
+    description: "Un potentiel client appelle pour la première fois",
+    preview: "Aria qualifie la demande, prend les coordonnées et propose un créneau.",
+    enabled: true,
+    configurable: false,
+  },
+  {
+    id: "after_hours",
+    label: "Appels hors horaires",
+    emoji: "🌙",
+    description: "Appels reçus en dehors de vos heures de travail",
+    preview: "Aria explique poliment vos horaires et propose de rappeler ou laisser un message.",
+    enabled: false,
+    configurable: true,
+    config: { hours: "09:00 - 18:00" },
+  },
+];
+
 export const callerGroups: CallerGroup[] = [
-  { id: "family", label: "Famille", emoji: "👨‍👩‍👧‍👦", description: "Proches et famille", defaultBehavior: "Toujours transférer", memberCount: 8, color: "hsl(175 70% 50%)" },
-  { id: "vip", label: "VIP", emoji: "⭐", description: "Contacts prioritaires", defaultBehavior: "Répondre et notifier", memberCount: 5, color: "hsl(45 90% 55%)" },
-  { id: "clients", label: "Clients", emoji: "💼", description: "Clients et partenaires", defaultBehavior: "Prendre message + RDV", memberCount: 23, color: "hsl(220 70% 60%)" },
-  { id: "deliveries", label: "Livreurs", emoji: "📦", description: "Livraisons et services", defaultBehavior: "Instructions automatiques", memberCount: 4, color: "hsl(145 60% 45%)" },
-  { id: "unknown", label: "Inconnus", emoji: "❓", description: "Numéros non identifiés", defaultBehavior: "Filtrage intelligent", memberCount: 0, color: "hsl(0 0% 50%)" },
+  { id: "family", label: "Proches", emoji: "👨‍👩‍👧‍👦", description: "Famille et amis proches", defaultBehavior: "always_let_through", memberCount: 8, color: "hsl(175 70% 50%)" },
+  { id: "vip", label: "VIP", emoji: "⭐", description: "Contacts prioritaires", defaultBehavior: "assistant_first", memberCount: 5, color: "hsl(45 90% 55%)" },
+  { id: "clients", label: "Clients", emoji: "💼", description: "Clients et partenaires", defaultBehavior: "propose_meeting", memberCount: 23, color: "hsl(220 70% 60%)" },
+  { id: "deliveries", label: "Livreurs", emoji: "📦", description: "Livraisons et services", defaultBehavior: "assistant_first", memberCount: 4, color: "hsl(145 60% 45%)" },
+  { id: "unknown", label: "Inconnus", emoji: "❓", description: "Numéros non identifiés", defaultBehavior: "notify_urgent", memberCount: 0, color: "hsl(0 0% 50%)" },
 ];
 
 export const profiles: Profile[] = [
@@ -244,10 +419,10 @@ export const dashboardStats = {
 };
 
 export const bookingRules = {
-  minNotice: 2, // hours
+  minNotice: 2,
   maxPerDay: 4,
-  slotDuration: 30, // minutes
+  slotDuration: 30,
   workingHours: { start: "09:00", end: "18:00" },
-  workingDays: [1, 2, 3, 4, 5], // Mon-Fri
-  bufferBetween: 15, // minutes
+  workingDays: [1, 2, 3, 4, 5],
+  bufferBetween: 15,
 };

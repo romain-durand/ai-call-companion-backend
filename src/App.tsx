@@ -8,6 +8,8 @@ import Dashboard from "./pages/Dashboard";
 import Assistant from "./pages/Assistant";
 import Profiles from "./pages/Profiles";
 import CallerGroups from "./pages/CallerGroups";
+import SmartScenarios from "./pages/SmartScenarios";
+import UrgencySettings from "./pages/UrgencySettings";
 import CallHandling from "./pages/CallHandling";
 import CallHistory from "./pages/CallHistory";
 import CalendarPage from "./pages/CalendarPage";
@@ -28,6 +30,8 @@ const App = () => (
             <Route path="/assistant" element={<Assistant />} />
             <Route path="/profiles" element={<Profiles />} />
             <Route path="/groups" element={<CallerGroups />} />
+            <Route path="/scenarios" element={<SmartScenarios />} />
+            <Route path="/urgency" element={<UrgencySettings />} />
             <Route path="/handling" element={<CallHandling />} />
             <Route path="/history" element={<CallHistory />} />
             <Route path="/calendar" element={<CalendarPage />} />
