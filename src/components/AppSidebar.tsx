@@ -8,6 +8,8 @@ import {
   Settings,
   Bot,
   UserCircle,
+  Zap,
+  AlertTriangle,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -28,9 +30,13 @@ import {
 const mainNav = [
   { title: "Tableau de bord", url: "/", icon: LayoutDashboard },
   { title: "Historique", url: "/history", icon: History },
+];
+
+const configNav = [
+  { title: "Qui peut me joindre", url: "/groups", icon: Users },
+  { title: "Scénarios", url: "/scenarios", icon: Zap },
+  { title: "Urgences", url: "/urgency", icon: AlertTriangle },
   { title: "Profils", url: "/profiles", icon: UserCircle },
-  { title: "Groupes", url: "/groups", icon: Users },
-  { title: "Gestion d'appels", url: "/handling", icon: Shield },
   { title: "Calendrier", url: "/calendar", icon: CalendarDays },
 ];
 
@@ -46,6 +52,23 @@ export function AppSidebar() {
 
   const isActive = (path: string) =>
     path === "/" ? location.pathname === "/" : location.pathname.startsWith(path);
+
+  const renderNav = (items: typeof mainNav) =>
+    items.map((item) => (
+      <SidebarMenuItem key={item.url}>
+        <SidebarMenuButton asChild isActive={isActive(item.url)}>
+          <NavLink
+            to={item.url}
+            end={item.url === "/"}
+            className="hover:bg-muted/50"
+            activeClassName="bg-muted text-primary font-medium"
+          >
+            <item.icon className="mr-2 h-4 w-4" />
+            {!collapsed && <span>{item.title}</span>}
+          </NavLink>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    ));
 
   return (
     <Sidebar collapsible="icon">
@@ -65,38 +88,23 @@ export function AppSidebar() {
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupLabel>Vue d'ensemble</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
-              {mainNav.map((item) => (
-                <SidebarMenuItem key={item.url}>
-                  <SidebarMenuButton asChild isActive={isActive(item.url)}>
-                    <NavLink to={item.url} end={item.url === "/"} className="hover:bg-muted/50" activeClassName="bg-muted text-primary font-medium">
-                      <item.icon className="mr-2 h-4 w-4" />
-                      {!collapsed && <span>{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
+            <SidebarMenu>{renderNav(mainNav)}</SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Configuration</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>{renderNav(configNav)}</SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
         <SidebarGroup>
           <SidebarGroupLabel>Système</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
-              {secondaryNav.map((item) => (
-                <SidebarMenuItem key={item.url}>
-                  <SidebarMenuButton asChild isActive={isActive(item.url)}>
-                    <NavLink to={item.url} className="hover:bg-muted/50" activeClassName="bg-muted text-primary font-medium">
-                      <item.icon className="mr-2 h-4 w-4" />
-                      {!collapsed && <span>{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
+            <SidebarMenu>{renderNav(secondaryNav)}</SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
