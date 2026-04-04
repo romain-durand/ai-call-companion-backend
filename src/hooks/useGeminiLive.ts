@@ -304,12 +304,25 @@ export function useGeminiLive(systemInstruction?: string): UseGeminiLiveReturn {
             setError(null);
             setStatus("connected");
 
-            // Send an initial text prompt via realtimeInput so Gemini speaks first
-            // (gemini-3.1 requires realtimeInput for mid-session text, not clientContent)
+            // Trigger a valid first turn for the audio model without requiring
+            // the user to speak first: send a short silent audio packet, then
+            // flush the turn so Gemini can start with the greeting from the
+            // system instruction.
+            const initialSilence = new Float32Array(Math.floor(SEND_SAMPLE_RATE * 0.25));
             ws.send(
               JSON.stringify({
                 realtimeInput: {
-                  text: "L'appel vient de commencer. Présente-toi.",
+                  audio: {
+                    data: encodeAudioChunk(initialSilence),
+                    mimeType: "audio/pcm;rate=16000",
+                  },
+                },
+              }),
+            );
+            ws.send(
+              JSON.stringify({
+                realtimeInput: {
+                  audioStreamEnd: true,
                 },
               }),
             );
