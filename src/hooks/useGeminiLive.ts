@@ -304,25 +304,20 @@ export function useGeminiLive(systemInstruction?: string): UseGeminiLiveReturn {
             setError(null);
             setStatus("connected");
 
-            // Trigger a valid first turn for the audio model without requiring
-            // the user to speak first: send a short silent audio packet, then
-            // flush the turn so Gemini can start with the greeting from the
-            // system instruction.
-            const initialSilence = new Float32Array(Math.floor(SEND_SAMPLE_RATE * 0.25));
+            // Force Gemini to speak first by sending a user turn with a text
+            // prompt and immediately ending the turn.  This makes the model
+            // treat it as "the caller just connected" and triggers its
+            // greeting from the system instruction.
             ws.send(
               JSON.stringify({
-                realtimeInput: {
-                  audio: {
-                    data: encodeAudioChunk(initialSilence),
-                    mimeType: "audio/pcm;rate=16000",
-                  },
-                },
-              }),
-            );
-            ws.send(
-              JSON.stringify({
-                realtimeInput: {
-                  audioStreamEnd: true,
+                clientContent: {
+                  turns: [
+                    {
+                      role: "user",
+                      parts: [{ text: "L'appel vient de commencer." }],
+                    },
+                  ],
+                  turnComplete: true,
                 },
               }),
             );
