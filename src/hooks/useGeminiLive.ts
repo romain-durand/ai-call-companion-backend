@@ -304,17 +304,12 @@ export function useGeminiLive(systemInstruction?: string): UseGeminiLiveReturn {
             setError(null);
             setStatus("connected");
 
-            // Send an initial text prompt so Gemini speaks first
+            // Send an initial text prompt via realtimeInput so Gemini speaks first
+            // (gemini-3.1 requires realtimeInput for mid-session text, not clientContent)
             ws.send(
               JSON.stringify({
-                clientContent: {
-                  turns: [
-                    {
-                      role: "user",
-                      parts: [{ text: "L'appel vient de commencer. Présente-toi." }],
-                    },
-                  ],
-                  turnComplete: true,
+                realtimeInput: {
+                  text: "L'appel vient de commencer. Présente-toi.",
                 },
               }),
             );
