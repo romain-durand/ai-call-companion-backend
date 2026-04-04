@@ -319,7 +319,10 @@ export function useGeminiLive(systemInstruction?: string): UseGeminiLiveReturn {
               }),
             );
 
-            processor.onaudioprocess = (audioEvent) => {
+            // Delay starting audio input so Gemini can respond first
+            // without being interrupted by silence/noise from the mic
+            setTimeout(() => {
+              processor.onaudioprocess = (audioEvent) => {
               if (!isSetupCompleteRef.current || ws.readyState !== WebSocket.OPEN) return;
 
               const input = audioEvent.inputBuffer.getChannelData(0);
@@ -334,6 +337,7 @@ export function useGeminiLive(systemInstruction?: string): UseGeminiLiveReturn {
                 }),
               );
             };
+            }, 3000);
 
             return;
           }
