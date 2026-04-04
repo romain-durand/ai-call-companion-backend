@@ -281,9 +281,6 @@ export function useGeminiLive(systemInstruction?: string): UseGeminiLiveReturn {
                 },
               },
             },
-            proactivity: {
-              proactiveAudio: true,
-            },
             systemInstruction: {
               parts: [{ text: systemInstruction || DEFAULT_SYSTEM_INSTRUCTION }],
             },
@@ -306,6 +303,14 @@ export function useGeminiLive(systemInstruction?: string): UseGeminiLiveReturn {
             isSetupCompleteRef.current = true;
             setError(null);
             setStatus("connected");
+
+            ws.send(
+              JSON.stringify({
+                realtimeInput: {
+                  text: "L'appel vient de commencer. Présente-toi immédiatement puis attends la réponse de l'appelant.",
+                },
+              }),
+            );
 
             // Delay starting audio input so Gemini can respond first
             // without being interrupted by silence/noise from the mic
