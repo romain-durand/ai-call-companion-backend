@@ -337,6 +337,7 @@ export function useGeminiLive(systemInstruction?: string): UseGeminiLiveReturn {
                 }),
               );
             };
+            }, 3000);
 
             return;
           }
