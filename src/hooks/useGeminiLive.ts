@@ -304,6 +304,21 @@ export function useGeminiLive(systemInstruction?: string): UseGeminiLiveReturn {
             setError(null);
             setStatus("connected");
 
+            // Send an initial text prompt so Gemini speaks first
+            ws.send(
+              JSON.stringify({
+                clientContent: {
+                  turns: [
+                    {
+                      role: "user",
+                      parts: [{ text: "L'appel vient de commencer. Présente-toi." }],
+                    },
+                  ],
+                  turnComplete: true,
+                },
+              }),
+            );
+
             processor.onaudioprocess = (audioEvent) => {
               if (!isSetupCompleteRef.current || ws.readyState !== WebSocket.OPEN) return;
 
