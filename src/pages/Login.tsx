@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
-import { Mail, Lock, Chrome } from "lucide-react";
+import { Mail, Lock, Chrome, Apple } from "lucide-react";
 
 const Login = () => {
   const [email, setEmail] = useState("");
