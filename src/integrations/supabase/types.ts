@@ -108,6 +108,92 @@ export type Database = {
         }
         Relationships: []
       }
+      appointments: {
+        Row: {
+          account_id: string
+          booked_by: Database["public"]["Enums"]["booked_by_type"]
+          booking_type_id: string | null
+          call_session_id: string | null
+          contact_id: string | null
+          created_at: string
+          ends_at: string
+          id: string
+          notes: string | null
+          provider: Database["public"]["Enums"]["calendar_provider"] | null
+          provider_event_id: string | null
+          starts_at: string
+          status: Database["public"]["Enums"]["appointment_status"]
+          timezone: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          booked_by?: Database["public"]["Enums"]["booked_by_type"]
+          booking_type_id?: string | null
+          call_session_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          ends_at: string
+          id?: string
+          notes?: string | null
+          provider?: Database["public"]["Enums"]["calendar_provider"] | null
+          provider_event_id?: string | null
+          starts_at: string
+          status?: Database["public"]["Enums"]["appointment_status"]
+          timezone?: string
+          title?: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          booked_by?: Database["public"]["Enums"]["booked_by_type"]
+          booking_type_id?: string | null
+          call_session_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          ends_at?: string
+          id?: string
+          notes?: string | null
+          provider?: Database["public"]["Enums"]["calendar_provider"] | null
+          provider_event_id?: string | null
+          starts_at?: string
+          status?: Database["public"]["Enums"]["appointment_status"]
+          timezone?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointments_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_booking_type_id_fkey"
+            columns: ["booking_type_id"]
+            isOneToOne: false
+            referencedRelation: "booking_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_call_session_id_fkey"
+            columns: ["call_session_id"]
+            isOneToOne: false
+            referencedRelation: "call_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assistant_modes: {
         Row: {
           account_id: string
@@ -235,6 +321,241 @@ export type Database = {
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      booking_rules: {
+        Row: {
+          account_id: string
+          assistant_mode_id: string
+          booking_type_id: string
+          caller_group_id: string
+          can_book_directly: boolean
+          can_offer_alternatives: boolean
+          created_at: string
+          id: string
+          max_suggestions: number
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          assistant_mode_id: string
+          booking_type_id: string
+          caller_group_id: string
+          can_book_directly?: boolean
+          can_offer_alternatives?: boolean
+          created_at?: string
+          id?: string
+          max_suggestions?: number
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          assistant_mode_id?: string
+          booking_type_id?: string
+          caller_group_id?: string
+          can_book_directly?: boolean
+          can_offer_alternatives?: boolean
+          created_at?: string
+          id?: string
+          max_suggestions?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_rules_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_rules_assistant_mode_id_fkey"
+            columns: ["assistant_mode_id"]
+            isOneToOne: false
+            referencedRelation: "assistant_modes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_rules_booking_type_id_fkey"
+            columns: ["booking_type_id"]
+            isOneToOne: false
+            referencedRelation: "booking_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_rules_caller_group_id_fkey"
+            columns: ["caller_group_id"]
+            isOneToOne: false
+            referencedRelation: "caller_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      booking_types: {
+        Row: {
+          account_id: string
+          allowed_from_hour_local: number
+          allowed_to_hour_local: number
+          buffer_after_minutes: number
+          buffer_before_minutes: number
+          created_at: string
+          duration_minutes: number
+          enabled: boolean
+          id: string
+          max_days_ahead: number
+          name: string
+          requires_confirmation: boolean
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          allowed_from_hour_local?: number
+          allowed_to_hour_local?: number
+          buffer_after_minutes?: number
+          buffer_before_minutes?: number
+          created_at?: string
+          duration_minutes?: number
+          enabled?: boolean
+          id?: string
+          max_days_ahead?: number
+          name: string
+          requires_confirmation?: boolean
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          allowed_from_hour_local?: number
+          allowed_to_hour_local?: number
+          buffer_after_minutes?: number
+          buffer_before_minutes?: number
+          created_at?: string
+          duration_minutes?: number
+          enabled?: boolean
+          id?: string
+          max_days_ahead?: number
+          name?: string
+          requires_confirmation?: boolean
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_types_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      calendar_calendars: {
+        Row: {
+          account_id: string
+          calendar_connection_id: string
+          created_at: string
+          id: string
+          is_primary: boolean
+          is_read_only: boolean
+          name: string
+          provider_calendar_id: string
+        }
+        Insert: {
+          account_id: string
+          calendar_connection_id: string
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+          is_read_only?: boolean
+          name: string
+          provider_calendar_id: string
+        }
+        Update: {
+          account_id?: string
+          calendar_connection_id?: string
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+          is_read_only?: boolean
+          name?: string
+          provider_calendar_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_calendars_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_calendars_calendar_connection_id_fkey"
+            columns: ["calendar_connection_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      calendar_connections: {
+        Row: {
+          access_token_encrypted: string | null
+          account_id: string
+          created_at: string
+          id: string
+          profile_id: string
+          provider: Database["public"]["Enums"]["calendar_provider"]
+          provider_account_id: string | null
+          refresh_token_encrypted: string | null
+          scopes: string[] | null
+          status: Database["public"]["Enums"]["calendar_connection_status"]
+          token_expires_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_token_encrypted?: string | null
+          account_id: string
+          created_at?: string
+          id?: string
+          profile_id: string
+          provider?: Database["public"]["Enums"]["calendar_provider"]
+          provider_account_id?: string | null
+          refresh_token_encrypted?: string | null
+          scopes?: string[] | null
+          status?: Database["public"]["Enums"]["calendar_connection_status"]
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_token_encrypted?: string | null
+          account_id?: string
+          created_at?: string
+          id?: string
+          profile_id?: string
+          provider?: Database["public"]["Enums"]["calendar_provider"]
+          provider_account_id?: string | null
+          refresh_token_encrypted?: string | null
+          scopes?: string[] | null
+          status?: Database["public"]["Enums"]["calendar_connection_status"]
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_connections_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_connections_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -843,6 +1164,15 @@ export type Database = {
     }
     Enums: {
       account_role: "owner" | "admin" | "member" | "viewer"
+      appointment_status:
+        | "tentative"
+        | "confirmed"
+        | "cancelled"
+        | "completed"
+        | "no_show"
+      booked_by_type: "assistant" | "user" | "external"
+      calendar_connection_status: "active" | "expired" | "revoked" | "error"
+      calendar_provider: "google" | "outlook" | "apple" | "other"
       call_behavior:
         | "answer_and_take_message"
         | "answer_and_transfer"
@@ -1010,6 +1340,16 @@ export const Constants = {
   public: {
     Enums: {
       account_role: ["owner", "admin", "member", "viewer"],
+      appointment_status: [
+        "tentative",
+        "confirmed",
+        "cancelled",
+        "completed",
+        "no_show",
+      ],
+      booked_by_type: ["assistant", "user", "external"],
+      calendar_connection_status: ["active", "expired", "revoked", "error"],
+      calendar_provider: ["google", "outlook", "apple", "other"],
       call_behavior: [
         "answer_and_take_message",
         "answer_and_transfer",
