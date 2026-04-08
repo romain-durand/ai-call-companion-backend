@@ -10,18 +10,13 @@ async function appendCallMessage(ctx, speaker, contentText, extraData) {
   if (!ctx.callSessionId || !ctx.accountId) return;
   if (!contentText || contentText.trim().length === 0) return;
 
-  // Simple dedup: skip if identical to last message from same speaker
-  const key = `${speaker}:${contentText.trim()}`;
-  if (ctx._lastMsgKey === key) return;
-  ctx._lastMsgKey = key;
-
-  ctx.messageSeqNo = (ctx.messageSeqNo || 0) + 1;
+  const seqNo = ctx.nextSeqNo();
 
   const row = {
     account_id: ctx.accountId,
     call_session_id: ctx.callSessionId,
     speaker,
-    seq_no: ctx.messageSeqNo,
+    seq_no: seqNo,
     content_text: contentText.trim(),
     content_json: extraData || null,
   };
