@@ -17,6 +17,19 @@ const TOOL_DECLARATIONS = [
       required: ["city"],
     },
   },
+  {
+    name: "create_callback",
+    description: "Crée une demande de rappel lorsque l'appelant souhaite être rappelé plus tard. Utilise cet outil quand tu ne peux pas transférer l'appel immédiatement ou quand l'appelant demande un rappel.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        reason: { type: "STRING", description: "Raison du rappel demandé" },
+        priority: { type: "STRING", description: "Priorité: low, normal, high ou urgent", enum: ["low", "normal", "high", "urgent"] },
+        preferred_time_note: { type: "STRING", description: "Indication de créneau préféré si mentionné par l'appelant" },
+      },
+      required: ["reason", "priority"],
+    },
+  },
 ];
 
 function buildSetupPayload() {
