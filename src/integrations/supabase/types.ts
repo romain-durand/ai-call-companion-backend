@@ -832,6 +832,76 @@ export type Database = {
           },
         ]
       }
+      callback_requests: {
+        Row: {
+          account_id: string
+          call_session_id: string | null
+          caller_name: string | null
+          caller_phone_e164: string | null
+          completed_at: string | null
+          contact_id: string | null
+          created_at: string
+          created_by: Database["public"]["Enums"]["booked_by_type"]
+          id: string
+          preferred_time_note: string | null
+          priority: Database["public"]["Enums"]["callback_priority"]
+          reason: string | null
+          status: Database["public"]["Enums"]["callback_status"]
+        }
+        Insert: {
+          account_id: string
+          call_session_id?: string | null
+          caller_name?: string | null
+          caller_phone_e164?: string | null
+          completed_at?: string | null
+          contact_id?: string | null
+          created_at?: string
+          created_by?: Database["public"]["Enums"]["booked_by_type"]
+          id?: string
+          preferred_time_note?: string | null
+          priority?: Database["public"]["Enums"]["callback_priority"]
+          reason?: string | null
+          status?: Database["public"]["Enums"]["callback_status"]
+        }
+        Update: {
+          account_id?: string
+          call_session_id?: string | null
+          caller_name?: string | null
+          caller_phone_e164?: string | null
+          completed_at?: string | null
+          contact_id?: string | null
+          created_at?: string
+          created_by?: Database["public"]["Enums"]["booked_by_type"]
+          id?: string
+          preferred_time_note?: string | null
+          priority?: Database["public"]["Enums"]["callback_priority"]
+          reason?: string | null
+          status?: Database["public"]["Enums"]["callback_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "callback_requests_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "callback_requests_call_session_id_fkey"
+            columns: ["call_session_id"]
+            isOneToOne: false
+            referencedRelation: "call_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "callback_requests_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       caller_groups: {
         Row: {
           account_id: string
@@ -989,6 +1059,137 @@ export type Database = {
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      escalation_events: {
+        Row: {
+          account_id: string
+          attempted_at: string | null
+          call_session_id: string
+          created_at: string
+          id: string
+          method: Database["public"]["Enums"]["escalation_method"]
+          resolved_at: string | null
+          status: Database["public"]["Enums"]["escalation_event_status"]
+          target_profile_id: string
+          trigger_reason: string
+          urgency_level: Database["public"]["Enums"]["urgency_level"]
+        }
+        Insert: {
+          account_id: string
+          attempted_at?: string | null
+          call_session_id: string
+          created_at?: string
+          id?: string
+          method?: Database["public"]["Enums"]["escalation_method"]
+          resolved_at?: string | null
+          status?: Database["public"]["Enums"]["escalation_event_status"]
+          target_profile_id: string
+          trigger_reason: string
+          urgency_level?: Database["public"]["Enums"]["urgency_level"]
+        }
+        Update: {
+          account_id?: string
+          attempted_at?: string | null
+          call_session_id?: string
+          created_at?: string
+          id?: string
+          method?: Database["public"]["Enums"]["escalation_method"]
+          resolved_at?: string | null
+          status?: Database["public"]["Enums"]["escalation_event_status"]
+          target_profile_id?: string
+          trigger_reason?: string
+          urgency_level?: Database["public"]["Enums"]["urgency_level"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "escalation_events_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "escalation_events_call_session_id_fkey"
+            columns: ["call_session_id"]
+            isOneToOne: false
+            referencedRelation: "call_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "escalation_events_target_profile_id_fkey"
+            columns: ["target_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          account_id: string
+          body: string | null
+          call_session_id: string | null
+          channel: Database["public"]["Enums"]["notification_channel"]
+          created_at: string
+          id: string
+          priority: Database["public"]["Enums"]["notification_priority"]
+          profile_id: string
+          provider_message_id: string | null
+          sent_at: string | null
+          status: Database["public"]["Enums"]["notification_status"]
+          title: string
+        }
+        Insert: {
+          account_id: string
+          body?: string | null
+          call_session_id?: string | null
+          channel: Database["public"]["Enums"]["notification_channel"]
+          created_at?: string
+          id?: string
+          priority?: Database["public"]["Enums"]["notification_priority"]
+          profile_id: string
+          provider_message_id?: string | null
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["notification_status"]
+          title: string
+        }
+        Update: {
+          account_id?: string
+          body?: string | null
+          call_session_id?: string | null
+          channel?: Database["public"]["Enums"]["notification_channel"]
+          created_at?: string
+          id?: string
+          priority?: Database["public"]["Enums"]["notification_priority"]
+          profile_id?: string
+          provider_message_id?: string | null
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["notification_status"]
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_call_session_id_fkey"
+            columns: ["call_session_id"]
+            isOneToOne: false
+            referencedRelation: "call_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1190,6 +1391,13 @@ export type Database = {
         | "voicemail"
         | "escalated"
         | "transferred"
+      callback_priority: "low" | "normal" | "high" | "urgent"
+      callback_status:
+        | "pending"
+        | "scheduled"
+        | "completed"
+        | "cancelled"
+        | "expired"
       caller_group_type: "system" | "custom"
       contact_source:
         | "manual"
@@ -1198,6 +1406,13 @@ export type Database = {
         | "csv_import"
         | "call_history"
         | "other"
+      escalation_event_status:
+        | "pending"
+        | "attempting"
+        | "reached"
+        | "unreached"
+        | "timeout"
+      escalation_method: "call" | "push" | "sms"
       escalation_status:
         | "none"
         | "pending"
@@ -1205,6 +1420,9 @@ export type Database = {
         | "declined"
         | "timeout"
       mode_type: "manual" | "scheduled" | "auto"
+      notification_channel: "push" | "sms" | "email"
+      notification_priority: "low" | "normal" | "high" | "critical"
+      notification_status: "pending" | "sent" | "delivered" | "failed"
       ownership_type: "owned" | "rented" | "trial"
       record_status: "active" | "inactive" | "suspended" | "deleted"
       speaker_role: "caller" | "assistant" | "system" | "tool"
@@ -1369,6 +1587,14 @@ export const Constants = {
         "escalated",
         "transferred",
       ],
+      callback_priority: ["low", "normal", "high", "urgent"],
+      callback_status: [
+        "pending",
+        "scheduled",
+        "completed",
+        "cancelled",
+        "expired",
+      ],
       caller_group_type: ["system", "custom"],
       contact_source: [
         "manual",
@@ -1378,8 +1604,19 @@ export const Constants = {
         "call_history",
         "other",
       ],
+      escalation_event_status: [
+        "pending",
+        "attempting",
+        "reached",
+        "unreached",
+        "timeout",
+      ],
+      escalation_method: ["call", "push", "sms"],
       escalation_status: ["none", "pending", "accepted", "declined", "timeout"],
       mode_type: ["manual", "scheduled", "auto"],
+      notification_channel: ["push", "sms", "email"],
+      notification_priority: ["low", "normal", "high", "critical"],
+      notification_status: ["pending", "sent", "delivered", "failed"],
       ownership_type: ["owned", "rented", "trial"],
       record_status: ["active", "inactive", "suspended", "deleted"],
       speaker_role: ["caller", "assistant", "system", "tool"],
