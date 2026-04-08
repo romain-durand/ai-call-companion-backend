@@ -56,6 +56,7 @@ function connectGemini(callCtx, onAudio) {
             const pcm8k = downsample24to8(pcm24k);
             const mulawBase64 = encodeToMulaw(pcm8k);
             onAudio(mulawBase64);
+            log.gemini("assistant_audio_sent", traceId);
           }
         }
       }
