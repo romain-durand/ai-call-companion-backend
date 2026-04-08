@@ -4,7 +4,6 @@ const { buildSetupPayload } = require("./geminiConfig");
 const { base64ToInt16, downsample24to8, encodeToMulaw } = require("../audio/codec");
 const { handleToolCall } = require("../tools/toolRouter");
 const log = require("../observability/logger");
-const { appendCallMessage } = require("../db/callMessagesRepo");
 
 /**
  * Create and manage a Gemini Live WebSocket connection for one call.
@@ -34,7 +33,6 @@ function connectGemini(callCtx, onAudio) {
         };
         ws.send(JSON.stringify(kickoffPayload));
         log.gemini("initial_greeting_triggered", traceId, kickoffText);
-        console.log("Kickoff payload sent:", JSON.stringify(kickoffPayload));
 
         log.gemini("mic_gate_started", traceId, "3000ms");
         setTimeout(() => {
@@ -58,20 +56,26 @@ function connectGemini(callCtx, onAudio) {
         }
       }
 
-      // Transcriptions — persist to DB
+      // Transcriptions — push to buffer (not directly to DB)
       if (msg.serverContent?.inputTranscription?.text) {
         const text = msg.serverContent.inputTranscription.text;
         log.transcript("🎤", "caller", traceId, text);
-        appendCallMessage(callCtx, "caller", text);
+        if (callCtx._txBuffer) {
+          callCtx._txBuffer.push("caller", text);
+        }
       }
       if (msg.serverContent?.outputTranscription?.text) {
         const text = msg.serverContent.outputTranscription.text;
         log.transcript("🤖", "assistant", traceId, text);
-        appendCallMessage(callCtx, "assistant", text);
+        if (callCtx._txBuffer) {
+          callCtx._txBuffer.push("assistant", text);
+        }
       }
 
-      // Tool calls
+      // Tool calls — flush buffer before tool boundary
       if (msg.toolCall?.functionCalls) {
+        if (callCtx._txBuffer) callCtx._txBuffer.flush();
+
         Promise.all(
           msg.toolCall.functionCalls.map((call) => handleToolCall(call, traceId, callCtx))
         ).then((responses) => {
