@@ -1346,6 +1346,108 @@ export type Database = {
         }
         Relationships: []
       }
+      subscription_plans: {
+        Row: {
+          active: boolean
+          billing_interval: Database["public"]["Enums"]["billing_interval"]
+          code: string
+          created_at: string
+          currency: Database["public"]["Enums"]["currency_code"]
+          features_json: Json
+          id: string
+          included_calls_per_month: number
+          included_phone_numbers: number
+          name: string
+          price_cents: number
+        }
+        Insert: {
+          active?: boolean
+          billing_interval?: Database["public"]["Enums"]["billing_interval"]
+          code: string
+          created_at?: string
+          currency?: Database["public"]["Enums"]["currency_code"]
+          features_json?: Json
+          id?: string
+          included_calls_per_month?: number
+          included_phone_numbers?: number
+          name: string
+          price_cents?: number
+        }
+        Update: {
+          active?: boolean
+          billing_interval?: Database["public"]["Enums"]["billing_interval"]
+          code?: string
+          created_at?: string
+          currency?: Database["public"]["Enums"]["currency_code"]
+          features_json?: Json
+          id?: string
+          included_calls_per_month?: number
+          included_phone_numbers?: number
+          name?: string
+          price_cents?: number
+        }
+        Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          account_id: string
+          cancel_at_period_end: boolean
+          created_at: string
+          current_period_end: string | null
+          current_period_start: string | null
+          id: string
+          provider: Database["public"]["Enums"]["billing_provider"]
+          provider_customer_id: string | null
+          provider_subscription_id: string | null
+          status: Database["public"]["Enums"]["subscription_status"]
+          subscription_plan_id: string
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          cancel_at_period_end?: boolean
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          provider?: Database["public"]["Enums"]["billing_provider"]
+          provider_customer_id?: string | null
+          provider_subscription_id?: string | null
+          status?: Database["public"]["Enums"]["subscription_status"]
+          subscription_plan_id: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          cancel_at_period_end?: boolean
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          provider?: Database["public"]["Enums"]["billing_provider"]
+          provider_customer_id?: string | null
+          provider_subscription_id?: string | null
+          status?: Database["public"]["Enums"]["subscription_status"]
+          subscription_plan_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscriptions_subscription_plan_id_fkey"
+            columns: ["subscription_plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tool_invocations: {
         Row: {
           account_id: string
@@ -1406,6 +1508,56 @@ export type Database = {
           },
         ]
       }
+      usage_counters: {
+        Row: {
+          account_id: string
+          assistant_minutes_total: number
+          booked_appointments_count: number
+          created_at: string
+          escalations_count: number
+          handled_calls_count: number
+          id: string
+          inbound_calls_count: number
+          outbound_calls_count: number
+          period_month: string
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          assistant_minutes_total?: number
+          booked_appointments_count?: number
+          created_at?: string
+          escalations_count?: number
+          handled_calls_count?: number
+          id?: string
+          inbound_calls_count?: number
+          outbound_calls_count?: number
+          period_month: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          assistant_minutes_total?: number
+          booked_appointments_count?: number
+          created_at?: string
+          escalations_count?: number
+          handled_calls_count?: number
+          id?: string
+          inbound_calls_count?: number
+          outbound_calls_count?: number
+          period_month?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "usage_counters_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -1428,6 +1580,8 @@ export type Database = {
         | "cancelled"
         | "completed"
         | "no_show"
+      billing_interval: "monthly" | "yearly"
+      billing_provider: "stripe" | "manual"
       booked_by_type: "assistant" | "user" | "external"
       calendar_connection_status: "active" | "expired" | "revoked" | "error"
       calendar_provider: "google" | "outlook" | "apple" | "other"
@@ -1463,6 +1617,7 @@ export type Database = {
         | "csv_import"
         | "call_history"
         | "other"
+      currency_code: "eur" | "usd"
       escalation_event_status:
         | "pending"
         | "attempting"
@@ -1488,6 +1643,12 @@ export type Database = {
       ownership_type: "owned" | "rented" | "trial"
       record_status: "active" | "inactive" | "suspended" | "deleted"
       speaker_role: "caller" | "assistant" | "system" | "tool"
+      subscription_status:
+        | "trialing"
+        | "active"
+        | "past_due"
+        | "canceled"
+        | "incomplete"
       tool_invocation_status: "pending" | "success" | "error" | "timeout"
       transcript_status: "none" | "pending" | "processing" | "ready" | "failed"
       urgency_level: "none" | "low" | "medium" | "high" | "critical"
@@ -1627,6 +1788,8 @@ export const Constants = {
         "completed",
         "no_show",
       ],
+      billing_interval: ["monthly", "yearly"],
+      billing_provider: ["stripe", "manual"],
       booked_by_type: ["assistant", "user", "external"],
       calendar_connection_status: ["active", "expired", "revoked", "error"],
       calendar_provider: ["google", "outlook", "apple", "other"],
@@ -1666,6 +1829,7 @@ export const Constants = {
         "call_history",
         "other",
       ],
+      currency_code: ["eur", "usd"],
       escalation_event_status: [
         "pending",
         "attempting",
@@ -1688,6 +1852,13 @@ export const Constants = {
       ownership_type: ["owned", "rented", "trial"],
       record_status: ["active", "inactive", "suspended", "deleted"],
       speaker_role: ["caller", "assistant", "system", "tool"],
+      subscription_status: [
+        "trialing",
+        "active",
+        "past_due",
+        "canceled",
+        "incomplete",
+      ],
       tool_invocation_status: ["pending", "success", "error", "timeout"],
       transcript_status: ["none", "pending", "processing", "ready", "failed"],
       urgency_level: ["none", "low", "medium", "high", "critical"],
