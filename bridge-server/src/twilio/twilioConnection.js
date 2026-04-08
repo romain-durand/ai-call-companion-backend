@@ -4,6 +4,7 @@ const { connectGemini } = require("../gemini/geminiConnection");
 const { createCallContext } = require("../calls/callContext");
 const callStore = require("../calls/callStateStore");
 const log = require("../observability/logger");
+const { createInboundCallSession, finalizeCallSession } = require("../db/callSessionsRepo");
 
 /**
  * Handle a new Twilio Media Stream WebSocket connection.
@@ -35,12 +36,27 @@ function handleTwilioConnection(twilioWs) {
           log.call("stream_connected", callCtx.traceId);
           break;
 
-        case "start":
+        case "start": {
           callCtx.streamSid = msg.start.streamSid;
           callCtx.callerNumber = msg.start.customParameters?.callerNumber || "unknown";
+          callCtx.providerCallId = msg.start.customParameters?.CallSid || msg.start.callSid || null;
+          callCtx.accountId = msg.start.customParameters?.accountId || null;
+          callCtx.phoneNumberId = msg.start.customParameters?.phoneNumberId || null;
+          callCtx.profileId = msg.start.customParameters?.profileId || null;
+          callCtx.activeModeId = msg.start.customParameters?.activeModeId || null;
+          callCtx.startedAt = new Date().toISOString();
+
           log.call("call_started", callCtx.traceId, `StreamSid: ${callCtx.streamSid}, Caller: ${callCtx.callerNumber}`);
+
+          // DB write (non-blocking): create call session
+          createInboundCallSession(callCtx).then((sessionId) => {
+            if (sessionId) callCtx.callSessionId = sessionId;
+          });
+
+          // Connect Gemini immediately — don't wait for DB
           geminiWs = connectGemini(callCtx, sendAudioToTwilio);
           break;
+        }
 
         case "media":
           if (!callCtx.geminiReady || !geminiWs || geminiWs.readyState !== WebSocket.OPEN) return;
@@ -61,6 +77,7 @@ function handleTwilioConnection(twilioWs) {
 
         case "stop":
           log.call("call_ended", callCtx.traceId);
+          finalizeCallSession(callCtx);
           if (geminiWs) geminiWs.close(1000, "Call ended");
           break;
 
@@ -74,6 +91,7 @@ function handleTwilioConnection(twilioWs) {
 
   twilioWs.on("close", () => {
     log.call("stream_disconnected", callCtx.traceId);
+    finalizeCallSession(callCtx);
     callStore.remove(callCtx.traceId);
     if (geminiWs) geminiWs.close(1000, "Twilio disconnected");
   });
