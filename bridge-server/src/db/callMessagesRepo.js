@@ -24,7 +24,7 @@ async function appendCallMessage(ctx, speaker, contentText, extraData) {
   try {
     const { error } = await supabaseAdmin.from("call_messages").insert(row);
     if (error) throw error;
-    log.call("call_message_written", ctx.traceId, `#${ctx.messageSeqNo} ${speaker}`);
+    log.call("call_message_written", ctx.traceId, `#${seqNo} ${speaker}: "${contentText.trim().slice(0, 50)}…"`);
   } catch (e) {
     log.error("db_write_failed", ctx.traceId, `call_messages: ${e.message}`);
   }

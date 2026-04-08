@@ -27,26 +27,29 @@ function createTranscriptBuffer(callCtx) {
    */
   async function flush() {
     if (!buf.currentSpeaker || buf.chunks.length === 0) return;
+    if (buf.flushing) return;
 
+    buf.flushing = true;
     const speaker = buf.currentSpeaker;
     const text = buf.chunks.join(" ").replace(/\s+/g, " ").trim();
 
-    // Reset buffer immediately so new chunks can accumulate
     buf.chunks = [];
     buf.currentSpeaker = null;
 
-    if (!text) return;
+    if (!text) { buf.flushing = false; return; }
 
-    // Dedup: skip if identical to last flushed message
-    const dedupKey = `${speaker}:${text}`;
-    if (dedupKey === buf.lastFlushedKey) {
+    if (speaker === buf.lastFlushedSpeaker && text === buf.lastFlushedText) {
       log.call("transcript_dedup_skip", callCtx.traceId, `${speaker}: "${text.slice(0, 40)}…"`);
+      buf.flushing = false;
       return;
     }
-    buf.lastFlushedKey = dedupKey;
+
+    buf.lastFlushedSpeaker = speaker;
+    buf.lastFlushedText = text;
 
     log.call("transcript_flush", callCtx.traceId, `${speaker}: "${text.slice(0, 60)}…"`);
     await appendCallMessage(callCtx, speaker, text);
+    buf.flushing = false;
   }
 
   /**
