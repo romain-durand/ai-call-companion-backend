@@ -5,12 +5,14 @@ const { createCallContext } = require("../calls/callContext");
 const callStore = require("../calls/callStateStore");
 const log = require("../observability/logger");
 const { createInboundCallSession, finalizeCallSession } = require("../db/callSessionsRepo");
+const { createTranscriptBuffer } = require("../db/transcriptBuffer");
 
 /**
  * Handle a new Twilio Media Stream WebSocket connection.
  */
 function handleTwilioConnection(twilioWs) {
   const callCtx = createCallContext();
+  callCtx._txBuffer = createTranscriptBuffer(callCtx);
   callStore.set(callCtx.traceId, callCtx);
   log.call("new_connection", callCtx.traceId);
 
@@ -77,7 +79,14 @@ function handleTwilioConnection(twilioWs) {
 
         case "stop":
           log.call("call_ended", callCtx.traceId);
-          finalizeCallSession(callCtx);
+          // Flush transcript buffer before finalizing
+          if (callCtx._txBuffer) {
+            callCtx._txBuffer.flushAll().then(() => {
+              finalizeCallSession(callCtx);
+            });
+          } else {
+            finalizeCallSession(callCtx);
+          }
           if (geminiWs) geminiWs.close(1000, "Call ended");
           break;
 
@@ -91,8 +100,15 @@ function handleTwilioConnection(twilioWs) {
 
   twilioWs.on("close", () => {
     log.call("stream_disconnected", callCtx.traceId);
-    finalizeCallSession(callCtx);
-    callStore.remove(callCtx.traceId);
+    if (callCtx._txBuffer) {
+      callCtx._txBuffer.flushAll().then(() => {
+        finalizeCallSession(callCtx);
+        callStore.remove(callCtx.traceId);
+      });
+    } else {
+      finalizeCallSession(callCtx);
+      callStore.remove(callCtx.traceId);
+    }
     if (geminiWs) geminiWs.close(1000, "Twilio disconnected");
   });
 
