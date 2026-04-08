@@ -77,6 +77,33 @@ const Login = () => {
     }
   };
 
+  const handleAppleSignIn = async () => {
+    setIsLoading(true);
+    try {
+      const result = await lovable.auth.signInWithOAuth("apple", {
+        redirect_uri: window.location.origin,
+      });
+
+      if (result.error) {
+        throw result.error;
+      }
+
+      if (result.redirected) {
+        return;
+      }
+
+      navigate("/");
+    } catch (error: any) {
+      toast({
+        title: "Erreur",
+        description: error.message || "Erreur lors de la connexion Apple",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <motion.div
@@ -97,15 +124,26 @@ const Login = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <Button
-              variant="outline"
-              className="w-full h-11 gap-3 text-sm font-medium"
-              onClick={handleGoogleSignIn}
-              disabled={isLoading}
-            >
-              <Chrome className="h-5 w-5" />
-              Continuer avec Google
-            </Button>
+            <div className="space-y-3">
+              <Button
+                variant="outline"
+                className="w-full h-11 gap-3 text-sm font-medium"
+                onClick={handleGoogleSignIn}
+                disabled={isLoading}
+              >
+                <Chrome className="h-5 w-5" />
+                Continuer avec Google
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full h-11 gap-3 text-sm font-medium"
+                onClick={handleAppleSignIn}
+                disabled={isLoading}
+              >
+                <Apple className="h-5 w-5" />
+                Continuer avec Apple
+              </Button>
+            </div>
 
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
