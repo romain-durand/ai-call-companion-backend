@@ -1,6 +1,7 @@
 const { notifyBackend } = require("./toolClient");
 const log = require("../observability/logger");
 const { startToolInvocation, completeToolInvocation, failToolInvocation } = require("../db/toolInvocationsRepo");
+const { createCallbackRequest } = require("../db/callbackRequestsRepo");
 
 /**
  * Route a Gemini tool call to the appropriate handler.
@@ -15,12 +16,20 @@ async function handleToolCall(call, traceId, callCtx) {
     : null;
 
   try {
-    await notifyBackend(call.name, call.args, call.args?.city || JSON.stringify(call.args), traceId);
+    let resultPayload;
+
+    if (call.name === "create_callback") {
+      resultPayload = await handleCreateCallback(call.args, callCtx, traceId);
+    } else {
+      // Legacy getWeather / n8n path
+      await notifyBackend(call.name, call.args, call.args?.city || JSON.stringify(call.args), traceId);
+      resultPayload = { message: "Message transmis à Romain." };
+    }
 
     const response = {
       id: call.id,
       name: call.name,
-      response: { result: { message: "Message transmis à Romain." } },
+      response: { result: resultPayload },
     };
 
     // DB: mark success
@@ -37,6 +46,24 @@ async function handleToolCall(call, traceId, callCtx) {
       response: { result: { error: e.message } },
     };
   }
+}
+
+/**
+ * Handle create_callback tool call.
+ */
+async function handleCreateCallback(args, callCtx, traceId) {
+  const cbId = await createCallbackRequest(callCtx, args);
+  if (cbId) {
+    return {
+      success: true,
+      callbackRequestId: cbId,
+      message: "La demande de rappel a été enregistrée.",
+    };
+  }
+  return {
+    success: false,
+    message: "Impossible d'enregistrer la demande de rappel.",
+  };
 }
 
 module.exports = { handleToolCall };
