@@ -29,12 +29,10 @@ function connectGemini(callCtx, onAudio) {
         log.gemini("setup_complete", traceId);
 
         // Send kickoff text to force assistant to speak first
-        const kickoffText = "L'appel vient de commencer. Présentez-vous maintenant.";
+        const kickoffText = "L'appel vient de commencer. Présente-toi immédiatement puis attends la réponse de l'appelant.";
         const kickoffPayload = {
           realtimeInput: {
-            content: {
-              parts: [{ text: kickoffText }],
-            },
+            text: kickoffText,
           },
         };
         ws.send(JSON.stringify(kickoffPayload));
