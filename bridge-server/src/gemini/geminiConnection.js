@@ -4,12 +4,10 @@ const { buildSetupPayload } = require("./geminiConfig");
 const { base64ToInt16, downsample24to8, encodeToMulaw } = require("../audio/codec");
 const { handleToolCall } = require("../tools/toolRouter");
 const log = require("../observability/logger");
+const { appendCallMessage } = require("../db/callMessagesRepo");
 
 /**
  * Create and manage a Gemini Live WebSocket connection for one call.
- *
- * @param {object} callCtx - The call context object (mutated: geminiReady)
- * @param {function} onAudio - callback(mulawBase64) to send audio back to Twilio
  */
 function connectGemini(callCtx, onAudio) {
   const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${GEMINI_API_KEY}`;
@@ -28,7 +26,6 @@ function connectGemini(callCtx, onAudio) {
       if (msg.setupComplete) {
         log.gemini("setup_complete", traceId);
 
-        // Send kickoff text to force assistant to speak first
         const kickoffText = "L'appel vient de commencer. Présente-toi immédiatement puis attends la réponse de l'appelant.";
         const kickoffPayload = {
           realtimeInput: {
@@ -39,7 +36,6 @@ function connectGemini(callCtx, onAudio) {
         log.gemini("initial_greeting_triggered", traceId, kickoffText);
         console.log("Kickoff payload sent:", JSON.stringify(kickoffPayload));
 
-        // Audio gate: delay mic forwarding by 3s so greeting isn't interrupted
         log.gemini("mic_gate_started", traceId, "3000ms");
         setTimeout(() => {
           callCtx.geminiReady = true;
@@ -62,18 +58,22 @@ function connectGemini(callCtx, onAudio) {
         }
       }
 
-      // Transcriptions
+      // Transcriptions — persist to DB
       if (msg.serverContent?.inputTranscription?.text) {
-        log.transcript("🎤", "caller", traceId, msg.serverContent.inputTranscription.text);
+        const text = msg.serverContent.inputTranscription.text;
+        log.transcript("🎤", "caller", traceId, text);
+        appendCallMessage(callCtx, "caller", text);
       }
       if (msg.serverContent?.outputTranscription?.text) {
-        log.transcript("🤖", "assistant", traceId, msg.serverContent.outputTranscription.text);
+        const text = msg.serverContent.outputTranscription.text;
+        log.transcript("🤖", "assistant", traceId, text);
+        appendCallMessage(callCtx, "assistant", text);
       }
 
       // Tool calls
       if (msg.toolCall?.functionCalls) {
         Promise.all(
-          msg.toolCall.functionCalls.map((call) => handleToolCall(call, traceId))
+          msg.toolCall.functionCalls.map((call) => handleToolCall(call, traceId, callCtx))
         ).then((responses) => {
           ws.send(JSON.stringify({
             toolResponse: { functionResponses: responses },

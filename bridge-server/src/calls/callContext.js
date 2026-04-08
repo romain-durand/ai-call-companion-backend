@@ -5,9 +5,18 @@ function createCallContext() {
     traceId: crypto.randomUUID().slice(0, 8),
     streamSid: null,
     callerNumber: "unknown",
+    callerNameRaw: null,
     geminiReady: false,
-    providerCallId: null,    // future: Twilio CallSid
-    callSessionId: null,     // future: DB call_sessions.id
+    providerCallId: null,
+    callSessionId: null,
+    accountId: null,
+    phoneNumberId: null,
+    profileId: null,
+    activeModeId: null,
+    messageSeqNo: 0,
+    startedAt: null,
+    finalized: false,
+    _lastMsgKey: null,
   };
 }
 
