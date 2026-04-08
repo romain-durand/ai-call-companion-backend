@@ -16,7 +16,6 @@ function createCallContext() {
     messageSeqNo: 0,
     startedAt: null,
     finalized: false,
-    _lastMsgKey: null,
     _txBuffer: null, // set by twilioConnection after creation
   };
 }
