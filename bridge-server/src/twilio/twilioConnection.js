@@ -39,7 +39,7 @@ function handleTwilioConnection(twilioWs) {
         case "start": {
           callCtx.streamSid = msg.start.streamSid;
           callCtx.callerNumber = msg.start.customParameters?.callerNumber || "unknown";
-          callCtx.providerCallId = msg.start.customParameters?.CallSid || msg.start.callSid || null;
+          callCtx.providerCallId = msg.start.customParameters?.providerCallId || msg.start.customParameters?.CallSid || msg.start.callSid || null;
           callCtx.accountId = msg.start.customParameters?.accountId || null;
           callCtx.phoneNumberId = msg.start.customParameters?.phoneNumberId || null;
           callCtx.profileId = msg.start.customParameters?.profileId || null;
