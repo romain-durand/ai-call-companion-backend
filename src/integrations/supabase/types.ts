@@ -14,30 +14,323 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_members: {
+        Row: {
+          account_id: string
+          created_at: string
+          id: string
+          invited_by_profile_id: string | null
+          is_default_account: boolean
+          joined_at: string
+          profile_id: string
+          role: Database["public"]["Enums"]["account_role"]
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          id?: string
+          invited_by_profile_id?: string | null
+          is_default_account?: boolean
+          joined_at?: string
+          profile_id: string
+          role?: Database["public"]["Enums"]["account_role"]
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          id?: string
+          invited_by_profile_id?: string | null
+          is_default_account?: boolean
+          joined_at?: string
+          profile_id?: string
+          role?: Database["public"]["Enums"]["account_role"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_members_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_members_invited_by_profile_id_fkey"
+            columns: ["invited_by_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_members_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      accounts: {
+        Row: {
+          account_type: string
+          created_at: string
+          id: string
+          locale: string
+          name: string
+          slug: string
+          status: Database["public"]["Enums"]["record_status"]
+          timezone: string
+          updated_at: string
+        }
+        Insert: {
+          account_type?: string
+          created_at?: string
+          id?: string
+          locale?: string
+          name: string
+          slug: string
+          status?: Database["public"]["Enums"]["record_status"]
+          timezone?: string
+          updated_at?: string
+        }
+        Update: {
+          account_type?: string
+          created_at?: string
+          id?: string
+          locale?: string
+          name?: string
+          slug?: string
+          status?: Database["public"]["Enums"]["record_status"]
+          timezone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      assistant_modes: {
+        Row: {
+          account_id: string
+          allow_booking: boolean
+          assistant_profile_id: string
+          auto_activation_rules: Json | null
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          mode_type: Database["public"]["Enums"]["mode_type"]
+          name: string
+          quiet_hours_enabled: boolean
+          quiet_hours_end_local: string | null
+          quiet_hours_start_local: string | null
+          slug: string
+          updated_at: string
+          urgency_sensitivity: string
+        }
+        Insert: {
+          account_id: string
+          allow_booking?: boolean
+          assistant_profile_id: string
+          auto_activation_rules?: Json | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          mode_type?: Database["public"]["Enums"]["mode_type"]
+          name?: string
+          quiet_hours_enabled?: boolean
+          quiet_hours_end_local?: string | null
+          quiet_hours_start_local?: string | null
+          slug?: string
+          updated_at?: string
+          urgency_sensitivity?: string
+        }
+        Update: {
+          account_id?: string
+          allow_booking?: boolean
+          assistant_profile_id?: string
+          auto_activation_rules?: Json | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          mode_type?: Database["public"]["Enums"]["mode_type"]
+          name?: string
+          quiet_hours_enabled?: boolean
+          quiet_hours_end_local?: string | null
+          quiet_hours_start_local?: string | null
+          slug?: string
+          updated_at?: string
+          urgency_sensitivity?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assistant_modes_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assistant_modes_assistant_profile_id_fkey"
+            columns: ["assistant_profile_id"]
+            isOneToOne: false
+            referencedRelation: "assistant_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assistant_profiles: {
+        Row: {
+          account_id: string
+          brevity_level: string
+          created_at: string
+          description: string | null
+          greeting_text: string
+          id: string
+          introduction_style: string
+          is_default: boolean
+          language_code: string
+          name: string
+          status: Database["public"]["Enums"]["record_status"]
+          tone_style: string
+          updated_at: string
+          voice_name: string
+        }
+        Insert: {
+          account_id: string
+          brevity_level?: string
+          created_at?: string
+          description?: string | null
+          greeting_text?: string
+          id?: string
+          introduction_style?: string
+          is_default?: boolean
+          language_code?: string
+          name?: string
+          status?: Database["public"]["Enums"]["record_status"]
+          tone_style?: string
+          updated_at?: string
+          voice_name?: string
+        }
+        Update: {
+          account_id?: string
+          brevity_level?: string
+          created_at?: string
+          description?: string | null
+          greeting_text?: string
+          id?: string
+          introduction_style?: string
+          is_default?: boolean
+          language_code?: string
+          name?: string
+          status?: Database["public"]["Enums"]["record_status"]
+          tone_style?: string
+          updated_at?: string
+          voice_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assistant_profiles_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      phone_numbers: {
+        Row: {
+          account_id: string
+          capabilities: Json
+          country_code: string
+          created_at: string
+          e164_number: string
+          id: string
+          label: string | null
+          ownership_type: Database["public"]["Enums"]["ownership_type"]
+          provider: string
+          provider_number_id: string | null
+          status: Database["public"]["Enums"]["record_status"]
+          updated_at: string
+          verification_status: Database["public"]["Enums"]["verification_status"]
+        }
+        Insert: {
+          account_id: string
+          capabilities?: Json
+          country_code?: string
+          created_at?: string
+          e164_number: string
+          id?: string
+          label?: string | null
+          ownership_type?: Database["public"]["Enums"]["ownership_type"]
+          provider?: string
+          provider_number_id?: string | null
+          status?: Database["public"]["Enums"]["record_status"]
+          updated_at?: string
+          verification_status?: Database["public"]["Enums"]["verification_status"]
+        }
+        Update: {
+          account_id?: string
+          capabilities?: Json
+          country_code?: string
+          created_at?: string
+          e164_number?: string
+          id?: string
+          label?: string | null
+          ownership_type?: Database["public"]["Enums"]["ownership_type"]
+          provider?: string
+          provider_number_id?: string | null
+          status?: Database["public"]["Enums"]["record_status"]
+          updated_at?: string
+          verification_status?: Database["public"]["Enums"]["verification_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "phone_numbers_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
           created_at: string
           display_name: string | null
+          email: string | null
+          first_name: string | null
           id: string
+          last_name: string | null
+          phone_e164: string | null
+          status: Database["public"]["Enums"]["record_status"]
           updated_at: string
-          user_id: string
         }
         Insert: {
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
-          id?: string
+          email?: string | null
+          first_name?: string | null
+          id: string
+          last_name?: string | null
+          phone_e164?: string | null
+          status?: Database["public"]["Enums"]["record_status"]
           updated_at?: string
-          user_id: string
         }
         Update: {
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
+          email?: string | null
+          first_name?: string | null
           id?: string
+          last_name?: string | null
+          phone_e164?: string | null
+          status?: Database["public"]["Enums"]["record_status"]
           updated_at?: string
-          user_id?: string
         }
         Relationships: []
       }
@@ -46,10 +339,21 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_account_admin: {
+        Args: { _account_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_account_member: {
+        Args: { _account_id: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      account_role: "owner" | "admin" | "member" | "viewer"
+      mode_type: "manual" | "scheduled" | "auto"
+      ownership_type: "owned" | "rented" | "trial"
+      record_status: "active" | "inactive" | "suspended" | "deleted"
+      verification_status: "pending" | "verified" | "failed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -176,6 +480,12 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      account_role: ["owner", "admin", "member", "viewer"],
+      mode_type: ["manual", "scheduled", "auto"],
+      ownership_type: ["owned", "rented", "trial"],
+      record_status: ["active", "inactive", "suspended", "deleted"],
+      verification_status: ["pending", "verified", "failed"],
+    },
   },
 } as const
