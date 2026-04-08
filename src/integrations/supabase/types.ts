@@ -1127,6 +1127,63 @@ export type Database = {
           },
         ]
       }
+      notification_preferences: {
+        Row: {
+          account_id: string
+          channel: Database["public"]["Enums"]["notification_channel"]
+          created_at: string
+          enabled: boolean
+          event_type: Database["public"]["Enums"]["notification_event_type"]
+          fallback_order: number
+          id: string
+          priority_threshold: Database["public"]["Enums"]["notification_priority"]
+          profile_id: string
+          quiet_hours_override: boolean
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          channel: Database["public"]["Enums"]["notification_channel"]
+          created_at?: string
+          enabled?: boolean
+          event_type: Database["public"]["Enums"]["notification_event_type"]
+          fallback_order?: number
+          id?: string
+          priority_threshold?: Database["public"]["Enums"]["notification_priority"]
+          profile_id: string
+          quiet_hours_override?: boolean
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          channel?: Database["public"]["Enums"]["notification_channel"]
+          created_at?: string
+          enabled?: boolean
+          event_type?: Database["public"]["Enums"]["notification_event_type"]
+          fallback_order?: number
+          id?: string
+          priority_threshold?: Database["public"]["Enums"]["notification_priority"]
+          profile_id?: string
+          quiet_hours_override?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_preferences_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_preferences_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           account_id: string
@@ -1421,6 +1478,11 @@ export type Database = {
         | "timeout"
       mode_type: "manual" | "scheduled" | "auto"
       notification_channel: "push" | "sms" | "email"
+      notification_event_type:
+        | "urgent_call"
+        | "callback_request"
+        | "appointment_booked"
+        | "call_summary"
       notification_priority: "low" | "normal" | "high" | "critical"
       notification_status: "pending" | "sent" | "delivered" | "failed"
       ownership_type: "owned" | "rented" | "trial"
@@ -1615,6 +1677,12 @@ export const Constants = {
       escalation_status: ["none", "pending", "accepted", "declined", "timeout"],
       mode_type: ["manual", "scheduled", "auto"],
       notification_channel: ["push", "sms", "email"],
+      notification_event_type: [
+        "urgent_call",
+        "callback_request",
+        "appointment_booked",
+        "call_summary",
+      ],
       notification_priority: ["low", "normal", "high", "critical"],
       notification_status: ["pending", "sent", "delivered", "failed"],
       ownership_type: ["owned", "rented", "trial"],
