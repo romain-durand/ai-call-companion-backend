@@ -1,7 +1,9 @@
 const crypto = require("crypto");
 
 function createCallContext() {
-  return {
+  let _seqNo = 0;
+
+  const ctx = {
     traceId: crypto.randomUUID().slice(0, 8),
     streamSid: null,
     callerNumber: "unknown",
@@ -13,12 +15,18 @@ function createCallContext() {
     phoneNumberId: null,
     profileId: null,
     activeModeId: null,
-    messageSeqNo: 0,
     startedAt: null,
     finalized: false,
-    _lastMsgKey: null,
-    _txBuffer: null, // set by twilioConnection after creation
+    _txBuffer: null,
+
+    /** Returns the next unique seq_no for this call. */
+    nextSeqNo() {
+      _seqNo += 1;
+      return _seqNo;
+    },
   };
+
+  return ctx;
 }
 
 module.exports = { createCallContext };
