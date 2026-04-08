@@ -15,8 +15,10 @@ const { appendCallMessage } = require("./callMessagesRepo");
 function createTranscriptBuffer(callCtx) {
   const buf = {
     currentSpeaker: null,
-    chunks: [],          // accumulated text fragments for current speaker
-    lastFlushedKey: null, // "speaker:text" — prevents duplicate consecutive rows
+    chunks: [],
+    lastFlushedSpeaker: null,
+    lastFlushedText: null,
+    flushing: false,
   };
 
   /**
