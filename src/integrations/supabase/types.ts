@@ -239,6 +239,237 @@ export type Database = {
           },
         ]
       }
+      call_handling_rules: {
+        Row: {
+          account_id: string
+          assistant_mode_id: string
+          behavior: Database["public"]["Enums"]["call_behavior"]
+          booking_allowed: boolean
+          callback_allowed: boolean
+          caller_group_id: string
+          created_at: string
+          escalation_allowed: boolean
+          force_escalation: boolean
+          id: string
+          priority_rank: number
+          summary_required: boolean
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          assistant_mode_id: string
+          behavior?: Database["public"]["Enums"]["call_behavior"]
+          booking_allowed?: boolean
+          callback_allowed?: boolean
+          caller_group_id: string
+          created_at?: string
+          escalation_allowed?: boolean
+          force_escalation?: boolean
+          id?: string
+          priority_rank?: number
+          summary_required?: boolean
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          assistant_mode_id?: string
+          behavior?: Database["public"]["Enums"]["call_behavior"]
+          booking_allowed?: boolean
+          callback_allowed?: boolean
+          caller_group_id?: string
+          created_at?: string
+          escalation_allowed?: boolean
+          force_escalation?: boolean
+          id?: string
+          priority_rank?: number
+          summary_required?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_handling_rules_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_handling_rules_assistant_mode_id_fkey"
+            columns: ["assistant_mode_id"]
+            isOneToOne: false
+            referencedRelation: "assistant_modes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_handling_rules_caller_group_id_fkey"
+            columns: ["caller_group_id"]
+            isOneToOne: false
+            referencedRelation: "caller_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      caller_groups: {
+        Row: {
+          account_id: string
+          color: string | null
+          created_at: string
+          description: string | null
+          group_type: Database["public"]["Enums"]["caller_group_type"]
+          icon: string | null
+          id: string
+          name: string
+          priority_rank: number
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          group_type?: Database["public"]["Enums"]["caller_group_type"]
+          icon?: string | null
+          id?: string
+          name: string
+          priority_rank?: number
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          group_type?: Database["public"]["Enums"]["caller_group_type"]
+          icon?: string | null
+          id?: string
+          name?: string
+          priority_rank?: number
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "caller_groups_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contact_group_memberships: {
+        Row: {
+          account_id: string
+          caller_group_id: string
+          contact_id: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          account_id: string
+          caller_group_id: string
+          contact_id: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          account_id?: string
+          caller_group_id?: string
+          contact_id?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_group_memberships_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_group_memberships_caller_group_id_fkey"
+            columns: ["caller_group_id"]
+            isOneToOne: false
+            referencedRelation: "caller_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_group_memberships_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contacts: {
+        Row: {
+          account_id: string
+          company_name: string | null
+          created_at: string
+          display_name: string | null
+          email: string | null
+          external_source_id: string | null
+          first_name: string | null
+          id: string
+          is_blocked: boolean
+          is_favorite: boolean
+          last_name: string | null
+          notes: string | null
+          primary_phone_e164: string | null
+          secondary_phone_e164: string | null
+          source: Database["public"]["Enums"]["contact_source"]
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          company_name?: string | null
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          external_source_id?: string | null
+          first_name?: string | null
+          id?: string
+          is_blocked?: boolean
+          is_favorite?: boolean
+          last_name?: string | null
+          notes?: string | null
+          primary_phone_e164?: string | null
+          secondary_phone_e164?: string | null
+          source?: Database["public"]["Enums"]["contact_source"]
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          company_name?: string | null
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          external_source_id?: string | null
+          first_name?: string | null
+          id?: string
+          is_blocked?: boolean
+          is_favorite?: boolean
+          last_name?: string | null
+          notes?: string | null
+          primary_phone_e164?: string | null
+          secondary_phone_e164?: string | null
+          source?: Database["public"]["Enums"]["contact_source"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contacts_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       phone_numbers: {
         Row: {
           account_id: string
@@ -350,6 +581,22 @@ export type Database = {
     }
     Enums: {
       account_role: "owner" | "admin" | "member" | "viewer"
+      call_behavior:
+        | "answer_and_take_message"
+        | "answer_and_transfer"
+        | "answer_and_book"
+        | "answer_and_escalate"
+        | "answer_only"
+        | "block"
+        | "voicemail"
+      caller_group_type: "system" | "custom"
+      contact_source:
+        | "manual"
+        | "google_contacts"
+        | "apple_contacts"
+        | "csv_import"
+        | "call_history"
+        | "other"
       mode_type: "manual" | "scheduled" | "auto"
       ownership_type: "owned" | "rented" | "trial"
       record_status: "active" | "inactive" | "suspended" | "deleted"
@@ -482,6 +729,24 @@ export const Constants = {
   public: {
     Enums: {
       account_role: ["owner", "admin", "member", "viewer"],
+      call_behavior: [
+        "answer_and_take_message",
+        "answer_and_transfer",
+        "answer_and_book",
+        "answer_and_escalate",
+        "answer_only",
+        "block",
+        "voicemail",
+      ],
+      caller_group_type: ["system", "custom"],
+      contact_source: [
+        "manual",
+        "google_contacts",
+        "apple_contacts",
+        "csv_import",
+        "call_history",
+        "other",
+      ],
       mode_type: ["manual", "scheduled", "auto"],
       ownership_type: ["owned", "rented", "trial"],
       record_status: ["active", "inactive", "suspended", "deleted"],
