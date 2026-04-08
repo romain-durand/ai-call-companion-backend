@@ -10,14 +10,18 @@ async function appendCallMessage(ctx, speaker, contentText, extraData) {
   if (!ctx.callSessionId || !ctx.accountId) return;
   if (!contentText || contentText.trim().length === 0) return;
 
+  // Simple dedup: skip if identical to last message from same speaker
+  const key = `${speaker}:${contentText.trim()}`;
+  if (ctx._lastMsgKey === key) return;
+  ctx._lastMsgKey = key;
+
   ctx.messageSeqNo = (ctx.messageSeqNo || 0) + 1;
-  const seq = ctx.messageSeqNo;
 
   const row = {
     account_id: ctx.accountId,
     call_session_id: ctx.callSessionId,
     speaker,
-    seq_no: seq,
+    seq_no: ctx.messageSeqNo,
     content_text: contentText.trim(),
     content_json: extraData || null,
   };
@@ -25,9 +29,9 @@ async function appendCallMessage(ctx, speaker, contentText, extraData) {
   try {
     const { error } = await supabaseAdmin.from("call_messages").insert(row);
     if (error) throw error;
-    log.call("msg_written", ctx.traceId, `#${seq} ${speaker}: "${contentText.trim().slice(0, 50)}"`);
+    log.call("call_message_written", ctx.traceId, `#${ctx.messageSeqNo} ${speaker}`);
   } catch (e) {
-    log.error("msg_write_failed", ctx.traceId, `#${seq} ${speaker}: ${e.message}`);
+    log.error("db_write_failed", ctx.traceId, `call_messages: ${e.message}`);
   }
 }
 
