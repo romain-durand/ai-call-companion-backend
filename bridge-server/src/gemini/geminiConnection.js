@@ -29,14 +29,17 @@ function connectGemini(callCtx, onAudio) {
         log.gemini("setup_complete", traceId);
 
         // Send kickoff text to force assistant to speak first
-        const kickoff = "L'appel vient de commencer. Présente-toi maintenant.";
-        ws.send(JSON.stringify({
-          clientContent: {
-            turns: [{ role: "user", parts: [{ text: kickoff }] }],
-            turnComplete: true,
+        const kickoffText = "L'appel vient de commencer. Présentez-vous maintenant.";
+        const kickoffPayload = {
+          realtimeInput: {
+            content: {
+              parts: [{ text: kickoffText }],
+            },
           },
-        }));
-        log.gemini("initial_greeting_triggered", traceId, kickoff);
+        };
+        ws.send(JSON.stringify(kickoffPayload));
+        log.gemini("initial_greeting_triggered", traceId, kickoffText);
+        console.log("Kickoff payload sent:", JSON.stringify(kickoffPayload));
 
         // Audio gate: delay mic forwarding by 3s so greeting isn't interrupted
         log.gemini("mic_gate_started", traceId, "3000ms");
