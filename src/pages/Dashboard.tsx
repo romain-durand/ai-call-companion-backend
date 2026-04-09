@@ -5,6 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { dashboardStats, recentCalls, profiles, callerGroups } from "@/data/mockData";
 import { useNavigate } from "react-router-dom";
+import { useUserAccountId } from "@/hooks/useUserAccountId";
+import CallbackRequestsSection from "@/components/CallbackRequestsSection";
+import NotificationsSection from "@/components/NotificationsSection";
 
 const statCards = [
   { label: "Appels aujourd'hui", value: dashboardStats.callsToday, icon: Phone, color: "text-primary", sub: `${dashboardStats.callsThisWeek} cette semaine` },
