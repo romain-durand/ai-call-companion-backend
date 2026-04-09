@@ -149,6 +149,29 @@ async function attemptSmsDelivery({ profileId, accountId, callbackRow, callCtx, 
     return false;
   }
 
+  // Resolve recipient phone number from profiles
+  const { data: profile, error: profErr } = await supabaseAdmin
+    .from("profiles")
+    .select("phone_e164")
+    .eq("id", profileId)
+    .single();
+
+  if (profErr || !profile) {
+    log.error("notification_phone_missing", traceId,
+      `profile=${profileId} error=${profErr?.message || "not found"}`);
+    return false;
+  }
+
+  const recipientPhone = profile.phone_e164;
+  if (!recipientPhone) {
+    log.error("notification_phone_missing", traceId,
+      `profile=${profileId} — phone_e164 is null, skipping SMS`);
+    return false;
+  }
+
+  log.info("notification_phone_resolved", traceId,
+    `profile=${profileId} phone=${recipientPhone}`);
+
   // Upsert / find existing notification row for this recipient + channel
   const notifRow = await findOrCreateNotification({
     accountId,
@@ -164,10 +187,10 @@ async function attemptSmsDelivery({ profileId, accountId, callbackRow, callCtx, 
     return false;
   }
 
-  const payload = buildSmsPayload(callbackRow, callCtx, profileId, notifPriority, notifRow);
+  const payload = buildSmsPayload(callbackRow, callCtx, profileId, notifPriority, notifRow, recipientPhone);
 
   log.info("notification_delivery_attempt", traceId,
-    `channel=sms notif=${notifRow.id} profile=${profileId}`);
+    `channel=sms notif=${notifRow.id} profile=${profileId} recipientPhone=${recipientPhone}`);
 
   try {
     const result = await sendSms(N8N_SMS_WEBHOOK_URL, payload, traceId);
@@ -200,12 +223,13 @@ function buildSmsBody(callbackRow) {
   return `${caller} souhaite être rappelé`;
 }
 
-function buildSmsPayload(callbackRow, callCtx, profileId, notifPriority, notifRow) {
+function buildSmsPayload(callbackRow, callCtx, profileId, notifPriority, notifRow, recipientPhone) {
   return {
     eventType: "callback_request",
     notificationId: notifRow.id,
     accountId: callCtx.accountId,
     profileId,
+    recipientPhone,
     callbackRequestId: callbackRow.id,
     callSessionId: callbackRow.call_session_id || null,
     priority: notifPriority,
