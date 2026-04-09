@@ -1,5 +1,6 @@
 const { supabaseAdmin } = require("./supabaseAdmin");
 const log = require("../observability/logger");
+const { createFromCallback } = require("./notificationsRepo");
 
 /**
  * Create a callback_requests row from a tool call.
