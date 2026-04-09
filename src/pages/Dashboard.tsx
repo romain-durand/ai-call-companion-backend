@@ -9,6 +9,9 @@ import { useDashboardStats, useRecentCalls } from "@/data/providers/dashboard";
 import { useCallbackRequests } from "@/data/providers/callbackRequests";
 import { useNotifications } from "@/data/providers/notifications";
 import { useAccountMode } from "@/hooks/useAccountMode";
+import { useAuth } from "@/contexts/AuthContext";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import CallbackRequestsSection from "@/components/CallbackRequestsSection";
 import NotificationsSection from "@/components/NotificationsSection";
 import DemoModeBadge from "@/components/DemoModeBadge";
@@ -27,11 +30,24 @@ const statusStyles: Record<string, string> = {
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { data: mode } = useAccountMode();
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
   const { data: recentCalls, isLoading: callsLoading } = useRecentCalls();
   const { data: callbacks, isLoading: cbLoading } = useCallbackRequests();
   const { data: notifications, isLoading: nLoading } = useNotifications();
+  const { data: profile } = useQuery({
+    queryKey: ["profile-phone", user?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("phone_e164")
+        .eq("id", user!.id)
+        .single();
+      return data;
+    },
+    enabled: !!user,
+  });
 
   const statCards = stats
     ? [
@@ -61,6 +77,12 @@ export default function Dashboard() {
         <p className="text-muted-foreground text-sm mt-2">
           Aria est en ligne et gère vos appels
         </p>
+        {profile?.phone_e164 && (
+          <p className="text-xs text-muted-foreground/70 mt-1 flex items-center gap-1.5">
+            <Phone className="w-3 h-3" />
+            {profile.phone_e164}
+          </p>
+        )}
       </motion.div>
 
       {/* Main Stats */}
