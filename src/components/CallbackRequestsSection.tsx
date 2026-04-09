@@ -50,7 +50,7 @@ export default function CallbackRequestsSection({ accountId }: { accountId: stri
   return (
     <div>
       <h2 className="text-lg font-medium mb-4 flex items-center gap-2">
-        <PhoneCallback className="w-4 h-4 text-primary" />
+        <PhoneCall className="w-4 h-4 text-primary" />
         Demandes de rappel
       </h2>
 
