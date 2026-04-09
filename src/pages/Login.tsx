@@ -192,6 +192,22 @@ const Login = () => {
                   />
                 </div>
               </div>
+              {isSignUp && (
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Numéro de téléphone</Label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="phone"
+                      type="tel"
+                      placeholder="+33 6 12 34 56 78"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+              )}
               <Button type="submit" className="w-full h-11" disabled={isLoading}>
                 {isLoading
                   ? "Chargement..."
