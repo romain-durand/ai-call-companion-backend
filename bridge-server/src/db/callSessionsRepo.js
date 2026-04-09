@@ -61,13 +61,16 @@ async function createInboundCallSession(ctx) {
 
 /**
  * Finalize a call session: set ended_at, duration, outcome.
- * Idempotent: skips if already finalized.
+ * Called ONLY from finalizeOnce() which guarantees single execution.
+ * Does NOT check ctx.finalized — that is the caller's responsibility.
  */
 async function finalizeCallSession(ctx) {
-  if (ctx.finalized || !ctx.callSessionId) {
-    log.call("call_session_finalize_skipped", ctx.traceId, ctx.callSessionId || "no session");
+  if (!ctx.callSessionId) {
+    log.call("call_session_finalize_skipped", ctx.traceId, "no session id");
     return;
   }
+
+  log.call("call_session_finalization_started", ctx.traceId, ctx.callSessionId);
 
   const endedAt = new Date().toISOString();
   let durationSeconds = null;
@@ -87,7 +90,6 @@ async function finalizeCallSession(ctx) {
 
     if (error) throw error;
 
-    ctx.finalized = true;
     log.call("call_session_finalized", ctx.traceId, `${ctx.callSessionId} (${durationSeconds}s)`);
   } catch (e) {
     log.error("db_write_failed", ctx.traceId, `call_sessions finalize: ${e.message}`);
