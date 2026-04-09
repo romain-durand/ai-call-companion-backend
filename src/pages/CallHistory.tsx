@@ -1,25 +1,10 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Phone, Clock, ChevronDown, ChevronUp, Brain, Zap } from "lucide-react";
+import { Phone, Clock, ChevronDown, ChevronUp, Brain, Zap, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { recentCalls, callerGroups, type Call } from "@/data/mockData";
-
-function formatTime(date: Date) {
-  const now = new Date();
-  const diffMin = Math.floor((now.getTime() - date.getTime()) / 60000);
-  if (diffMin < 60) return `il y a ${diffMin} min`;
-  const diffH = Math.floor(diffMin / 60);
-  if (diffH < 24) return `il y a ${diffH}h`;
-  return date.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
-}
-
-function formatDuration(seconds: number) {
-  if (seconds === 0) return "—";
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return m > 0 ? `${m}m ${s}s` : `${s}s`;
-}
+import { Skeleton } from "@/components/ui/skeleton";
+import { useCallHistory, type CallHistoryItem } from "@/data/providers/callHistory";
 
 const statusConfig: Record<string, { label: string; style: string }> = {
   answered: { label: "Traité", style: "bg-primary/10 text-primary border-primary/20" },
@@ -37,11 +22,9 @@ const actionIcons: Record<string, string> = {
   blocked: "🚫",
 };
 
-const groupEmoji = Object.fromEntries(callerGroups.map(g => [g.id, g.emoji]));
-
-function CallRow({ call }: { call: Call }) {
+function CallRow({ call }: { call: CallHistoryItem }) {
   const [open, setOpen] = useState(false);
-  const st = statusConfig[call.status];
+  const st = statusConfig[call.status] || statusConfig.answered;
 
   return (
     <Card className="bg-card/40 border-border/40 hover:border-border/70 transition-all">
@@ -50,25 +33,25 @@ function CallRow({ call }: { call: Call }) {
           className="flex items-center gap-4 p-4 cursor-pointer group"
           onClick={() => setOpen(!open)}
         >
-          <span className="text-lg">{groupEmoji[call.group]}</span>
+          <span className="text-lg">{call.groupEmoji}</span>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-sm font-medium">{call.callerName}</span>
               {call.urgent && (
                 <Badge variant="destructive" className="text-[10px] h-4 px-1.5 rounded-full">Urgent</Badge>
               )}
-              <Badge className={`text-[10px] h-4 px-1.5 rounded-full border ${st.style}`}>{st.label}</Badge>
-              {call.actions.length > 0 && (
-                <span className="text-[10px] text-primary font-medium">{call.actions.length} action{call.actions.length > 1 ? "s" : ""}</span>
+              <Badge className={`text-[10px] h-4 px-1.5 rounded-full border ${st.style}`}>{call.statusLabel}</Badge>
+              {call.actionsCount > 0 && (
+                <span className="text-[10px] text-primary font-medium">{call.actionsCount} action{call.actionsCount > 1 ? "s" : ""}</span>
               )}
             </div>
             <p className="text-xs text-muted-foreground truncate mt-1">{call.summary}</p>
           </div>
           <div className="flex items-center gap-4 shrink-0">
             <div className="text-right">
-              <p className="text-xs text-muted-foreground">{formatTime(call.timestamp)}</p>
+              <p className="text-xs text-muted-foreground">{call.timeLabel}</p>
               <p className="text-[10px] text-muted-foreground/60 flex items-center gap-1 justify-end mt-0.5">
-                <Clock className="w-3 h-3" /> {formatDuration(call.duration)}
+                <Clock className="w-3 h-3" /> {call.durationLabel}
               </p>
             </div>
             <div className="w-5 h-5 rounded-full flex items-center justify-center bg-secondary/50 group-hover:bg-secondary transition-colors">
@@ -87,7 +70,6 @@ function CallRow({ call }: { call: Call }) {
               className="overflow-hidden"
             >
               <div className="px-5 pb-5 space-y-4 border-t border-border/30 pt-4">
-                {/* Reasoning */}
                 {call.reasoning && (
                   <div className="flex items-start gap-3 p-3 rounded-lg bg-primary/5 border border-primary/10">
                     <Brain className="w-4 h-4 text-primary mt-0.5 shrink-0" />
@@ -98,7 +80,6 @@ function CallRow({ call }: { call: Call }) {
                   </div>
                 )}
 
-                {/* Actions */}
                 {call.actions.length > 0 && (
                   <div>
                     <div className="flex items-center gap-1.5 mb-2">
@@ -116,7 +97,6 @@ function CallRow({ call }: { call: Call }) {
                   </div>
                 )}
 
-                {/* Transcript */}
                 {call.transcript && (
                   <div>
                     <p className="text-xs font-medium text-foreground mb-2">Transcription</p>
@@ -126,7 +106,9 @@ function CallRow({ call }: { call: Call }) {
                   </div>
                 )}
 
-                <p className="text-[10px] text-muted-foreground/50 font-mono">{call.callerNumber}</p>
+                {call.callerNumber && (
+                  <p className="text-[10px] text-muted-foreground/50 font-mono">{call.callerNumber}</p>
+                )}
               </div>
             </motion.div>
           )}
@@ -137,20 +119,43 @@ function CallRow({ call }: { call: Call }) {
 }
 
 export default function CallHistory() {
+  const { data: calls, isLoading } = useCallHistory();
+
   return (
     <div className="space-y-8 max-w-3xl">
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
         <h1 className="text-2xl font-semibold tracking-tight">Historique des appels</h1>
-        <p className="text-sm text-muted-foreground mt-2">{recentCalls.length} appels récents · Cliquez pour voir les détails</p>
+        <p className="text-sm text-muted-foreground mt-2">
+          {isLoading ? "Chargement…" : `${calls?.length || 0} appels récents · Cliquez pour voir les détails`}
+        </p>
       </motion.div>
 
-      <div className="space-y-2">
-        {recentCalls.map((call, i) => (
-          <motion.div key={call.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
-            <CallRow call={call} />
-          </motion.div>
-        ))}
-      </div>
+      {isLoading && (
+        <div className="space-y-2">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-20 w-full rounded-xl" />
+          ))}
+        </div>
+      )}
+
+      {!isLoading && (!calls || calls.length === 0) && (
+        <Card className="bg-card/40 border-border/40">
+          <CardContent className="py-12 text-center">
+            <Phone className="w-8 h-8 text-muted-foreground/40 mx-auto mb-3" />
+            <p className="text-sm text-muted-foreground">Aucun appel pour le moment</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {!isLoading && calls && calls.length > 0 && (
+        <div className="space-y-2">
+          {calls.map((call, i) => (
+            <motion.div key={call.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
+              <CallRow call={call} />
+            </motion.div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
