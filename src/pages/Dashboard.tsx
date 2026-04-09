@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { dashboardStats, recentCalls, profiles, callerGroups } from "@/data/mockData";
 import { useNavigate } from "react-router-dom";
-import { useUserAccountId } from "@/hooks/useUserAccountId";
+import { useUserAccountIds } from "@/hooks/useUserAccountId";
 import CallbackRequestsSection from "@/components/CallbackRequestsSection";
 import NotificationsSection from "@/components/NotificationsSection";
 
