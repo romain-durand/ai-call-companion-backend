@@ -3,20 +3,40 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Check, ChevronRight, Info } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  callerGroups,
-  behaviorOptions,
-  type CallerGroupType,
-  type BehaviorType,
-} from "@/data/mockData";
+import { Skeleton } from "@/components/ui/skeleton";
+import { behaviorOptions, type BehaviorType } from "@/data/mockData";
+import { useCallerGroups } from "@/data/providers/callerGroups";
 
 export default function CallerGroups() {
-  const [behaviors, setBehaviors] = useState<Record<CallerGroupType, BehaviorType>>(
-    Object.fromEntries(callerGroups.map((g) => [g.id, g.defaultBehavior])) as Record<CallerGroupType, BehaviorType>
-  );
-  const [expandedGroup, setExpandedGroup] = useState<CallerGroupType | null>(null);
+  const { data: groups, isLoading } = useCallerGroups();
+  const [behaviors, setBehaviors] = useState<Record<string, string>>({});
+  const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
 
-  const getBehavior = (id: BehaviorType) => behaviorOptions.find((b) => b.id === id)!;
+  // Initialize behaviors when groups load
+  const getBehaviorForGroup = (groupId: string, defaultBehavior: string) => {
+    return behaviors[groupId] || defaultBehavior;
+  };
+
+  const getBehavior = (id: string) =>
+    behaviorOptions.find((b) => b.id === id) || behaviorOptions[0];
+
+  if (isLoading) {
+    return (
+      <div className="space-y-8 max-w-3xl">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Qui peut vous joindre ?</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Définissez comment Aria gère les appels de chaque groupe de contacts.
+          </p>
+        </div>
+        <div className="space-y-3">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <Skeleton key={i} className="h-20 w-full rounded-xl" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 max-w-3xl">
@@ -28,8 +48,9 @@ export default function CallerGroups() {
       </div>
 
       <div className="space-y-3">
-        {callerGroups.map((group) => {
-          const currentBehavior = getBehavior(behaviors[group.id]);
+        {(groups || []).map((group) => {
+          const currentBehaviorId = getBehaviorForGroup(group.id, group.defaultBehavior);
+          const currentBehavior = getBehavior(currentBehaviorId);
           const isExpanded = expandedGroup === group.id;
 
           return (
@@ -49,10 +70,10 @@ export default function CallerGroups() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-semibold">{group.label}</h3>
-                      {group.memberCount > 0 && (
+                      <h3 className="text-sm font-semibold">{group.name}</h3>
+                      {group.contactCount > 0 && (
                         <Badge variant="secondary" className="text-[10px] h-4 px-1.5">
-                          {group.memberCount} contacts
+                          {group.contactCount} contacts
                         </Badge>
                       )}
                     </div>
@@ -88,7 +109,7 @@ export default function CallerGroups() {
                     <div className="pt-2 pb-1 space-y-3">
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                         {behaviorOptions.map((option) => {
-                          const isSelected = behaviors[group.id] === option.id;
+                          const isSelected = currentBehaviorId === option.id;
                           return (
                             <motion.div
                               key={option.id}
@@ -128,9 +149,9 @@ export default function CallerGroups() {
                         <Info className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
                         <p className="text-xs text-muted-foreground">
                           <span className="font-medium text-foreground">
-                            Les {group.label.toLowerCase()}
+                            Les {group.name.toLowerCase()}
                           </span>{" "}
-                          {getBehavior(behaviors[group.id]).preview}
+                          {currentBehavior.preview}
                         </p>
                       </div>
                     </div>

@@ -1,9 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
 import { Bell } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { NotificationItem } from "@/data/providers/types";
 
 const priorityStyles: Record<string, string> = {
   low: "bg-muted text-muted-foreground",
@@ -12,39 +11,12 @@ const priorityStyles: Record<string, string> = {
   critical: "bg-destructive/10 text-destructive border-destructive/20",
 };
 
-const statusLabels: Record<string, string> = {
-  pending: "En attente",
-  sent: "Envoyée",
-  delivered: "Délivrée",
-  failed: "Échouée",
-};
-
-function formatDate(dateStr: string) {
-  const d = new Date(dateStr);
-  const now = new Date();
-  const diffMin = Math.floor((now.getTime() - d.getTime()) / 60000);
-  if (diffMin < 60) return `il y a ${diffMin} min`;
-  const diffH = Math.floor(diffMin / 60);
-  if (diffH < 24) return `il y a ${diffH}h`;
-  return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+interface Props {
+  items: NotificationItem[];
+  isLoading: boolean;
 }
 
-export default function NotificationsSection({ accountIds }: { accountIds: string[] }) {
-  const { data: notifications, isLoading } = useQuery({
-    queryKey: ["notifications", accountIds],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("notifications")
-        .select("id, title, body, priority, status, created_at")
-        .in("account_id", accountIds)
-        .order("created_at", { ascending: false })
-        .limit(10);
-      if (error) throw error;
-      return data;
-    },
-    enabled: accountIds.length > 0,
-  });
-
+export default function NotificationsSection({ items, isLoading }: Props) {
   return (
     <div>
       <h2 className="text-lg font-medium mb-4 flex items-center gap-2">
@@ -60,15 +32,15 @@ export default function NotificationsSection({ accountIds }: { accountIds: strin
         </div>
       )}
 
-      {!isLoading && (!notifications || notifications.length === 0) && (
+      {!isLoading && items.length === 0 && (
         <div className="text-sm text-muted-foreground p-6 text-center border border-border/40 rounded-xl bg-card/30">
           Aucune notification
         </div>
       )}
 
-      {!isLoading && notifications && notifications.length > 0 && (
+      {!isLoading && items.length > 0 && (
         <div className="space-y-2">
-          {notifications.map((n, i) => (
+          {items.map((n, i) => (
             <motion.div
               key={n.id}
               initial={{ opacity: 0 }}
@@ -83,7 +55,7 @@ export default function NotificationsSection({ accountIds }: { accountIds: strin
                     {n.priority}
                   </Badge>
                   <Badge variant="outline" className="text-[10px] h-4 px-1.5 rounded-full">
-                    {statusLabels[n.status] || n.status}
+                    {n.statusLabel}
                   </Badge>
                 </div>
                 {n.body && (
@@ -91,7 +63,7 @@ export default function NotificationsSection({ accountIds }: { accountIds: strin
                 )}
               </div>
               <div className="text-right shrink-0">
-                <p className="text-xs text-muted-foreground">{formatDate(n.created_at)}</p>
+                <p className="text-xs text-muted-foreground">{n.createdAtLabel}</p>
               </div>
             </motion.div>
           ))}
