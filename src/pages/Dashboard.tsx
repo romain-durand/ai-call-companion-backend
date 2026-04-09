@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { dashboardStats, recentCalls, profiles, callerGroups } from "@/data/mockData";
 import { useNavigate } from "react-router-dom";
-import { useUserAccountId } from "@/hooks/useUserAccountId";
+import { useUserAccountIds } from "@/hooks/useUserAccountId";
 import CallbackRequestsSection from "@/components/CallbackRequestsSection";
 import NotificationsSection from "@/components/NotificationsSection";
 
@@ -50,7 +50,7 @@ const statusLabels: Record<string, string> = {
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { data: accountId } = useUserAccountId();
+  const { data: accountIds } = useUserAccountIds();
   const activeProfile = profiles.find(p => p.active);
 
   return (
@@ -153,10 +153,10 @@ export default function Dashboard() {
         </div>
       </div>
       {/* Callback Requests */}
-      {accountId && <CallbackRequestsSection accountId={accountId} />}
+      {accountIds && accountIds.length > 0 && <CallbackRequestsSection accountIds={accountIds} />}
 
       {/* Notifications */}
-      {accountId && <NotificationsSection accountId={accountId} />}
+      {accountIds && accountIds.length > 0 && <NotificationsSection accountIds={accountIds} />}
     </div>
   );
 }

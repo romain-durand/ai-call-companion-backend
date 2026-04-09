@@ -31,20 +31,20 @@ function formatDate(dateStr: string) {
   return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
-export default function CallbackRequestsSection({ accountId }: { accountId: string }) {
+export default function CallbackRequestsSection({ accountIds }: { accountIds: string[] }) {
   const { data: callbacks, isLoading } = useQuery({
-    queryKey: ["callback-requests", accountId],
+    queryKey: ["callback-requests", accountIds],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("callback_requests")
         .select("id, caller_name, caller_phone_e164, reason, priority, preferred_time_note, status, created_at")
-        .eq("account_id", accountId)
+        .in("account_id", accountIds)
         .order("created_at", { ascending: false })
         .limit(10);
       if (error) throw error;
       return data;
     },
-    enabled: !!accountId,
+    enabled: accountIds.length > 0,
   });
 
   return (

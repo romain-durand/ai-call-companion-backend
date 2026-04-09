@@ -2,6 +2,31 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
+/**
+ * Returns all account_ids the current user belongs to.
+ * Components can query across all accounts for a complete view.
+ */
+export function useUserAccountIds() {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ["user-account-ids", user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from("account_members")
+        .select("account_id")
+        .eq("profile_id", user.id);
+      if (error) throw error;
+      return data?.map((d) => d.account_id) ?? [];
+    },
+    enabled: !!user,
+  });
+}
+
+/**
+ * Returns the primary account_id (default or first found).
+ */
 export function useUserAccountId() {
   const { user } = useAuth();
 
@@ -11,24 +36,11 @@ export function useUserAccountId() {
       if (!user) return null;
       const { data, error } = await supabase
         .from("account_members")
-        .select("account_id")
+        .select("account_id, is_default_account")
         .eq("profile_id", user.id)
-        .eq("is_default_account", true)
-        .maybeSingle();
-
+        .order("is_default_account", { ascending: false });
       if (error) throw error;
-      // Fallback: if no default, pick the first one
-      if (!data) {
-        const { data: fallback, error: fErr } = await supabase
-          .from("account_members")
-          .select("account_id")
-          .eq("profile_id", user.id)
-          .limit(1)
-          .single();
-        if (fErr) throw fErr;
-        return fallback?.account_id ?? null;
-      }
-      return data.account_id;
+      return data?.[0]?.account_id ?? null;
     },
     enabled: !!user,
   });
