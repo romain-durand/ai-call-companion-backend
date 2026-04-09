@@ -5,6 +5,7 @@ const { createCallContext } = require("../calls/callContext");
 const callStore = require("../calls/callStateStore");
 const log = require("../observability/logger");
 const { createInboundCallSession, finalizeCallSession } = require("../db/callSessionsRepo");
+const { generateAndSaveSummary } = require("../db/callSummaryRepo");
 const { createTranscriptBuffer } = require("../db/transcriptBuffer");
 
 /**
