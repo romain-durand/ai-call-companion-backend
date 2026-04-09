@@ -50,7 +50,7 @@ const statusLabels: Record<string, string> = {
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { data: accountId } = useUserAccountId();
+  const { data: accountIds } = useUserAccountIds();
   const activeProfile = profiles.find(p => p.active);
 
   return (
