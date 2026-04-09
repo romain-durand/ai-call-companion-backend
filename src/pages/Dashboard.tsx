@@ -152,6 +152,11 @@ export default function Dashboard() {
           ))}
         </div>
       </div>
+      {/* Callback Requests */}
+      {accountId && <CallbackRequestsSection accountId={accountId} />}
+
+      {/* Notifications */}
+      {accountId && <NotificationsSection accountId={accountId} />}
     </div>
   );
 }
