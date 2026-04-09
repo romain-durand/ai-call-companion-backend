@@ -21,15 +21,22 @@ async function createFromCallback(callbackRow, callCtx) {
 
   try {
     // 1. Resolve target profiles (owners + admins)
+    log.call("notification_target_lookup", callCtx.traceId, `account=${accountId}`);
+
     const { data: members, error: mErr } = await supabaseAdmin
       .from("account_members")
-      .select("profile_id")
+      .select("profile_id, role")
       .eq("account_id", accountId)
       .in("role", ["owner", "admin"]);
 
     if (mErr) throw mErr;
+
+    log.call("notification_target_result", callCtx.traceId,
+      `found=${members?.length || 0} admins/owners for account=${accountId}`);
+
     if (!members || members.length === 0) {
-      log.error("notification_failed", callCtx.traceId, "no admin/owner found");
+      log.error("notification_failed", callCtx.traceId,
+        `no admin/owner found for account=${accountId} — ensure account_members has at least one owner row`);
       return;
     }
 
