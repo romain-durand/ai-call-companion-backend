@@ -31,6 +31,8 @@ function handleTwilioConnection(twilioWs) {
       await callCtx._txBuffer.flushAll();
     }
     await finalizeCallSession(callCtx);
+    // Post-finalization: generate deterministic summary (fire-and-forget safe)
+    generateAndSaveSummary(callCtx.callSessionId, callCtx.traceId).catch(() => {});
     callStore.remove(callCtx.traceId);
   }
 
