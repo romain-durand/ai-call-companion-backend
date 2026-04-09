@@ -118,13 +118,20 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-4">
+      <SidebarFooter className="p-4 space-y-2">
         {!collapsed && (
           <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-primary/5 border border-primary/10">
             <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
             <span className="text-[11px] text-muted-foreground">Mode Travail actif</span>
           </div>
         )}
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors text-sm"
+        >
+          <LogOut className="h-4 w-4" />
+          {!collapsed && <span>Se déconnecter</span>}
+        </button>
       </SidebarFooter>
     </Sidebar>
   );
