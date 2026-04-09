@@ -30,11 +30,24 @@ const statusStyles: Record<string, string> = {
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { data: mode } = useAccountMode();
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
   const { data: recentCalls, isLoading: callsLoading } = useRecentCalls();
   const { data: callbacks, isLoading: cbLoading } = useCallbackRequests();
   const { data: notifications, isLoading: nLoading } = useNotifications();
+  const { data: profile } = useQuery({
+    queryKey: ["profile-phone", user?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("phone_e164")
+        .eq("id", user!.id)
+        .single();
+      return data;
+    },
+    enabled: !!user,
+  });
 
   const statCards = stats
     ? [
