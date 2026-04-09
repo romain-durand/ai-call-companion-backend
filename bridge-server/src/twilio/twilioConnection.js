@@ -18,6 +18,21 @@ function handleTwilioConnection(twilioWs) {
 
   let geminiWs = null;
 
+  // Single finalization helper — guaranteed to run at most once
+  async function finalizeOnce() {
+    if (callCtx.finalized) {
+      log.call("call_session_finalize_skipped", callCtx.traceId, "already finalized");
+      return;
+    }
+    callCtx.finalized = true; // set BEFORE async work to prevent races
+
+    if (callCtx._txBuffer) {
+      await callCtx._txBuffer.flushAll();
+    }
+    await finalizeCallSession(callCtx);
+    callStore.remove(callCtx.traceId);
+  }
+
   // Callback: send audio from Gemini back to Twilio
   function sendAudioToTwilio(mulawBase64) {
     if (twilioWs.readyState === WebSocket.OPEN && callCtx.streamSid) {
@@ -50,12 +65,10 @@ function handleTwilioConnection(twilioWs) {
 
           log.call("call_started", callCtx.traceId, `StreamSid: ${callCtx.streamSid}, Caller: ${callCtx.callerNumber}`);
 
-          // DB write (non-blocking): create call session
           createInboundCallSession(callCtx).then((sessionId) => {
             if (sessionId) callCtx.callSessionId = sessionId;
           });
 
-          // Connect Gemini immediately — don't wait for DB
           geminiWs = connectGemini(callCtx, sendAudioToTwilio);
           break;
         }
@@ -78,15 +91,8 @@ function handleTwilioConnection(twilioWs) {
           break;
 
         case "stop":
-          log.call("call_ended", callCtx.traceId);
-          // Flush transcript buffer before finalizing
-          if (callCtx._txBuffer) {
-            callCtx._txBuffer.flushAll().then(() => {
-              finalizeCallSession(callCtx);
-            });
-          } else {
-            finalizeCallSession(callCtx);
-          }
+          log.call("call_ended_stop", callCtx.traceId);
+          finalizeOnce();
           if (geminiWs) geminiWs.close(1000, "Call ended");
           break;
 
@@ -100,15 +106,7 @@ function handleTwilioConnection(twilioWs) {
 
   twilioWs.on("close", () => {
     log.call("stream_disconnected", callCtx.traceId);
-    if (callCtx._txBuffer) {
-      callCtx._txBuffer.flushAll().then(() => {
-        finalizeCallSession(callCtx);
-        callStore.remove(callCtx.traceId);
-      });
-    } else {
-      finalizeCallSession(callCtx);
-      callStore.remove(callCtx.traceId);
-    }
+    finalizeOnce();
     if (geminiWs) geminiWs.close(1000, "Twilio disconnected");
   });
 

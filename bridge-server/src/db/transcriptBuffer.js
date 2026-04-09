@@ -3,44 +3,36 @@ const { appendCallMessage } = require("./callMessagesRepo");
 
 /**
  * In-memory transcript buffer for a single call.
- * Accumulates partial transcription chunks per speaker and flushes
- * a single clean call_message row when:
- *   - the speaker changes
- *   - flushAll() is called (call end / tool boundary)
- *   - a stability timeout fires (optional, not used in MVP)
- *
- * Lives on callCtx._txBuffer — one per call, garbage-collected on disconnect.
+ * Maintains ONE active speaker buffer at a time.
+ * Flushes on speaker change, tool boundary, or call end.
  */
-
 function createTranscriptBuffer(callCtx) {
   const buf = {
     currentSpeaker: null,
     chunks: [],
     lastFlushedSpeaker: null,
     lastFlushedText: null,
-    flushing: false,
+    _flushPromise: null,
   };
 
   /**
-   * Flush the current buffer to the DB as one call_message row.
-   * Returns a promise (non-blocking in practice).
+   * Flush the current buffer to DB. Returns a promise.
+   * Serialized: waits for any in-flight flush before starting.
    */
   async function flush() {
     if (!buf.currentSpeaker || buf.chunks.length === 0) return;
-    if (buf.flushing) return;
 
-    buf.flushing = true;
+    // Capture and clear atomically
     const speaker = buf.currentSpeaker;
     const text = buf.chunks.join(" ").replace(/\s+/g, " ").trim();
-
     buf.chunks = [];
     buf.currentSpeaker = null;
 
-    if (!text) { buf.flushing = false; return; }
+    if (!text) return;
 
+    // Dedup: skip if identical to last flush
     if (speaker === buf.lastFlushedSpeaker && text === buf.lastFlushedText) {
       log.call("transcript_dedup_skip", callCtx.traceId, `${speaker}: "${text.slice(0, 40)}…"`);
-      buf.flushing = false;
       return;
     }
 
@@ -49,18 +41,20 @@ function createTranscriptBuffer(callCtx) {
 
     log.call("transcript_flush", callCtx.traceId, `${speaker}: "${text.slice(0, 60)}…"`);
     await appendCallMessage(callCtx, speaker, text);
-    buf.flushing = false;
   }
 
   /**
-   * Add a transcription chunk. Flushes automatically on speaker change.
+   * Add a transcription chunk. Flushes on speaker change.
    */
   function push(speaker, text) {
     if (!text || !text.trim()) return;
 
-    // Speaker changed → flush previous speaker's buffer first
+    log.call("transcript_buffer_push", callCtx.traceId, `${speaker}: "${text.trim().slice(0, 40)}…"`);
+
+    // Speaker changed → flush previous speaker first
     if (buf.currentSpeaker && buf.currentSpeaker !== speaker) {
-      flush(); // fire-and-forget, non-blocking
+      // Serialize: chain onto previous flush
+      buf._flushPromise = (buf._flushPromise || Promise.resolve()).then(() => flush());
     }
 
     buf.currentSpeaker = speaker;
@@ -71,6 +65,8 @@ function createTranscriptBuffer(callCtx) {
    * Flush everything remaining (call end / tool boundary).
    */
   async function flushAll() {
+    // Wait for any pending flush first
+    if (buf._flushPromise) await buf._flushPromise;
     await flush();
   }
 
