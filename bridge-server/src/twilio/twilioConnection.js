@@ -5,6 +5,7 @@ const { createCallContext } = require("../calls/callContext");
 const callStore = require("../calls/callStateStore");
 const log = require("../observability/logger");
 const { createInboundCallSession, finalizeCallSession } = require("../db/callSessionsRepo");
+const { generateAndSaveSummary } = require("../db/callSummaryRepo");
 const { createTranscriptBuffer } = require("../db/transcriptBuffer");
 
 /**
@@ -30,6 +31,8 @@ function handleTwilioConnection(twilioWs) {
       await callCtx._txBuffer.flushAll();
     }
     await finalizeCallSession(callCtx);
+    // Post-finalization: generate deterministic summary (fire-and-forget safe)
+    generateAndSaveSummary(callCtx.callSessionId, callCtx.traceId).catch(() => {});
     callStore.remove(callCtx.traceId);
   }
 
