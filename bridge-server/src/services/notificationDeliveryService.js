@@ -187,7 +187,11 @@ async function attemptSmsDelivery({ profileId, accountId, callbackRow, callCtx, 
     return false;
   }
 
-  const payload = buildSmsPayload(callbackRow, callCtx, profileId, notifPriority, notifRow, recipientPhone);
+  const body = buildSmsBody(callbackRow);
+  log.info("notification_message_composed", traceId,
+    `reason=${callbackRow.reason || "null"} time=${callbackRow.preferred_time_note || "null"} body="${body}"`);
+
+  const payload = buildSmsPayload(callbackRow, callCtx, profileId, notifPriority, notifRow, recipientPhone, body);
 
   log.info("notification_delivery_attempt", traceId,
     `channel=sms notif=${notifRow.id} profile=${profileId} recipientPhone=${recipientPhone}`);
@@ -218,12 +222,21 @@ async function attemptSmsDelivery({ profileId, accountId, callbackRow, callCtx, 
 
 function buildSmsBody(callbackRow) {
   const caller = callbackRow.caller_name || "Un appelant";
+  const reason = callbackRow.reason;
   const time = callbackRow.preferred_time_note;
-  if (time) return `${caller} souhaite être rappelé ${time}`;
-  return `${caller} souhaite être rappelé`;
+
+  if (reason && time) {
+    return `${reason} ${time}.`;
+  }
+  if (reason) {
+    return `${reason}.`;
+  }
+  // Fallback: no reason available
+  if (time) return `${caller} souhaite être rappelé ${time}.`;
+  return `${caller} souhaite être rappelé.`;
 }
 
-function buildSmsPayload(callbackRow, callCtx, profileId, notifPriority, notifRow, recipientPhone) {
+function buildSmsPayload(callbackRow, callCtx, profileId, notifPriority, notifRow, recipientPhone, body) {
   return {
     eventType: "callback_request",
     notificationId: notifRow.id,
@@ -234,7 +247,7 @@ function buildSmsPayload(callbackRow, callCtx, profileId, notifPriority, notifRo
     callSessionId: callbackRow.call_session_id || null,
     priority: notifPriority,
     title: "Demande de rappel",
-    body: buildSmsBody(callbackRow),
+    body,
     callerPhone: callbackRow.caller_phone_e164 || null,
     reason: callbackRow.reason || null,
     preferredTimeNote: callbackRow.preferred_time_note || null,
