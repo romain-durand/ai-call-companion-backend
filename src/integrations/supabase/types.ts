@@ -77,6 +77,7 @@ export type Database = {
           account_type: string
           created_at: string
           id: string
+          is_demo: boolean
           locale: string
           name: string
           slug: string
@@ -88,6 +89,7 @@ export type Database = {
           account_type?: string
           created_at?: string
           id?: string
+          is_demo?: boolean
           locale?: string
           name: string
           slug: string
@@ -99,6 +101,7 @@ export type Database = {
           account_type?: string
           created_at?: string
           id?: string
+          is_demo?: boolean
           locale?: string
           name?: string
           slug?: string
