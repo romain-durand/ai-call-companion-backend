@@ -77,6 +77,12 @@ export default function Dashboard() {
         <p className="text-muted-foreground text-sm mt-2">
           Aria est en ligne et gère vos appels
         </p>
+        {profile?.phone_e164 && (
+          <p className="text-xs text-muted-foreground/70 mt-1 flex items-center gap-1.5">
+            <Phone className="w-3 h-3" />
+            {profile.phone_e164}
+          </p>
+        )}
       </motion.div>
 
       {/* Main Stats */}
