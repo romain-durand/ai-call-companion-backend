@@ -33,6 +33,11 @@ async function createCallbackRequest(callCtx, args) {
       .single();
     if (error) throw error;
     log.call("callback_request_created", callCtx.traceId, `${data.id} session=${callCtx.callSessionId}`);
+
+    // Fire-and-forget notification (never blocks callback result)
+    const cbRow = { ...row, id: data.id };
+    createFromCallback(cbRow, callCtx).catch(() => {});
+
     return data.id;
   } catch (e) {
     log.error("callback_request_failed", callCtx.traceId, e.message);
