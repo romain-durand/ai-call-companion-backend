@@ -15,5 +15,6 @@ module.exports = {
   SUPABASE_URL: required("SUPABASE_URL"),
   SUPABASE_SERVICE_ROLE_KEY: required("SUPABASE_SERVICE_ROLE_KEY"),
   N8N_WEBHOOK_URL: process.env.N8N_WEBHOOK_URL || "https://n8n.ted.paris/webhook/466abacc-ec73-401a-9052-71a04ea95eda",
+  N8N_SMS_WEBHOOK_URL: process.env.N8N_SMS_WEBHOOK_URL || "",
   MODEL: process.env.GEMINI_MODEL || "models/gemini-3.1-flash-live-preview",
 };
