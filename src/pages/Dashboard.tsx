@@ -153,10 +153,10 @@ export default function Dashboard() {
         </div>
       </div>
       {/* Callback Requests */}
-      {accountId && <CallbackRequestsSection accountId={accountId} />}
+      {accountIds && accountIds.length > 0 && <CallbackRequestsSection accountIds={accountIds} />}
 
       {/* Notifications */}
-      {accountId && <NotificationsSection accountId={accountId} />}
+      {accountIds && accountIds.length > 0 && <NotificationsSection accountIds={accountIds} />}
     </div>
   );
 }
