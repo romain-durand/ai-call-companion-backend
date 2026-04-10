@@ -54,5 +54,6 @@ export async function getLiveCallerGroups(accountIds: string[]): Promise<CallerG
     contactCount: countMap[g.id] || 0,
     defaultBehavior: behaviorMap[g.id] || "answer_and_take_message",
     color: g.color || "hsl(220 15% 50%)",
+    customInstructions: (g as any).custom_instructions ?? null,
   }));
 }

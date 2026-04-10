@@ -22,7 +22,7 @@ interface GroupFormDialogProps {
   onOpenChange: (open: boolean) => void;
   onSubmit: (data: CallerGroupFormData) => void;
   isPending?: boolean;
-  initialData?: { name: string; icon: string; description: string } | null;
+  initialData?: { name: string; icon: string; description: string; custom_instructions?: string } | null;
 }
 
 export function GroupFormDialog({
@@ -35,19 +35,26 @@ export function GroupFormDialog({
   const [name, setName] = useState("");
   const [icon, setIcon] = useState("👤");
   const [description, setDescription] = useState("");
+  const [customInstructions, setCustomInstructions] = useState("");
 
   useEffect(() => {
     if (open) {
       setName(initialData?.name || "");
       setIcon(initialData?.icon || "👤");
       setDescription(initialData?.description || "");
+      setCustomInstructions(initialData?.custom_instructions || "");
     }
   }, [open, initialData]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    onSubmit({ name: name.trim(), icon, description: description.trim() });
+    onSubmit({
+      name: name.trim(),
+      icon,
+      description: description.trim(),
+      custom_instructions: customInstructions.trim(),
+    });
   };
 
   return (
@@ -99,6 +106,21 @@ export function GroupFormDialog({
               placeholder="Description courte du groupe…"
               rows={2}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="group-instructions">Instructions pour l'assistant</Label>
+            <Textarea
+              id="group-instructions"
+              value={customInstructions}
+              onChange={(e) => setCustomInstructions(e.target.value)}
+              placeholder="Ex : Toujours proposer un rendez-vous. Parler en anglais…"
+              rows={3}
+              className="text-xs"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Ces instructions seront ajoutées au comportement de l'assistant pour tous les contacts de ce groupe.
+            </p>
           </div>
 
           <DialogFooter>

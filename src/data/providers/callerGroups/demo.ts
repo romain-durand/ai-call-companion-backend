@@ -10,6 +10,7 @@ export function getDemoCallerGroups(): CallerGroupItem[] {
     contactCount: g.memberCount,
     defaultBehavior: g.defaultBehavior,
     color: g.color,
+    customInstructions: null,
   }));
 }
 
