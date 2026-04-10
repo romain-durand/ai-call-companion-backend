@@ -3,6 +3,7 @@ const { GEMINI_API_KEY } = require("../config/env");
 const { buildSetupPayload } = require("./geminiConfig");
 const { base64ToInt16, downsample24to8, encodeToMulaw } = require("../audio/codec");
 const { handleToolCall } = require("../tools/toolRouter");
+const { buildRuntimeContext } = require("../context/runtimeContextBuilder");
 const log = require("../observability/logger");
 
 /**
@@ -25,20 +26,47 @@ function connectGemini(callCtx, onAudio) {
       if (msg.setupComplete) {
         log.gemini("setup_complete", traceId);
 
-        const kickoffText = "L'appel vient de commencer. Présente-toi immédiatement puis attends la réponse de l'appelant.";
-        const kickoffPayload = {
-          realtimeInput: {
-            text: kickoffText,
-          },
-        };
-        ws.send(JSON.stringify(kickoffPayload));
-        log.gemini("initial_greeting_triggered", traceId, kickoffText);
+        // Build and inject runtime context, then trigger greeting
+        buildRuntimeContext(callCtx)
+          .then((contextBlock) => {
+            // Inject runtime context as a system-level text input (not spoken)
+            ws.send(JSON.stringify({
+              realtimeInput: {
+                text: contextBlock,
+              },
+            }));
+            log.gemini("runtime_context_injected", traceId);
 
-        log.gemini("mic_gate_started", traceId, "3000ms");
-        setTimeout(() => {
-          callCtx.geminiReady = true;
-          log.gemini("mic_gate_ended", traceId);
-        }, 3000);
+            // Now trigger the greeting
+            const kickoffText = "L'appel vient de commencer. Présente-toi immédiatement puis attends la réponse de l'appelant.";
+            ws.send(JSON.stringify({
+              realtimeInput: {
+                text: kickoffText,
+              },
+            }));
+            log.gemini("initial_greeting_triggered", traceId, kickoffText);
+
+            // Audio gate: block mic for 3s to let greeting play uninterrupted
+            log.gemini("mic_gate_started", traceId, "3000ms");
+            setTimeout(() => {
+              callCtx.geminiReady = true;
+              log.gemini("mic_gate_ended", traceId);
+            }, 3000);
+          })
+          .catch((err) => {
+            log.error("runtime_context_injection_failed", traceId, err.message);
+            // Fallback: proceed without context
+            const kickoffText = "L'appel vient de commencer. Présente-toi immédiatement puis attends la réponse de l'appelant.";
+            ws.send(JSON.stringify({
+              realtimeInput: {
+                text: kickoffText,
+              },
+            }));
+            log.gemini("initial_greeting_triggered", traceId, "fallback (no context)");
+            setTimeout(() => {
+              callCtx.geminiReady = true;
+            }, 3000);
+          });
 
         return;
       }
