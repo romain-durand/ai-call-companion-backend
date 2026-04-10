@@ -201,7 +201,7 @@ async function buildRuntimeContext(callCtx) {
 
       const { data: contact, error: contactErr } = await supabaseAdmin
         .from("contacts")
-        .select("id, display_name, first_name, last_name, is_blocked, is_favorite, company_name, notes")
+        .select("id, display_name, first_name, last_name, is_blocked, is_favorite, company_name, notes, custom_instructions")
         .eq("account_id", resolvedAccountId)
         .or(`primary_phone_e164.eq.${callerNumber},secondary_phone_e164.eq.${callerNumber}`)
         .maybeSingle();
@@ -219,11 +219,12 @@ async function buildRuntimeContext(callCtx) {
         if (contact.is_favorite) parts.push("★ Favorite");
         if (contact.is_blocked) parts.push("⛔ Blocked");
         if (contact.notes) parts.push(`Notes: ${contact.notes}`);
+        if (contact.custom_instructions) parts.push(`Custom instructions for this contact: ${contact.custom_instructions}`);
 
         // Resolve caller's group membership
         const { data: memberships } = await supabaseAdmin
           .from("contact_group_memberships")
-          .select("caller_group_id, caller_groups(name, priority_rank)")
+          .select("caller_group_id, caller_groups(name, priority_rank, custom_instructions)")
           .eq("contact_id", contact.id)
           .eq("account_id", resolvedAccountId);
 
@@ -234,6 +235,15 @@ async function buildRuntimeContext(callCtx) {
           if (groupNames.length > 0) {
             parts.push(`Groups: ${groupNames.join(", ")}`);
           }
+
+          // Collect group-level custom instructions
+          const groupInstructions = memberships
+            .filter(m => m.caller_groups?.custom_instructions)
+            .map(m => `[${m.caller_groups.name}] ${m.caller_groups.custom_instructions}`);
+          if (groupInstructions.length > 0) {
+            parts.push(`Group instructions: ${groupInstructions.join(" | ")}`);
+          }
+
           // Resolve priority from highest-ranked group
           const sorted = memberships
             .filter(m => m.caller_groups?.priority_rank != null)
