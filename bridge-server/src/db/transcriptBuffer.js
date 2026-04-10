@@ -60,7 +60,7 @@ function createTranscriptBuffer(callCtx) {
   function push(speaker, text) {
     if (!text || !text.trim()) return;
 
-    log.call("transcript_buffer_push", callCtx.traceId, `${speaker}: "${text.trim().slice(0, 40)}…"`);
+    // (verbose — disabled to reduce log noise)
 
     // Speaker changed → capture previous buffer NOW, then chain flush
     if (buf.currentSpeaker && buf.currentSpeaker !== speaker) {

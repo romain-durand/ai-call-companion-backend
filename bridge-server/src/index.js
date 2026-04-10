@@ -16,6 +16,6 @@ wss.on("connection", (ws, req) => {
 });
 
 server.listen(PORT, () => {
-  log.server("bridge_started", `port ${PORT}`);
+  log.server("bridge_started", `port ${PORT} — ${new Date().toISOString()}`);
   log.server("ws_url", `ws://localhost:${PORT}`);
 });
