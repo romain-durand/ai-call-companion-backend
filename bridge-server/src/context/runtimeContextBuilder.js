@@ -30,7 +30,7 @@ async function buildRuntimeContext(callCtx) {
 
   try {
     // 1. Resolve user name from profile via account_members (owner/admin)
-    const { data: member } = await supabaseAdmin
+    const { data: member, error: memberErr } = await supabaseAdmin
       .from("account_members")
       .select("profile_id, profiles(display_name, first_name, last_name)")
       .eq("account_id", resolvedAccountId)
@@ -38,18 +38,26 @@ async function buildRuntimeContext(callCtx) {
       .limit(1)
       .maybeSingle();
 
+    if (memberErr) {
+      log.call("runtime_context_member_lookup_error", traceId, memberErr.message);
+    }
+
     if (member?.profiles) {
       const p = member.profiles;
       userName = p.display_name || [p.first_name, p.last_name].filter(Boolean).join(" ") || "Unknown";
-    } else if (usingFallback && resolvedProfileId) {
-      // Direct profile lookup as last resort
-      const { data: profile } = await supabaseAdmin
-        .from("profiles")
-        .select("display_name, first_name, last_name")
-        .eq("id", resolvedProfileId)
-        .maybeSingle();
-      if (profile) {
-        userName = profile.display_name || [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "Unknown";
+    } else {
+      // Fallback: direct profile lookup via member.profile_id or resolvedProfileId
+      const fallbackProfileId = member?.profile_id || resolvedProfileId;
+      if (fallbackProfileId) {
+        const { data: profile } = await supabaseAdmin
+          .from("profiles")
+          .select("display_name, first_name, last_name")
+          .eq("id", fallbackProfileId)
+          .maybeSingle();
+        if (profile) {
+          userName = profile.display_name || [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "Unknown";
+          log.call("runtime_context_name_resolved_via_profile", traceId, `profileId=${fallbackProfileId}, name=${userName}`);
+        }
       }
     }
 
