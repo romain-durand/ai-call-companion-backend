@@ -95,7 +95,7 @@ function CallRow({ call, onDelete }: { call: CallHistoryItem; onDelete: (id: str
             </div>
 
             {/* Row 3: Summary */}
-            <p className="text-xs text-muted-foreground truncate mt-1">{call.summary}</p>
+            <p className="text-xs text-muted-foreground mt-1">{call.summary}</p>
 
             {/* Row 4: Impact indicator */}
             <p className="text-[10px] text-muted-foreground/50 flex items-center gap-1 mt-0.5">
