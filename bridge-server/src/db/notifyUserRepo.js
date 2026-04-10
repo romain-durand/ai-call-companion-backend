@@ -2,14 +2,19 @@ const { supabaseAdmin } = require("./supabaseAdmin");
 const log = require("../observability/logger");
 
 /**
- * Create a notification for all account admins/owners from a direct notify_user tool call.
- * Returns the first notification id or null.
+ * Create notifications for all account admins/owners from a notify_user tool call.
+ * Returns a structured result with delivery_status.
  */
 async function createDirectNotification(callCtx, args) {
   const accountId = callCtx.accountId;
   if (!accountId) {
     log.error("notify_user_failed", callCtx.traceId, "no accountId");
-    return null;
+    return {
+      success: false,
+      notification_id: null,
+      delivery_status: "failed",
+      message: "No account context available.",
+    };
   }
 
   try {
@@ -23,7 +28,12 @@ async function createDirectNotification(callCtx, args) {
     if (mErr) throw mErr;
     if (!members || members.length === 0) {
       log.error("notify_user_failed", callCtx.traceId, "no admin/owner found");
-      return null;
+      return {
+        success: false,
+        notification_id: null,
+        delivery_status: "failed",
+        message: "No account admin or owner found to notify.",
+      };
     }
 
     // 2. Build notification content
@@ -51,12 +61,56 @@ async function createDirectNotification(callCtx, args) {
     if (error) throw error;
 
     const firstId = data[0]?.id || null;
-    log.call("notify_user_created", callCtx.traceId,
-      `count=${data.length} first=${firstId}`);
-    return firstId;
+    log.call("notification_created", callCtx.traceId,
+      `count=${data.length} first=${firstId} priority=${priority}`);
+
+    // 4. Attempt delivery for each recipient (best-effort)
+    let finalDeliveryStatus = "stored";
+
+    for (const notif of data) {
+      const deliveryResult = await attemptNotificationDelivery(
+        notif.id, accountId, callCtx.traceId
+      );
+      if (deliveryResult === "sent") finalDeliveryStatus = "sent";
+    }
+
+    log.call("notification_delivery_result", callCtx.traceId,
+      `delivery_status=${finalDeliveryStatus} count=${data.length}`);
+
+    return {
+      success: true,
+      notification_id: firstId,
+      delivery_status: finalDeliveryStatus,
+      message: "User notified.",
+    };
   } catch (e) {
     log.error("notify_user_failed", callCtx.traceId, e.message);
-    return null;
+    return {
+      success: false,
+      notification_id: null,
+      delivery_status: "failed",
+      message: `Notification failed: ${e.message}`,
+    };
+  }
+}
+
+/**
+ * Best-effort delivery attempt for a single notification.
+ * MVP: notifications are stored with status=pending.
+ * When SMS/push infra is fully wired, this will attempt actual delivery.
+ * Returns "stored" | "sent" | "failed".
+ */
+async function attemptNotificationDelivery(notificationId, accountId, traceId) {
+  try {
+    // MVP: mark as stored (pending). Real delivery channels (SMS, push)
+    // will be wired here as they become available.
+    log.info("notification_delivery_attempt", traceId,
+      `notif=${notificationId} channel=push status=stored (MVP)`);
+    return "stored";
+  } catch (e) {
+    log.error("notification_delivery_failed", traceId,
+      `notif=${notificationId} error=${e.message}`);
+    return "failed";
   }
 }
 
