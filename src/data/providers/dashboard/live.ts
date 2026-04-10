@@ -53,7 +53,7 @@ export async function getLiveStats(accountIds: string[]): Promise<DashboardStats
 export async function getLiveRecentCalls(accountIds: string[]): Promise<RecentCallItem[]> {
   const { data } = await supabase
     .from("call_sessions")
-    .select("id, caller_name_raw, caller_phone_e164, final_outcome, summary_short, urgency_level, started_at, caller_group_id")
+    .select("id, caller_name_raw, caller_phone_e164, final_outcome, summary_short, summary_llm, urgency_level, started_at, caller_group_id")
     .in("account_id", accountIds)
     .order("started_at", { ascending: false })
     .limit(5);
@@ -64,7 +64,7 @@ export async function getLiveRecentCalls(accountIds: string[]): Promise<RecentCa
     groupEmoji: "📞",
     status: s.final_outcome,
     statusLabel: outcomeLabels[s.final_outcome] || s.final_outcome,
-    summary: s.summary_short || "",
+    summary: s.summary_llm || s.summary_short || "",
     urgent: s.urgency_level === "high" || s.urgency_level === "critical",
     actionsCount: 0,
     timeLabel: formatTime(s.started_at),
