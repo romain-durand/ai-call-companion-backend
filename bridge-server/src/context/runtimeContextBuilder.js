@@ -32,7 +32,7 @@ async function buildRuntimeContext(callCtx) {
     // 1. Resolve user name from profile via account_members (owner/admin)
     const { data: member, error: memberErr } = await supabaseAdmin
       .from("account_members")
-      .select("profile_id, profiles(display_name, first_name, last_name)")
+      .select("profile_id, profiles!account_members_profile_id_fkey(display_name, first_name, last_name)")
       .eq("account_id", resolvedAccountId)
       .in("role", ["owner", "admin"])
       .limit(1)
