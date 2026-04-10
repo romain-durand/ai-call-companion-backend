@@ -75,4 +75,5 @@ export interface CallerGroupItem {
   contactCount: number;
   defaultBehavior: string;
   color: string;
+  customInstructions: string | null;
 }
