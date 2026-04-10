@@ -916,6 +916,7 @@ export type Database = {
           account_id: string
           color: string | null
           created_at: string
+          custom_instructions: string | null
           description: string | null
           group_type: Database["public"]["Enums"]["caller_group_type"]
           icon: string | null
@@ -929,6 +930,7 @@ export type Database = {
           account_id: string
           color?: string | null
           created_at?: string
+          custom_instructions?: string | null
           description?: string | null
           group_type?: Database["public"]["Enums"]["caller_group_type"]
           icon?: string | null
@@ -942,6 +944,7 @@ export type Database = {
           account_id?: string
           color?: string | null
           created_at?: string
+          custom_instructions?: string | null
           description?: string | null
           group_type?: Database["public"]["Enums"]["caller_group_type"]
           icon?: string | null
@@ -1012,6 +1015,7 @@ export type Database = {
           account_id: string
           company_name: string | null
           created_at: string
+          custom_instructions: string | null
           display_name: string | null
           email: string | null
           external_source_id: string | null
@@ -1030,6 +1034,7 @@ export type Database = {
           account_id: string
           company_name?: string | null
           created_at?: string
+          custom_instructions?: string | null
           display_name?: string | null
           email?: string | null
           external_source_id?: string | null
@@ -1048,6 +1053,7 @@ export type Database = {
           account_id?: string
           company_name?: string | null
           created_at?: string
+          custom_instructions?: string | null
           display_name?: string | null
           email?: string | null
           external_source_id?: string | null
