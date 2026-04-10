@@ -35,19 +35,26 @@ export function GroupFormDialog({
   const [name, setName] = useState("");
   const [icon, setIcon] = useState("👤");
   const [description, setDescription] = useState("");
+  const [customInstructions, setCustomInstructions] = useState("");
 
   useEffect(() => {
     if (open) {
       setName(initialData?.name || "");
       setIcon(initialData?.icon || "👤");
       setDescription(initialData?.description || "");
+      setCustomInstructions(initialData?.custom_instructions || "");
     }
   }, [open, initialData]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    onSubmit({ name: name.trim(), icon, description: description.trim() });
+    onSubmit({
+      name: name.trim(),
+      icon,
+      description: description.trim(),
+      custom_instructions: customInstructions.trim(),
+    });
   };
 
   return (
