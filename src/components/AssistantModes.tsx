@@ -24,7 +24,6 @@ const BEHAVIOR_LABELS: Record<string, { label: string; color: string }> = {
 };
 
 const MODE_ICONS: Record<string, string> = {
-  standard: "💼",
   work: "💼",
   personal: "🏠",
   night: "🌙",
