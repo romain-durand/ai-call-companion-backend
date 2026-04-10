@@ -139,6 +139,7 @@ export async function getLivePriorityItems(accountIds: string[]): Promise<Priori
       priority: cb.priority === "urgent" ? "high" : cb.priority,
       timeLabel: formatTime(cb.created_at),
       icon: "🔁",
+      createdAt: cb.created_at,
     });
   }
 
@@ -152,12 +153,16 @@ export async function getLivePriorityItems(accountIds: string[]): Promise<Priori
       priority,
       timeLabel: formatTime(esc.created_at),
       icon: "⚠️",
+      createdAt: esc.created_at,
     });
   }
 
-  // Sort: high priority first, then by time
-  const priorityOrder: Record<string, number> = { high: 0, normal: 1, low: 2 };
-  items.sort((a, b) => (priorityOrder[a.priority] ?? 1) - (priorityOrder[b.priority] ?? 1));
+  // Sort: most recent first
+  items.sort((a, b) => {
+    const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return dateB - dateA;
+  });
 
   return items;
 }

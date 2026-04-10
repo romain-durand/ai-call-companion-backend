@@ -35,6 +35,7 @@ export interface PriorityItem {
   priority: string;
   timeLabel: string;
   icon: string;
+  createdAt?: string;
 }
 
 export interface PerformanceStats {
