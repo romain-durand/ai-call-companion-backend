@@ -22,6 +22,7 @@ async function buildRuntimeContext(callCtx) {
   let userName = "Unknown";
   let userPreferences = "No specific preferences configured.";
   let activeMode = "standard";
+  let assistantControlMode = "strict_policy";
   let callerGroupRules = "No specific caller group rules configured.";
   let smartScenarios = "No smart scenarios active.";
   let escalationRules = "Default: escalate only for high-priority or urgent callers.";
@@ -82,7 +83,7 @@ async function buildRuntimeContext(callCtx) {
         `modeId=${resolvedModeId}, accountId=${resolvedAccountId}`);
       const { data: mode, error: modeErr } = await supabaseAdmin
         .from("assistant_modes")
-        .select("name, description, urgency_sensitivity")
+        .select("name, description, urgency_sensitivity, control_mode")
         .eq("id", resolvedModeId)
         .eq("account_id", resolvedAccountId)
         .maybeSingle();
@@ -94,8 +95,9 @@ async function buildRuntimeContext(callCtx) {
           `no row matched modeId=${resolvedModeId} + accountId=${resolvedAccountId}`);
       } else {
         activeMode = `${mode.name}${mode.description ? " — " + mode.description : ""} (urgency sensitivity: ${mode.urgency_sensitivity})`;
+        assistantControlMode = mode.control_mode || "strict_policy";
         log.call("runtime_context_active_mode_resolved", traceId,
-          `modeId=${resolvedModeId}, name=${mode.name}`);
+          `modeId=${resolvedModeId}, name=${mode.name}, control_mode=${assistantControlMode}`);
       }
     }
 
@@ -264,6 +266,8 @@ User preferences:
 ${userPreferences}
 Active mode:
 ${activeMode}
+Assistant control mode:
+${assistantControlMode}
 Caller group rules:
 ${callerGroupRules}
 Smart scenarios:
@@ -276,9 +280,9 @@ Current timezone:
 ${currentTimezone}
 
 Instruction:
-Apply this context strictly, but remain natural, brief, and efficient on the phone.`;
+Apply this context using the assistant control mode. Start from caller-group policies, but adapt based on the control mode and real situation.`;
 
-  log.call("runtime_context_built", traceId, `user=${userName}, mode=${activeMode}, tz=${currentTimezone}, fallback=${usingFallback}`);
+  log.call("runtime_context_built", traceId, `user=${userName}, mode=${activeMode}, controlMode=${assistantControlMode}, tz=${currentTimezone}, fallback=${usingFallback}`);
   return contextBlock;
 }
 
