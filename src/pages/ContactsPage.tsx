@@ -176,7 +176,7 @@ export default function ContactsPage({ forcedView }: { forcedView?: "list" | "gr
 
   // Group management state
   const [groupFormOpen, setGroupFormOpen] = useState(false);
-  const [editingGroup, setEditingGroup] = useState<{ id: string; name: string; icon: string; description: string } | null>(null);
+  const [editingGroup, setEditingGroup] = useState<{ id: string; name: string; icon: string; description: string; custom_instructions?: string } | null>(null);
   const [deleteGroupTarget, setDeleteGroupTarget] = useState<{ id: string; name: string; contactCount: number } | null>(null);
 
   const filtered = useMemo(() => {
@@ -459,6 +459,9 @@ export default function ContactsPage({ forcedView }: { forcedView?: "list" | "gr
                             description:
                               groups?.find((g) => g.id === section.groupId)
                                 ?.description || "",
+                            custom_instructions:
+                              (groups?.find((g) => g.id === section.groupId) as any)
+                                ?.customInstructions || "",
                           })
                         }
                       >
