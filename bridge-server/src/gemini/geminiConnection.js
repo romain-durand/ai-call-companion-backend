@@ -70,8 +70,14 @@ function connectGemini(callCtx, onAudio) {
             // Fallback: proceed without context
             const kickoffText = "L'appel vient de commencer. Présente-toi immédiatement puis attends la réponse de l'appelant.";
             ws.send(JSON.stringify({
-              realtimeInput: {
-                text: kickoffText,
+              clientContent: {
+                turns: [
+                  {
+                    role: "user",
+                    parts: [{ text: kickoffText }],
+                  },
+                ],
+                turnComplete: true,
               },
             }));
             log.gemini("initial_greeting_triggered", traceId, "fallback (no context)");
