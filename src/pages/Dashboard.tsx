@@ -13,6 +13,7 @@ import PrioritySection from "@/components/PrioritySection";
 import ActivityTimeline from "@/components/ActivityTimeline";
 import PerformanceBlock from "@/components/PerformanceBlock";
 import DemoModeBadge from "@/components/DemoModeBadge";
+import ActiveModeSelector from "@/components/ActiveModeSelector";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -62,6 +63,9 @@ export default function Dashboard() {
           </p>
         )}
       </motion.div>
+
+      {/* Active mode selector */}
+      <ActiveModeSelector />
 
       {/* 1. PRIORITY SECTION — "À traiter" */}
       <PrioritySection items={priorityItems || []} isLoading={priorityLoading} />
