@@ -13,6 +13,8 @@ import {
   Phone,
   Mail,
   Building2,
+  List,
+  LayoutGrid,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -34,13 +36,116 @@ import {
   useSetContactGroups,
 } from "@/data/providers/contacts";
 import type { ContactItem, ContactFormData } from "@/data/providers/contacts";
+import { useCallerGroups } from "@/data/providers/callerGroups";
 import { useAccountMode } from "@/hooks/useAccountMode";
 import { ContactFormDialog } from "@/components/contacts/ContactFormDialog";
 import { GroupAssignDialog } from "@/components/contacts/GroupAssignDialog";
 import { DeleteContactDialog } from "@/components/contacts/DeleteContactDialog";
 
+type ViewMode = "list" | "groups";
+
+function ContactCard({
+  contact,
+  onEdit,
+  onGroups,
+  onDelete,
+  showGroupBadges = true,
+}: {
+  contact: ContactItem;
+  onEdit: () => void;
+  onGroups: () => void;
+  onDelete: () => void;
+  showGroupBadges?: boolean;
+}) {
+  return (
+    <Card className="bg-card/30 hover:bg-card/50 transition-all">
+      <CardContent className="p-4 flex items-center gap-4">
+        <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-sm font-semibold shrink-0">
+          {contact.displayName.charAt(0).toUpperCase()}
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold truncate">
+              {contact.displayName}
+            </span>
+            {contact.isFavorite && (
+              <Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500 shrink-0" />
+            )}
+            {contact.isBlocked && (
+              <Ban className="w-3.5 h-3.5 text-destructive shrink-0" />
+            )}
+          </div>
+
+          <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
+            {contact.primaryPhone && (
+              <span className="flex items-center gap-1">
+                <Phone className="w-3 h-3" />
+                {contact.primaryPhone}
+              </span>
+            )}
+            {contact.email && (
+              <span className="flex items-center gap-1 truncate">
+                <Mail className="w-3 h-3" />
+                {contact.email}
+              </span>
+            )}
+            {contact.companyName && (
+              <span className="flex items-center gap-1 truncate">
+                <Building2 className="w-3 h-3" />
+                {contact.companyName}
+              </span>
+            )}
+          </div>
+
+          {showGroupBadges && contact.groups.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1.5">
+              {contact.groups.map((g) => (
+                <Badge
+                  key={g.id}
+                  variant="secondary"
+                  className="text-[10px] h-5 px-1.5 gap-1"
+                >
+                  <span>{g.emoji}</span>
+                  {g.name}
+                </Badge>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="shrink-0">
+              <MoreHorizontal className="w-4 h-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={onEdit}>
+              <Pencil className="w-4 h-4 mr-2" />
+              Modifier
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onGroups}>
+              <Users className="w-4 h-4 mr-2" />
+              Groupes
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={onDelete}
+              className="text-destructive focus:text-destructive"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Supprimer
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function ContactsPage() {
   const { data: contacts, isLoading } = useContacts();
+  const { data: groups } = useCallerGroups();
   const { data: mode } = useAccountMode();
   const isDemo = mode?.isDemo ?? true;
 
@@ -50,6 +155,7 @@ export default function ContactsPage() {
   const setContactGroups = useSetContactGroups();
 
   const [search, setSearch] = useState("");
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [formOpen, setFormOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<ContactItem | null>(null);
   const [groupContact, setGroupContact] = useState<ContactItem | null>(null);
@@ -68,6 +174,40 @@ export default function ContactsPage() {
         (c.email && c.email.toLowerCase().includes(q)),
     );
   }, [contacts, search]);
+
+  // Group contacts by caller group for "groups" view
+  const groupedContacts = useMemo(() => {
+    if (!groups || !filtered) return [];
+
+    const result: { groupId: string; name: string; emoji: string; contacts: ContactItem[] }[] = [];
+
+    for (const group of groups) {
+      const members = filtered.filter((c) =>
+        c.groups.some((g) => g.id === group.id),
+      );
+      if (members.length > 0 || !search) {
+        result.push({
+          groupId: group.id,
+          name: group.name,
+          emoji: group.emoji,
+          contacts: members,
+        });
+      }
+    }
+
+    // Contacts without any group
+    const ungrouped = filtered.filter((c) => c.groups.length === 0);
+    if (ungrouped.length > 0) {
+      result.push({
+        groupId: "__none__",
+        name: "Sans groupe",
+        emoji: "📋",
+        contacts: ungrouped,
+      });
+    }
+
+    return result;
+  }, [groups, filtered, search]);
 
   const handleCreate = (data: ContactFormData, groupIds?: string[]) => {
     if (isDemo) {
@@ -133,6 +273,25 @@ export default function ContactsPage() {
     });
   };
 
+  const renderContactCard = (contact: ContactItem, showGroupBadges = true) => (
+    <motion.div
+      key={contact.id}
+      layout
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      transition={{ duration: 0.15 }}
+    >
+      <ContactCard
+        contact={contact}
+        onEdit={() => setEditingContact(contact)}
+        onGroups={() => setGroupContact(contact)}
+        onDelete={() => setDeleteTarget(contact)}
+        showGroupBadges={showGroupBadges}
+      />
+    </motion.div>
+  );
+
   return (
     <div className="space-y-6 max-w-4xl">
       {/* Header */}
@@ -161,18 +320,44 @@ export default function ContactsPage() {
         </div>
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Rechercher par nom, téléphone, email…"
-          className="pl-9"
-        />
+      {/* Search + view toggle */}
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Rechercher par nom, téléphone, email…"
+            className="pl-9"
+          />
+        </div>
+        <div className="flex rounded-lg border border-border overflow-hidden shrink-0">
+          <button
+            onClick={() => setViewMode("list")}
+            className={`p-2 transition-colors ${
+              viewMode === "list"
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-secondary/50"
+            }`}
+            title="Vue liste"
+          >
+            <List className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setViewMode("groups")}
+            className={`p-2 transition-colors ${
+              viewMode === "groups"
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-secondary/50"
+            }`}
+            title="Vue par groupes"
+          >
+            <LayoutGrid className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
-      {/* List */}
+      {/* Content */}
       {isLoading ? (
         <div className="space-y-3">
           {Array.from({ length: 5 }).map((_, i) => (
@@ -199,117 +384,48 @@ export default function ContactsPage() {
             </Button>
           )}
         </div>
-      ) : (
+      ) : viewMode === "list" ? (
+        /* ── Flat list view ── */
         <div className="space-y-2">
           <AnimatePresence mode="popLayout">
-            {filtered.map((contact) => (
-              <motion.div
-                key={contact.id}
-                layout
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.15 }}
-              >
-                <Card className="bg-card/30 hover:bg-card/50 transition-all">
-                  <CardContent className="p-4 flex items-center gap-4">
-                    {/* Avatar placeholder */}
-                    <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-sm font-semibold shrink-0">
-                      {contact.displayName.charAt(0).toUpperCase()}
-                    </div>
-
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold truncate">
-                          {contact.displayName}
-                        </span>
-                        {contact.isFavorite && (
-                          <Star className="w-3.5 h-3.5 text-yellow-500 fill-yellow-500 shrink-0" />
-                        )}
-                        {contact.isBlocked && (
-                          <Ban className="w-3.5 h-3.5 text-destructive shrink-0" />
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
-                        {contact.primaryPhone && (
-                          <span className="flex items-center gap-1">
-                            <Phone className="w-3 h-3" />
-                            {contact.primaryPhone}
-                          </span>
-                        )}
-                        {contact.email && (
-                          <span className="flex items-center gap-1 truncate">
-                            <Mail className="w-3 h-3" />
-                            {contact.email}
-                          </span>
-                        )}
-                        {contact.companyName && (
-                          <span className="flex items-center gap-1 truncate">
-                            <Building2 className="w-3 h-3" />
-                            {contact.companyName}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Group badges */}
-                      {contact.groups.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-1.5">
-                          {contact.groups.map((g) => (
-                            <Badge
-                              key={g.id}
-                              variant="secondary"
-                              className="text-[10px] h-5 px-1.5 gap-1"
-                            >
-                              <span>{g.emoji}</span>
-                              {g.name}
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Actions */}
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="shrink-0">
-                          <MoreHorizontal className="w-4 h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => setEditingContact(contact)}
-                        >
-                          <Pencil className="w-4 h-4 mr-2" />
-                          Modifier
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => setGroupContact(contact)}
-                        >
-                          <Users className="w-4 h-4 mr-2" />
-                          Groupes
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => setDeleteTarget(contact)}
-                          className="text-destructive focus:text-destructive"
-                        >
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          Supprimer
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
+            {filtered.map((contact) => renderContactCard(contact))}
           </AnimatePresence>
-
           <p className="text-xs text-muted-foreground text-center pt-2">
             {filtered.length} contact{filtered.length > 1 ? "s" : ""}
             {search && contacts && filtered.length < contacts.length
               ? ` sur ${contacts.length}`
               : ""}
+          </p>
+        </div>
+      ) : (
+        /* ── Grouped view ── */
+        <div className="space-y-6">
+          {groupedContacts.map((section) => (
+            <div key={section.groupId}>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-lg">{section.emoji}</span>
+                <h2 className="text-sm font-semibold">{section.name}</h2>
+                <Badge variant="secondary" className="text-[10px] h-4 px-1.5">
+                  {section.contacts.length}
+                </Badge>
+              </div>
+              {section.contacts.length === 0 ? (
+                <p className="text-xs text-muted-foreground pl-8 py-2">
+                  Aucun contact dans ce groupe.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  <AnimatePresence mode="popLayout">
+                    {section.contacts.map((contact) =>
+                      renderContactCard(contact, false),
+                    )}
+                  </AnimatePresence>
+                </div>
+              )}
+            </div>
+          ))}
+          <p className="text-xs text-muted-foreground text-center pt-2">
+            {filtered.length} contact{filtered.length > 1 ? "s" : ""}
           </p>
         </div>
       )}
