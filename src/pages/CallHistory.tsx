@@ -1,9 +1,13 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Phone, Clock, ChevronDown, ChevronUp, Brain, Zap, Loader2 } from "lucide-react";
+import { Phone, Clock, ChevronDown, ChevronUp, Brain, Zap, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { useCallHistory, type CallHistoryItem } from "@/data/providers/callHistory";
 
 const statusConfig: Record<string, { label: string; style: string }> = {
@@ -22,7 +26,7 @@ const actionIcons: Record<string, string> = {
   blocked: "🚫",
 };
 
-function CallRow({ call }: { call: CallHistoryItem }) {
+function CallRow({ call, onDelete }: { call: CallHistoryItem; onDelete: (id: string) => void }) {
   const [open, setOpen] = useState(false);
   const st = statusConfig[call.status] || statusConfig.answered;
 
@@ -50,13 +54,24 @@ function CallRow({ call }: { call: CallHistoryItem }) {
             </div>
             <p className="text-xs text-muted-foreground truncate mt-1">{call.summary}</p>
           </div>
-          <div className="flex items-center gap-4 shrink-0">
+          <div className="flex items-center gap-3 shrink-0">
             <div className="text-right">
               <p className="text-xs text-muted-foreground">{call.timeLabel}</p>
               <p className="text-[10px] text-muted-foreground/60 flex items-center gap-1 justify-end mt-0.5">
                 <Clock className="w-3 h-3" /> {call.durationLabel}
               </p>
             </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(call.id);
+              }}
+            >
+              <X className="w-3.5 h-3.5" />
+            </Button>
             <div className="w-5 h-5 rounded-full flex items-center justify-center bg-secondary/50 group-hover:bg-secondary transition-colors">
               {open ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
             </div>
@@ -123,6 +138,18 @@ function CallRow({ call }: { call: CallHistoryItem }) {
 
 export default function CallHistory() {
   const { data: calls, isLoading } = useCallHistory();
+  const queryClient = useQueryClient();
+
+  async function handleDelete(id: string) {
+    const { error } = await supabase.from("call_sessions").delete().eq("id", id);
+    if (error) {
+      toast.error("Impossible de supprimer cet appel");
+      return;
+    }
+    queryClient.invalidateQueries({ queryKey: ["call-history"] });
+    queryClient.invalidateQueries({ queryKey: ["recent-calls"] });
+    queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+  }
 
   return (
     <div className="space-y-8 max-w-3xl">
@@ -154,7 +181,7 @@ export default function CallHistory() {
         <div className="space-y-2">
           {calls.map((call, i) => (
             <motion.div key={call.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
-              <CallRow call={call} />
+              <CallRow call={call} onDelete={handleDelete} />
             </motion.div>
           ))}
         </div>

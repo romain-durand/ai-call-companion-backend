@@ -1,7 +1,11 @@
 import { motion } from "framer-motion";
-import { AlertTriangle, CheckCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import type { PriorityItem } from "@/data/providers/types";
 
 const priorityStyles: Record<string, string> = {
@@ -28,6 +32,18 @@ interface Props {
 }
 
 export default function PrioritySection({ items, isLoading }: Props) {
+  const queryClient = useQueryClient();
+
+  async function handleDismiss(item: PriorityItem) {
+    const table = item.type === "callback" ? "callback_requests" : "escalation_events";
+    const { error } = await supabase.from(table).delete().eq("id", item.id);
+    if (error) {
+      toast.error("Impossible de supprimer cet élément");
+      return;
+    }
+    queryClient.invalidateQueries({ queryKey: ["priority-items"] });
+  }
+
   if (isLoading) {
     return (
       <div>
@@ -72,6 +88,7 @@ export default function PrioritySection({ items, isLoading }: Props) {
               key={item.id}
               initial={{ opacity: 0, x: -8 }}
               animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 8 }}
               transition={{ delay: i * 0.04 }}
               className={`flex items-center gap-4 p-4 rounded-xl border border-border/40 bg-card/30 border-l-2 ${leftBorderStyles[item.priority] || ""}`}
             >
@@ -91,8 +108,16 @@ export default function PrioritySection({ items, isLoading }: Props) {
                 </div>
                 <p className="text-xs text-muted-foreground truncate mt-0.5">{item.summary}</p>
               </div>
-              <div className="text-right shrink-0">
+              <div className="flex items-center gap-3 shrink-0">
                 <p className="text-xs text-muted-foreground">{item.timeLabel}</p>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                  onClick={() => handleDismiss(item)}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </Button>
               </div>
             </motion.div>
           ))}
