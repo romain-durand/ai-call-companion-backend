@@ -82,7 +82,7 @@ async function buildRuntimeContext(callCtx) {
         `modeId=${resolvedModeId}, accountId=${resolvedAccountId}`);
       const { data: mode, error: modeErr } = await supabaseAdmin
         .from("assistant_modes")
-        .select("name, description, urgency_sensitivity")
+        .select("name, description, urgency_sensitivity, control_mode")
         .eq("id", resolvedModeId)
         .eq("account_id", resolvedAccountId)
         .maybeSingle();
