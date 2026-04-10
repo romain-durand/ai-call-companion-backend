@@ -93,7 +93,6 @@ function connectGemini(callCtx, onAudio) {
       }
       if (msg.serverContent?.outputTranscription?.text) {
         const text = msg.serverContent.outputTranscription.text;
-        log.transcript("🤖", "assistant", traceId, text);
         if (callCtx._txBuffer) {
           callCtx._txBuffer.push("assistant", text);
         }
