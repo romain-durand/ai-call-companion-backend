@@ -717,6 +717,7 @@ export type Database = {
           provider_call_id: string | null
           recording_url: string | null
           started_at: string
+          summary_llm: string | null
           summary_long: string | null
           summary_short: string | null
           transcript_status: Database["public"]["Enums"]["transcript_status"]
@@ -750,6 +751,7 @@ export type Database = {
           provider_call_id?: string | null
           recording_url?: string | null
           started_at?: string
+          summary_llm?: string | null
           summary_long?: string | null
           summary_short?: string | null
           transcript_status?: Database["public"]["Enums"]["transcript_status"]
@@ -783,6 +785,7 @@ export type Database = {
           provider_call_id?: string | null
           recording_url?: string | null
           started_at?: string
+          summary_llm?: string | null
           summary_long?: string | null
           summary_short?: string | null
           transcript_status?: Database["public"]["Enums"]["transcript_status"]
