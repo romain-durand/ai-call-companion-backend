@@ -77,15 +77,24 @@ async function handleGetCallerProfile(args, callCtx, traceId) {
 // ─── create_callback ─────────────────────────────────────────
 
 async function handleCreateCallback(args, callCtx, traceId) {
-  // Backend guardrail: check caller-group policy before allowing callback
-  const policyAllowed = await isCallbackAllowedByPolicy(callCtx, traceId);
-  if (!policyAllowed) {
+  // Backend guardrail: check caller-group policy before allowing callback (fail-closed)
+  const policyResult = await isCallbackAllowedByPolicy(callCtx, traceId);
+  if (policyResult === "blocked") {
     log.tool("callback_blocked_by_policy", traceId,
       `accountId=${callCtx.accountId}, callerGroupId=${callCtx.callerGroupId || "unknown"}`);
     return {
       success: false,
       callback_request_id: null,
       message: "Callback not allowed for this caller group. Take a message instead.",
+    };
+  }
+  if (policyResult === "unverifiable") {
+    log.tool("callback_blocked_policy_verification_failed", traceId,
+      `accountId=${callCtx.accountId}, callerNumber=${callCtx.callerNumber || "unknown"}`);
+    return {
+      success: false,
+      callback_request_id: null,
+      message: "Callback could not be created because callback policy could not be verified. Take a message instead.",
     };
   }
 
