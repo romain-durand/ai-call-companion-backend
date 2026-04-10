@@ -15,6 +15,7 @@ export interface DashboardStats {
 export interface RecentCallItem {
   id: string;
   callerName: string;
+  callerPhone?: string;
   groupEmoji: string;
   status: string;
   statusLabel: string;

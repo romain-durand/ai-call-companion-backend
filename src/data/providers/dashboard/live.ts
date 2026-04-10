@@ -76,16 +76,21 @@ export async function getLiveStats(accountIds: string[]): Promise<DashboardStats
 export async function getLiveRecentCalls(accountIds: string[]): Promise<RecentCallItem[]> {
   const { data } = await supabase
     .from("call_sessions")
-    .select("id, caller_name_raw, caller_phone_e164, final_outcome, summary_short, summary_llm, urgency_level, started_at, caller_group_id")
+    .select("id, caller_name_raw, caller_phone_e164, final_outcome, summary_short, summary_llm, urgency_level, started_at, caller_group_id, contact_id")
     .in("account_id", accountIds)
     .order("started_at", { ascending: false })
     .limit(10);
 
-  return (data || []).map((s) => {
+  const sessions = data || [];
+  const contactNames = await resolveContactNames(sessions, accountIds);
+
+  return sessions.map((s) => {
     const evt = eventTypeMap[s.final_outcome] || { label: s.final_outcome, icon: "📞" };
+    const contact = contactNames.get(s.caller_phone_e164 || "");
     return {
       id: s.id,
-      callerName: s.caller_name_raw || s.caller_phone_e164 || "Inconnu",
+      callerName: contact?.displayName || s.caller_name_raw || s.caller_phone_e164 || "Inconnu",
+      callerPhone: contact ? s.caller_phone_e164 || undefined : undefined,
       groupEmoji: evt.icon,
       status: s.final_outcome,
       statusLabel: outcomeLabels[s.final_outcome] || s.final_outcome,
