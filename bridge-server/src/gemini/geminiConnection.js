@@ -29,16 +29,10 @@ function connectGemini(callCtx, onAudio) {
         // Build and inject runtime context, then trigger greeting
         buildRuntimeContext(callCtx)
           .then((contextBlock) => {
-            // Inject runtime context as user-role text (not spoken, influences behavior)
+            // Inject runtime context as a system-level text input (not spoken)
             ws.send(JSON.stringify({
-              clientContent: {
-                turns: [
-                  {
-                    role: "user",
-                    parts: [{ text: contextBlock }],
-                  },
-                ],
-                turnComplete: true,
+              realtimeInput: {
+                text: contextBlock,
               },
             }));
             log.gemini("runtime_context_injected", traceId);
@@ -46,14 +40,8 @@ function connectGemini(callCtx, onAudio) {
             // Now trigger the greeting
             const kickoffText = "L'appel vient de commencer. Présente-toi immédiatement puis attends la réponse de l'appelant.";
             ws.send(JSON.stringify({
-              clientContent: {
-                turns: [
-                  {
-                    role: "user",
-                    parts: [{ text: kickoffText }],
-                  },
-                ],
-                turnComplete: true,
+              realtimeInput: {
+                text: kickoffText,
               },
             }));
             log.gemini("initial_greeting_triggered", traceId, kickoffText);
@@ -70,14 +58,8 @@ function connectGemini(callCtx, onAudio) {
             // Fallback: proceed without context
             const kickoffText = "L'appel vient de commencer. Présente-toi immédiatement puis attends la réponse de l'appelant.";
             ws.send(JSON.stringify({
-              clientContent: {
-                turns: [
-                  {
-                    role: "user",
-                    parts: [{ text: kickoffText }],
-                  },
-                ],
-                turnComplete: true,
+              realtimeInput: {
+                text: kickoffText,
               },
             }));
             log.gemini("initial_greeting_triggered", traceId, "fallback (no context)");
