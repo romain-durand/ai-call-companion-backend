@@ -68,6 +68,7 @@ export async function getLiveContacts(accountIds: string[]): Promise<ContactItem
     email: c.email as string | null,
     companyName: c.company_name,
     notes: c.notes,
+    customInstructions: (c as any).custom_instructions ?? null,
     isFavorite: c.is_favorite,
     isBlocked: c.is_blocked,
     source: c.source,
@@ -92,6 +93,7 @@ export async function createLiveContact(
       email: data.email || null,
       company_name: data.company_name || null,
       notes: data.notes || null,
+      custom_instructions: data.custom_instructions || null,
       is_favorite: data.is_favorite,
       is_blocked: data.is_blocked,
       source: "manual" as const,
@@ -118,6 +120,7 @@ export async function updateLiveContact(
       email: data.email || null,
       company_name: data.company_name || null,
       notes: data.notes || null,
+      custom_instructions: data.custom_instructions || null,
       is_favorite: data.is_favorite,
       is_blocked: data.is_blocked,
     })
