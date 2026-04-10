@@ -74,21 +74,35 @@ async function buildRuntimeContext(callCtx) {
 
     // 3. Resolve active mode
     const resolvedModeId = activeModeId;
-    if (resolvedModeId) {
-      const { data: mode } = await supabaseAdmin
+    if (!resolvedModeId) {
+      log.call("runtime_context_active_mode_missing_input", traceId,
+        `activeModeId not provided — defaulting to "standard"`);
+    } else {
+      log.call("runtime_context_active_mode_lookup_started", traceId,
+        `modeId=${resolvedModeId}, accountId=${resolvedAccountId}`);
+      const { data: mode, error: modeErr } = await supabaseAdmin
         .from("assistant_modes")
         .select("name, description, urgency_sensitivity")
         .eq("id", resolvedModeId)
         .eq("account_id", resolvedAccountId)
         .maybeSingle();
 
-      if (mode) {
+      if (modeErr) {
+        log.call("runtime_context_active_mode_error", traceId, modeErr.message);
+      } else if (!mode) {
+        log.call("runtime_context_active_mode_not_found", traceId,
+          `no row matched modeId=${resolvedModeId} + accountId=${resolvedAccountId}`);
+      } else {
         activeMode = `${mode.name}${mode.description ? " — " + mode.description : ""} (urgency sensitivity: ${mode.urgency_sensitivity})`;
+        log.call("runtime_context_active_mode_resolved", traceId,
+          `modeId=${resolvedModeId}, name=${mode.name}`);
       }
     }
 
     // 4. Resolve caller group rules
-    const { data: rules } = await supabaseAdmin
+    log.call("runtime_context_group_rules_lookup_started", traceId,
+      `accountId=${resolvedAccountId}`);
+    const { data: rules, error: rulesErr } = await supabaseAdmin
       .from("call_handling_rules")
       .select(`
         priority_rank,
@@ -103,8 +117,19 @@ async function buildRuntimeContext(callCtx) {
       .order("priority_rank", { ascending: true })
       .limit(20);
 
-    if (rules && rules.length > 0) {
+    if (rulesErr) {
+      log.call("runtime_context_group_rules_error", traceId, rulesErr.message);
+    } else if (!rules || rules.length === 0) {
+      log.call("runtime_context_group_rules_none_found", traceId,
+        `0 rows for accountId=${resolvedAccountId}`);
+    } else {
+      let incompleteCount = 0;
       callerGroupRules = rules.map((r) => {
+        if (!r.caller_groups || !r.caller_groups.name) {
+          incompleteCount++;
+          log.call("runtime_context_group_rules_incomplete_row", traceId,
+            `rule priority_rank=${r.priority_rank} has missing/null caller_groups join`);
+        }
         const gName = r.caller_groups?.name || "unknown group";
         const parts = [`Group "${gName}": behavior=${r.behavior}`];
         if (r.force_escalation) parts.push("FORCE_ESCALATE");
@@ -113,18 +138,32 @@ async function buildRuntimeContext(callCtx) {
         if (r.booking_allowed) parts.push("booking_allowed");
         return parts.join(", ");
       }).join("\n");
+      log.call("runtime_context_group_rules_resolved", traceId,
+        `count=${rules.length}, incomplete=${incompleteCount}`);
     }
 
     // 5. Resolve caller context if phone number is known
-    if (callerNumber && callerNumber !== "unknown") {
-      const { data: contact } = await supabaseAdmin
+    if (!callerNumber || callerNumber === "unknown") {
+      log.call("runtime_context_caller_context_missing_input", traceId,
+        `callerNumber=${callerNumber || "undefined"} — skipping contact lookup`);
+    } else {
+      const isE164 = /^\+\d{7,15}$/.test(callerNumber);
+      log.call("runtime_context_caller_context_lookup_started", traceId,
+        `callerNumber=${callerNumber}, e164=${isE164}, accountId=${resolvedAccountId}`);
+
+      const { data: contact, error: contactErr } = await supabaseAdmin
         .from("contacts")
-        .select("display_name, first_name, last_name, is_blocked, is_favorite, company_name, notes")
+        .select("id, display_name, first_name, last_name, is_blocked, is_favorite, company_name, notes")
         .eq("account_id", resolvedAccountId)
         .or(`primary_phone_e164.eq.${callerNumber},secondary_phone_e164.eq.${callerNumber}`)
         .maybeSingle();
 
-      if (contact) {
+      if (contactErr) {
+        log.call("runtime_context_caller_context_error", traceId, contactErr.message);
+      } else if (!contact) {
+        log.call("runtime_context_caller_context_not_found", traceId,
+          `no contact matched callerNumber=${callerNumber} in accountId=${resolvedAccountId}`);
+      } else {
         const name = contact.display_name || [contact.first_name, contact.last_name].filter(Boolean).join(" ") || "Unknown";
         const parts = [`Known contact: ${name}`];
         if (contact.company_name) parts.push(`Company: ${contact.company_name}`);
@@ -132,6 +171,8 @@ async function buildRuntimeContext(callCtx) {
         if (contact.is_blocked) parts.push("⛔ Blocked");
         if (contact.notes) parts.push(`Notes: ${contact.notes}`);
         callerContext = parts.join(" | ");
+        log.call("runtime_context_caller_context_resolved", traceId,
+          `contactId=${contact.id}, name=${name}`);
       }
     }
   } catch (e) {
