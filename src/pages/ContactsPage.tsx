@@ -31,6 +31,7 @@ import {
   useCreateContact,
   useUpdateContact,
   useDeleteContact,
+  useSetContactGroups,
 } from "@/data/providers/contacts";
 import type { ContactItem, ContactFormData } from "@/data/providers/contacts";
 import { useAccountMode } from "@/hooks/useAccountMode";
