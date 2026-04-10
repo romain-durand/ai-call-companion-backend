@@ -37,6 +37,9 @@ function CallRow({ call }: { call: CallHistoryItem }) {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-sm font-medium">{call.callerName}</span>
+              {call.callerNumber && call.callerName !== call.callerNumber && (
+                <span className="text-[10px] text-muted-foreground/60 font-mono">{call.callerNumber}</span>
+              )}
               {call.urgent && (
                 <Badge variant="destructive" className="text-[10px] h-4 px-1.5 rounded-full">Urgent</Badge>
               )}

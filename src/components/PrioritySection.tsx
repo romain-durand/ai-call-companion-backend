@@ -79,6 +79,9 @@ export default function PrioritySection({ items, isLoading }: Props) {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium truncate">{item.callerLabel}</span>
+                  {item.callerPhone && (
+                    <span className="text-[10px] text-muted-foreground/60 font-mono">{item.callerPhone}</span>
+                  )}
                   <Badge className={`text-[10px] h-4 px-1.5 rounded-full border ${priorityStyles[item.priority] || ""}`}>
                     {priorityLabels[item.priority] || item.priority}
                   </Badge>
