@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { DashboardStats, RecentCallItem, PriorityItem, PerformanceStats } from "../types";
+import { resolveContactNames, type ContactInfo } from "../contactResolver";
 
 function formatTime(dateStr: string) {
   const d = new Date(dateStr);
@@ -123,11 +124,17 @@ export async function getLivePriorityItems(accountIds: string[]): Promise<Priori
 
   const items: PriorityItem[] = [];
 
+  // Resolve contact names for callbacks
+  const cbPhones = (callbacksRes.data || []).map((cb) => ({ caller_phone_e164: cb.caller_phone_e164 }));
+  const cbContactNames = await resolveContactNames(cbPhones, accountIds);
+
   for (const cb of callbacksRes.data || []) {
+    const contact = cbContactNames.get(cb.caller_phone_e164 || "");
     items.push({
       id: cb.id,
       type: "callback",
-      callerLabel: cb.caller_name || cb.caller_phone_e164 || "Inconnu",
+      callerLabel: contact?.displayName || cb.caller_name || cb.caller_phone_e164 || "Inconnu",
+      callerPhone: contact ? cb.caller_phone_e164 || undefined : undefined,
       summary: cb.reason || "Demande de rappel",
       priority: cb.priority === "urgent" ? "high" : cb.priority,
       timeLabel: formatTime(cb.created_at),
