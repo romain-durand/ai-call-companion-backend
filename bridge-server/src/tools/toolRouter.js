@@ -4,6 +4,7 @@ const { createCallbackRequest } = require("../db/callbackRequestsRepo");
 const { getCallerProfile } = require("../db/callerProfileRepo");
 const { createDirectNotification } = require("../db/notifyUserRepo");
 const { createEscalation } = require("../db/escalationRepo");
+const { supabaseAdmin } = require("../db/supabaseAdmin");
 
 /**
  * Route a Gemini tool call to the appropriate handler.
@@ -76,6 +77,18 @@ async function handleGetCallerProfile(args, callCtx, traceId) {
 // ─── create_callback ─────────────────────────────────────────
 
 async function handleCreateCallback(args, callCtx, traceId) {
+  // Backend guardrail: check caller-group policy before allowing callback
+  const policyAllowed = await isCallbackAllowedByPolicy(callCtx, traceId);
+  if (!policyAllowed) {
+    log.tool("callback_blocked_by_policy", traceId,
+      `accountId=${callCtx.accountId}, callerGroupId=${callCtx.callerGroupId || "unknown"}`);
+    return {
+      success: false,
+      callback_request_id: null,
+      message: "Callback not allowed for this caller group. Take a message instead.",
+    };
+  }
+
   const cbId = await createCallbackRequest(callCtx, args);
   if (cbId) {
     return {
@@ -89,6 +102,81 @@ async function handleCreateCallback(args, callCtx, traceId) {
     callback_request_id: null,
     message: "Failed to record callback request.",
   };
+}
+
+// ─── Policy check: is callback allowed for the caller's group? ───
+
+async function isCallbackAllowedByPolicy(callCtx, traceId) {
+  if (!callCtx.accountId) return true; // no context → allow (fail-open for safety)
+
+  try {
+    // Resolve the caller's group ID from callCtx or from contact lookup
+    let callerGroupId = callCtx.callerGroupId || null;
+
+    // If no group ID on context, try to resolve from contact's group membership
+    if (!callerGroupId && callCtx.callerNumber && callCtx.callerNumber !== "unknown") {
+      const { data: contact } = await supabaseAdmin
+        .from("contacts")
+        .select("id")
+        .eq("account_id", callCtx.accountId)
+        .or(`primary_phone_e164.eq.${callCtx.callerNumber},secondary_phone_e164.eq.${callCtx.callerNumber}`)
+        .maybeSingle();
+
+      if (contact) {
+        const { data: membership } = await supabaseAdmin
+          .from("contact_group_memberships")
+          .select("caller_group_id")
+          .eq("contact_id", contact.id)
+          .eq("account_id", callCtx.accountId)
+          .limit(1)
+          .maybeSingle();
+
+        if (membership) {
+          callerGroupId = membership.caller_group_id;
+        }
+      }
+    }
+
+    // If still no group, try to find the "unknown" / default group
+    if (!callerGroupId) {
+      const { data: unknownGroup } = await supabaseAdmin
+        .from("caller_groups")
+        .select("id")
+        .eq("account_id", callCtx.accountId)
+        .eq("slug", "unknown")
+        .maybeSingle();
+
+      if (unknownGroup) {
+        callerGroupId = unknownGroup.id;
+      }
+    }
+
+    if (!callerGroupId) {
+      log.tool("callback_policy_no_group", traceId, "no caller group resolved — allowing by default");
+      return true;
+    }
+
+    // Look up the call_handling_rule for this group
+    const { data: rule } = await supabaseAdmin
+      .from("call_handling_rules")
+      .select("callback_allowed")
+      .eq("account_id", callCtx.accountId)
+      .eq("caller_group_id", callerGroupId)
+      .limit(1)
+      .maybeSingle();
+
+    if (!rule) {
+      log.tool("callback_policy_no_rule", traceId, `no rule for groupId=${callerGroupId} — allowing by default`);
+      return true;
+    }
+
+    log.tool("callback_policy_checked", traceId,
+      `groupId=${callerGroupId}, callback_allowed=${rule.callback_allowed}`);
+    return rule.callback_allowed === true;
+  } catch (e) {
+    log.error("callback_policy_check_error", traceId, e.message);
+    return true; // fail-open
+  }
 }
 
 // ─── notify_user ─────────────────────────────────────────────
