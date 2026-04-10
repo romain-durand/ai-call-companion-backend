@@ -38,11 +38,18 @@ import {
   useSetContactGroups,
 } from "@/data/providers/contacts";
 import type { ContactItem, ContactFormData } from "@/data/providers/contacts";
-import { useCallerGroups } from "@/data/providers/callerGroups";
+import {
+  useCallerGroups,
+  useCreateCallerGroup,
+  useUpdateCallerGroup,
+  useDeleteCallerGroup,
+} from "@/data/providers/callerGroups";
+import type { CallerGroupFormData } from "@/data/providers/callerGroups";
 import { useAccountMode } from "@/hooks/useAccountMode";
 import { ContactFormDialog } from "@/components/contacts/ContactFormDialog";
 import { GroupAssignDialog } from "@/components/contacts/GroupAssignDialog";
 import { DeleteContactDialog } from "@/components/contacts/DeleteContactDialog";
+import { GroupFormDialog } from "@/components/contacts/GroupFormDialog";
 
 type ViewMode = "list" | "groups";
 
@@ -156,12 +163,21 @@ export default function ContactsPage({ forcedView }: { forcedView?: "list" | "gr
   const deleteContact = useDeleteContact();
   const setContactGroups = useSetContactGroups();
 
+  const createCallerGroup = useCreateCallerGroup();
+  const updateCallerGroup = useUpdateCallerGroup();
+  const deleteCallerGroup = useDeleteCallerGroup();
+
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>(forcedView || "list");
   const [formOpen, setFormOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<ContactItem | null>(null);
   const [groupContact, setGroupContact] = useState<ContactItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ContactItem | null>(null);
+
+  // Group management state
+  const [groupFormOpen, setGroupFormOpen] = useState(false);
+  const [editingGroup, setEditingGroup] = useState<{ id: string; name: string; icon: string; description: string } | null>(null);
+  const [deleteGroupTarget, setDeleteGroupTarget] = useState<{ id: string; name: string; contactCount: number } | null>(null);
 
   const filtered = useMemo(() => {
     if (!contacts) return [];
@@ -307,19 +323,26 @@ export default function ContactsPage({ forcedView }: { forcedView?: "list" | "gr
           </div>
         )}
         <div className="flex items-center gap-2 ml-auto">
+          {forcedView !== "groups" && (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled
+              className="opacity-50 cursor-not-allowed"
+              title="Bientôt disponible"
+            >
+              <Upload className="w-4 h-4 mr-1.5" />
+              Importer
+            </Button>
+          )}
           <Button
-            variant="outline"
             size="sm"
-            disabled
-            className="opacity-50 cursor-not-allowed"
-            title="Bientôt disponible"
+            onClick={() =>
+              forcedView === "groups" ? setGroupFormOpen(true) : setFormOpen(true)
+            }
           >
-            <Upload className="w-4 h-4 mr-1.5" />
-            Importer
-          </Button>
-          <Button size="sm" onClick={() => setFormOpen(true)}>
             <Plus className="w-4 h-4 mr-1.5" />
-            Ajouter
+            {forcedView === "groups" ? "Nouveau groupe" : "Ajouter"}
           </Button>
         </div>
       </div>
@@ -408,16 +431,57 @@ export default function ContactsPage({ forcedView }: { forcedView?: "list" | "gr
         <div className="space-y-2">
           {groupedContacts.map((section) => (
             <Collapsible key={section.groupId}>
-              <CollapsibleTrigger asChild>
-                <button className="flex items-center gap-2 w-full p-3 rounded-lg hover:bg-secondary/30 transition-colors text-left group">
-                  <ChevronRight className="w-4 h-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-90" />
-                  <span className="text-lg">{section.emoji}</span>
-                  <h2 className="text-sm font-semibold">{section.name}</h2>
-                  <Badge variant="secondary" className="text-[10px] h-4 px-1.5">
-                    {section.contacts.length}
-                  </Badge>
-                </button>
-              </CollapsibleTrigger>
+              <div className="flex items-center">
+                <CollapsibleTrigger asChild>
+                  <button className="flex items-center gap-2 flex-1 p-3 rounded-lg hover:bg-secondary/30 transition-colors text-left group">
+                    <ChevronRight className="w-4 h-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-90" />
+                    <span className="text-lg">{section.emoji}</span>
+                    <h2 className="text-sm font-semibold">{section.name}</h2>
+                    <Badge variant="secondary" className="text-[10px] h-4 px-1.5">
+                      {section.contacts.length}
+                    </Badge>
+                  </button>
+                </CollapsibleTrigger>
+                {section.groupId !== "__none__" && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="shrink-0 mr-1">
+                        <MoreHorizontal className="w-4 h-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onClick={() =>
+                          setEditingGroup({
+                            id: section.groupId,
+                            name: section.name,
+                            icon: section.emoji,
+                            description:
+                              groups?.find((g) => g.id === section.groupId)
+                                ?.description || "",
+                          })
+                        }
+                      >
+                        <Pencil className="w-4 h-4 mr-2" />
+                        Modifier
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() =>
+                          setDeleteGroupTarget({
+                            id: section.groupId,
+                            name: section.name,
+                            contactCount: section.contacts.length,
+                          })
+                        }
+                        className="text-destructive focus:text-destructive"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Supprimer
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </div>
               <CollapsibleContent>
                 {section.contacts.length === 0 ? (
                   <p className="text-xs text-muted-foreground pl-10 py-2">
@@ -469,6 +533,78 @@ export default function ContactsPage({ forcedView }: { forcedView?: "list" | "gr
         contactName={deleteTarget?.displayName || ""}
         onConfirm={handleDelete}
         isPending={deleteContact.isPending}
+      />
+
+      {/* Group management dialogs */}
+      <GroupFormDialog
+        open={groupFormOpen}
+        onOpenChange={setGroupFormOpen}
+        onSubmit={(data) => {
+          if (isDemo) {
+            toast.info("Création impossible en mode démo");
+            setGroupFormOpen(false);
+            return;
+          }
+          createCallerGroup.mutate(data, {
+            onSuccess: () => {
+              toast.success("Groupe créé");
+              setGroupFormOpen(false);
+            },
+            onError: () => toast.error("Erreur lors de la création"),
+          });
+        }}
+        isPending={createCallerGroup.isPending}
+      />
+
+      <GroupFormDialog
+        open={!!editingGroup}
+        onOpenChange={(open) => !open && setEditingGroup(null)}
+        initialData={editingGroup}
+        onSubmit={(data) => {
+          if (!editingGroup || isDemo) {
+            if (isDemo) toast.info("Modification impossible en mode démo");
+            setEditingGroup(null);
+            return;
+          }
+          updateCallerGroup.mutate(
+            { id: editingGroup.id, data },
+            {
+              onSuccess: () => {
+                toast.success("Groupe mis à jour");
+                setEditingGroup(null);
+              },
+              onError: () => toast.error("Erreur lors de la mise à jour"),
+            },
+          );
+        }}
+        isPending={updateCallerGroup.isPending}
+      />
+
+      <DeleteContactDialog
+        open={!!deleteGroupTarget}
+        onOpenChange={(open) => !open && setDeleteGroupTarget(null)}
+        contactName={deleteGroupTarget?.name || ""}
+        onConfirm={() => {
+          if (!deleteGroupTarget) return;
+          if (deleteGroupTarget.contactCount > 0) {
+            toast.error("Impossible de supprimer un groupe qui contient des contacts. Retirez-les d'abord.");
+            setDeleteGroupTarget(null);
+            return;
+          }
+          if (isDemo) {
+            toast.info("Suppression impossible en mode démo");
+            setDeleteGroupTarget(null);
+            return;
+          }
+          deleteCallerGroup.mutate(deleteGroupTarget.id, {
+            onSuccess: () => {
+              toast.success("Groupe supprimé");
+              setDeleteGroupTarget(null);
+            },
+            onError: () => toast.error("Erreur lors de la suppression"),
+          });
+        }}
+        isPending={deleteCallerGroup.isPending}
       />
     </div>
   );
