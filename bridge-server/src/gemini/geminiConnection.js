@@ -16,7 +16,9 @@ function connectGemini(callCtx, onAudio) {
 
   ws.on("open", () => {
     log.gemini("connected", traceId);
-    ws.send(JSON.stringify(buildSetupPayload()));
+    const setupPayload = buildSetupPayload();
+    log.gemini("system_prompt_sent", traceId, setupPayload.setup.systemInstruction.parts[0].text);
+    ws.send(JSON.stringify(setupPayload));
   });
 
   ws.on("message", (data) => {
@@ -35,7 +37,7 @@ function connectGemini(callCtx, onAudio) {
                 text: contextBlock,
               },
             }));
-            log.gemini("runtime_context_injected", traceId);
+            log.gemini("runtime_context_injected", traceId, contextBlock);
 
             // Now trigger the greeting
             const kickoffText = "L'appel vient de commencer. Présente-toi immédiatement puis attends la réponse de l'appelant.";
