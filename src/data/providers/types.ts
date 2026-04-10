@@ -9,6 +9,7 @@ export interface DashboardStats {
   averageDuration: number;
   messagesLeft: number;
   satisfactionRate: number;
+  callbacksCreated: number;
 }
 
 export interface RecentCallItem {
@@ -21,6 +22,25 @@ export interface RecentCallItem {
   urgent: boolean;
   actionsCount: number;
   timeLabel: string;
+  eventType?: string;
+}
+
+export interface PriorityItem {
+  id: string;
+  type: "callback" | "escalation" | "notification";
+  callerLabel: string;
+  summary: string;
+  priority: string;
+  timeLabel: string;
+  icon: string;
+}
+
+export interface PerformanceStats {
+  resolvedWithoutEscalation: number;
+  escalationRate: number;
+  callbackRate: number;
+  averageDuration: number;
+  totalCalls: number;
 }
 
 export interface CallbackRequestItem {

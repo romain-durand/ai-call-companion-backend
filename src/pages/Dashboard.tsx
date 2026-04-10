@@ -1,32 +1,18 @@
 import { motion } from "framer-motion";
-import { Phone, Calendar, AlertTriangle, ShieldCheck, ArrowRight, Bot, MessageSquare, TrendingUp, Clock } from "lucide-react";
+import { Phone, Calendar, AlertTriangle, Bot } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useNavigate } from "react-router-dom";
-import { useDashboardStats, useRecentCalls } from "@/data/providers/dashboard";
-import { useCallbackRequests } from "@/data/providers/callbackRequests";
-import { useNotifications } from "@/data/providers/notifications";
+import { useDashboardStats, useRecentCalls, usePriorityItems, usePerformanceStats } from "@/data/providers/dashboard";
 import { useAccountMode } from "@/hooks/useAccountMode";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import CallbackRequestsSection from "@/components/CallbackRequestsSection";
-import NotificationsSection from "@/components/NotificationsSection";
+import PrioritySection from "@/components/PrioritySection";
+import ActivityTimeline from "@/components/ActivityTimeline";
+import PerformanceBlock from "@/components/PerformanceBlock";
 import DemoModeBadge from "@/components/DemoModeBadge";
-
-const statusStyles: Record<string, string> = {
-  answered: "bg-primary/10 text-primary border-primary/20",
-  missed: "bg-glow-warning/10 text-glow-warning border-glow-warning/20",
-  blocked: "bg-muted text-muted-foreground border-border",
-  voicemail: "bg-secondary text-secondary-foreground border-border",
-  completed: "bg-primary/10 text-primary border-primary/20",
-  escalated: "bg-glow-warning/10 text-glow-warning border-glow-warning/20",
-  transferred: "bg-secondary text-secondary-foreground border-border",
-  rejected: "bg-muted text-muted-foreground border-border",
-  failed: "bg-destructive/10 text-destructive border-destructive/20",
-};
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -34,8 +20,8 @@ export default function Dashboard() {
   const { data: mode } = useAccountMode();
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
   const { data: recentCalls, isLoading: callsLoading } = useRecentCalls();
-  const { data: callbacks, isLoading: cbLoading } = useCallbackRequests();
-  const { data: notifications, isLoading: nLoading } = useNotifications();
+  const { data: priorityItems, isLoading: priorityLoading } = usePriorityItems();
+  const { data: perfStats, isLoading: perfLoading } = usePerformanceStats();
   const { data: profile } = useQuery({
     queryKey: ["profile-phone", user?.id],
     queryFn: async () => {
@@ -51,23 +37,15 @@ export default function Dashboard() {
 
   const statCards = stats
     ? [
-        { label: "Appels aujourd'hui", value: stats.callsToday, icon: Phone, color: "text-primary", sub: `${stats.callsThisWeek} cette semaine` },
+        { label: "Appels traités", value: stats.callsToday, icon: Phone, color: "text-primary", sub: `${stats.callsThisWeek} cette semaine` },
+        { label: "Rappels créés", value: stats.callbacksCreated, icon: Phone, color: "text-glow-warning", sub: "Cette semaine" },
+        { label: "Escalades", value: stats.escalations, icon: AlertTriangle, color: "text-destructive", sub: "Situations urgentes" },
         { label: "RDV pris", value: stats.appointmentsBooked, icon: Calendar, color: "text-glow-success", sub: "Cette semaine" },
-        { label: "Escalades", value: stats.escalations, icon: AlertTriangle, color: "text-glow-warning", sub: "Situations urgentes" },
-        { label: "Bloqués", value: stats.blocked, icon: ShieldCheck, color: "text-muted-foreground", sub: "Spam filtré" },
-      ]
-    : [];
-
-  const insightCards = stats
-    ? [
-        { label: "Messages vocaux", value: stats.messagesLeft, icon: MessageSquare, color: "text-glow-primary" },
-        { label: "Durée moy.", value: `${stats.averageDuration}s`, icon: Clock, color: "text-muted-foreground" },
-        { label: "Satisfaction", value: `${stats.satisfactionRate}%`, icon: TrendingUp, color: "text-glow-success" },
       ]
     : [];
 
   return (
-    <div className="space-y-10 max-w-5xl">
+    <div className="space-y-8 max-w-5xl">
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
         <div className="flex items-center gap-3">
@@ -85,7 +63,10 @@ export default function Dashboard() {
         )}
       </motion.div>
 
-      {/* Main Stats */}
+      {/* 1. PRIORITY SECTION — "À traiter" */}
+      <PrioritySection items={priorityItems || []} isLoading={priorityLoading} />
+
+      {/* 2. KPI CARDS */}
       {statsLoading ? (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-28 rounded-xl" />)}
@@ -111,22 +92,11 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Insights row */}
-      {!statsLoading && (
-        <div className="grid grid-cols-3 gap-4">
-          {insightCards.map((item, i) => (
-            <motion.div key={item.label} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 + i * 0.05 }}>
-              <div className="flex items-center gap-3 p-4 rounded-xl border border-border/40 bg-card/30">
-                <item.icon className={`w-4 h-4 ${item.color}`} />
-                <div>
-                  <p className="text-lg font-semibold">{item.value}</p>
-                  <p className="text-[10px] text-muted-foreground">{item.label}</p>
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      )}
+      {/* 3. ACTIVITY TIMELINE */}
+      <ActivityTimeline items={recentCalls || []} isLoading={callsLoading} />
+
+      {/* 4. PERFORMANCE BLOCK */}
+      <PerformanceBlock stats={perfStats} isLoading={perfLoading} />
 
       {/* Quick actions */}
       <div className="flex gap-3 flex-wrap">
@@ -140,60 +110,6 @@ export default function Dashboard() {
           Voir l'historique
         </Button>
       </div>
-
-      {/* Recent calls */}
-      <div>
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-medium">Activité récente</h2>
-          <Button variant="ghost" size="sm" className="text-muted-foreground text-xs" onClick={() => navigate("/history")}>
-            Tout voir <ArrowRight className="w-3.5 h-3.5 ml-1" />
-          </Button>
-        </div>
-        {callsLoading ? (
-          <div className="space-y-2">
-            {[1, 2, 3].map((i) => <Skeleton key={i} className="h-16 w-full rounded-xl" />)}
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {(recentCalls || []).map((call, i) => (
-              <motion.div
-                key={call.id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.3 + i * 0.04 }}
-                className="flex items-center gap-4 p-4 rounded-xl border border-border/40 bg-card/30 hover:bg-card/60 transition-all cursor-pointer group"
-                onClick={() => navigate("/history")}
-              >
-                <span className="text-lg">{call.groupEmoji}</span>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium truncate">{call.callerName}</span>
-                    {call.urgent && (
-                      <Badge variant="destructive" className="text-[10px] h-4 px-1.5 rounded-full">Urgent</Badge>
-                    )}
-                    <Badge className={`text-[10px] h-4 px-1.5 rounded-full border ${statusStyles[call.status] || ""}`}>
-                      {call.statusLabel}
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground truncate mt-0.5">{call.summary}</p>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className="text-xs text-muted-foreground">{call.timeLabel}</p>
-                  {call.actionsCount > 0 && (
-                    <p className="text-[10px] text-primary mt-0.5">{call.actionsCount} action{call.actionsCount > 1 ? "s" : ""}</p>
-                  )}
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Callback Requests */}
-      <CallbackRequestsSection items={callbacks || []} isLoading={cbLoading} />
-
-      {/* Notifications */}
-      <NotificationsSection items={notifications || []} isLoading={nLoading} />
     </div>
   );
 }
