@@ -89,6 +89,7 @@ serve(async (req) => {
       <Parameter name="providerCallId" value="${callSid}" />
       <Parameter name="accountId" value="${accountId}" />
       <Parameter name="phoneNumberId" value="${phoneNumberId}" />
+      <Parameter name="activeModeId" value="${activeModeId}" />
       <Parameter name="traceId" value="${traceId}" />
     </Stream>
   </Connect>
