@@ -131,12 +131,58 @@ async function buildRuntimeContext(callCtx) {
             `rule priority_rank=${r.priority_rank} has missing/null caller_groups join`);
         }
         const gName = r.caller_groups?.name || "unknown group";
-        const parts = [`Group "${gName}": behavior=${r.behavior}`];
-        if (r.force_escalation) parts.push("FORCE_ESCALATE");
-        if (r.escalation_allowed) parts.push("escalation_allowed");
-        if (r.callback_allowed) parts.push("callback_allowed");
-        if (r.booking_allowed) parts.push("booking_allowed");
-        return parts.join(", ");
+
+        // Build directive description from behavior + booleans
+        const directives = [];
+
+        // Primary behavior directive
+        switch (r.behavior) {
+          case "answer_and_take_message":
+            directives.push("take message only");
+            break;
+          case "answer_and_escalate":
+            directives.push("take details then escalate");
+            break;
+          case "answer_and_transfer":
+            directives.push("transfer the call");
+            break;
+          case "answer_and_book":
+            directives.push("offer booking");
+            break;
+          case "block":
+            directives.push("decline and end call");
+            break;
+          case "voicemail":
+            directives.push("send to voicemail");
+            break;
+          default:
+            directives.push(`behavior=${r.behavior}`);
+        }
+
+        // Explicit allow/deny directives
+        if (r.callback_allowed) {
+          directives.push("callback allowed");
+        } else {
+          directives.push("do NOT offer callback");
+        }
+
+        if (r.escalation_allowed) {
+          directives.push("escalation allowed");
+        } else {
+          directives.push("do NOT escalate unless clearly urgent");
+        }
+
+        if (r.force_escalation) {
+          directives.push("ALWAYS escalate immediately");
+        }
+
+        if (r.booking_allowed) {
+          directives.push("booking allowed");
+        } else {
+          directives.push("do NOT offer booking");
+        }
+
+        return `Group "${gName}": ${directives.join("; ")}`;
       }).join("\n");
       log.call("runtime_context_group_rules_resolved", traceId,
         `count=${rules.length}, incomplete=${incompleteCount}`);
