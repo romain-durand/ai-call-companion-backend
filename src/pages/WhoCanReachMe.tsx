@@ -11,16 +11,16 @@ export default function WhoCanReachMe() {
         </p>
       </div>
 
-      <Tabs defaultValue="groups" className="w-full">
+      <Tabs defaultValue="contacts" className="w-full">
         <TabsList>
-          <TabsTrigger value="groups">Groupes</TabsTrigger>
           <TabsTrigger value="contacts">Contacts</TabsTrigger>
+          <TabsTrigger value="groups">Groupes</TabsTrigger>
         </TabsList>
-        <TabsContent value="groups" className="mt-6">
-          <ContactsPage forcedView="groups" />
-        </TabsContent>
         <TabsContent value="contacts" className="mt-6">
           <ContactsPage forcedView="list" />
+        </TabsContent>
+        <TabsContent value="groups" className="mt-6">
+          <ContactsPage forcedView="groups" />
         </TabsContent>
       </Tabs>
     </div>
