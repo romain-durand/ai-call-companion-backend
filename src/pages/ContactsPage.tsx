@@ -38,11 +38,18 @@ import {
   useSetContactGroups,
 } from "@/data/providers/contacts";
 import type { ContactItem, ContactFormData } from "@/data/providers/contacts";
-import { useCallerGroups } from "@/data/providers/callerGroups";
+import {
+  useCallerGroups,
+  useCreateCallerGroup,
+  useUpdateCallerGroup,
+  useDeleteCallerGroup,
+} from "@/data/providers/callerGroups";
+import type { CallerGroupFormData } from "@/data/providers/callerGroups";
 import { useAccountMode } from "@/hooks/useAccountMode";
 import { ContactFormDialog } from "@/components/contacts/ContactFormDialog";
 import { GroupAssignDialog } from "@/components/contacts/GroupAssignDialog";
 import { DeleteContactDialog } from "@/components/contacts/DeleteContactDialog";
+import { GroupFormDialog } from "@/components/contacts/GroupFormDialog";
 
 type ViewMode = "list" | "groups";
 
