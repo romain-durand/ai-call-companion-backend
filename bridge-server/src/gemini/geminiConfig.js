@@ -57,6 +57,14 @@ Use escalate_call when:
 - or immediate action is required
 - BUT only if escalation_allowed is true for the caller group, or the situation is genuinely critical
 
+CALL SUMMARY (MANDATORY)
+Before ending ANY call, you MUST call generate_call_summary with a concise French summary of:
+- who called (name if known, or "un appelant inconnu")
+- why they called
+- what actions were taken (callback created, message taken, notification sent, etc.)
+- the outcome
+This is mandatory for every single call, even short or trivial ones.
+
 CLARIFICATION
 If the caller is unclear:
 - ask one short question:
@@ -127,6 +135,17 @@ const TOOL_DECLARATIONS = [
         caller_phone: { type: "STRING", description: "Caller phone if available." },
       },
       required: ["reason", "urgency_level"],
+    },
+  },
+  {
+    name: "generate_call_summary",
+    description: "Generate a structured summary of the call. You MUST call this tool right before ending EVERY call. Summarize the caller's intent, actions taken, and outcome in French.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        summary: { type: "STRING", description: "A concise summary in French of the call: who called, why, what was done, and the outcome. 2-4 sentences." },
+      },
+      required: ["summary"],
     },
   },
 ];
