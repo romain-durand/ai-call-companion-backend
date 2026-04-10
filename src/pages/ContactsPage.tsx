@@ -31,6 +31,7 @@ import {
   useCreateContact,
   useUpdateContact,
   useDeleteContact,
+  useSetContactGroups,
 } from "@/data/providers/contacts";
 import type { ContactItem, ContactFormData } from "@/data/providers/contacts";
 import { useAccountMode } from "@/hooks/useAccountMode";
@@ -46,6 +47,7 @@ export default function ContactsPage() {
   const createContact = useCreateContact();
   const updateContact = useUpdateContact();
   const deleteContact = useDeleteContact();
+  const setContactGroups = useSetContactGroups();
 
   const [search, setSearch] = useState("");
   const [formOpen, setFormOpen] = useState(false);
@@ -67,16 +69,32 @@ export default function ContactsPage() {
     );
   }, [contacts, search]);
 
-  const handleCreate = (data: ContactFormData) => {
+  const handleCreate = (data: ContactFormData, groupIds?: string[]) => {
     if (isDemo) {
       toast.info("Création impossible en mode démo");
       setFormOpen(false);
       return;
     }
     createContact.mutate(data, {
-      onSuccess: () => {
-        toast.success("Contact ajouté");
-        setFormOpen(false);
+      onSuccess: (contactId) => {
+        if (groupIds && groupIds.length > 0) {
+          setContactGroups.mutate(
+            { contactId, groupIds },
+            {
+              onSuccess: () => {
+                toast.success("Contact ajouté avec groupes");
+                setFormOpen(false);
+              },
+              onError: () => {
+                toast.success("Contact ajouté (erreur groupes)");
+                setFormOpen(false);
+              },
+            },
+          );
+        } else {
+          toast.success("Contact ajouté");
+          setFormOpen(false);
+        }
       },
       onError: () => toast.error("Erreur lors de la création"),
     });
