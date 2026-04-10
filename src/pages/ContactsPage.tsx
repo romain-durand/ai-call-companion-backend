@@ -402,31 +402,36 @@ export default function ContactsPage({ forcedView }: { forcedView?: "list" | "gr
           </p>
         </div>
       ) : (
-        /* ── Grouped view ── */
-        <div className="space-y-6">
+        /* ── Grouped view (collapsible) ── */
+        <div className="space-y-2">
           {groupedContacts.map((section) => (
-            <div key={section.groupId}>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-lg">{section.emoji}</span>
-                <h2 className="text-sm font-semibold">{section.name}</h2>
-                <Badge variant="secondary" className="text-[10px] h-4 px-1.5">
-                  {section.contacts.length}
-                </Badge>
-              </div>
-              {section.contacts.length === 0 ? (
-                <p className="text-xs text-muted-foreground pl-8 py-2">
-                  Aucun contact dans ce groupe.
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  <AnimatePresence mode="popLayout">
-                    {section.contacts.map((contact) =>
-                      renderContactCard(contact, false),
-                    )}
-                  </AnimatePresence>
-                </div>
-              )}
-            </div>
+            <Collapsible key={section.groupId}>
+              <CollapsibleTrigger asChild>
+                <button className="flex items-center gap-2 w-full p-3 rounded-lg hover:bg-secondary/30 transition-colors text-left group">
+                  <ChevronRight className="w-4 h-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-90" />
+                  <span className="text-lg">{section.emoji}</span>
+                  <h2 className="text-sm font-semibold">{section.name}</h2>
+                  <Badge variant="secondary" className="text-[10px] h-4 px-1.5">
+                    {section.contacts.length}
+                  </Badge>
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                {section.contacts.length === 0 ? (
+                  <p className="text-xs text-muted-foreground pl-10 py-2">
+                    Aucun contact dans ce groupe.
+                  </p>
+                ) : (
+                  <div className="space-y-2 pl-4 pt-1 pb-2">
+                    <AnimatePresence mode="popLayout">
+                      {section.contacts.map((contact) =>
+                        renderContactCard(contact, false),
+                      )}
+                    </AnimatePresence>
+                  </div>
+                )}
+              </CollapsibleContent>
+            </Collapsible>
           ))}
           <p className="text-xs text-muted-foreground text-center pt-2">
             {filtered.length} contact{filtered.length > 1 ? "s" : ""}
