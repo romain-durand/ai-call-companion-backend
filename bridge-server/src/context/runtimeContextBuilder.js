@@ -201,7 +201,7 @@ async function buildRuntimeContext(callCtx) {
 
       const { data: contact, error: contactErr } = await supabaseAdmin
         .from("contacts")
-        .select("id, display_name, first_name, last_name, is_blocked, is_favorite, company_name, notes")
+        .select("id, display_name, first_name, last_name, is_blocked, is_favorite, company_name, notes, custom_instructions")
         .eq("account_id", resolvedAccountId)
         .or(`primary_phone_e164.eq.${callerNumber},secondary_phone_e164.eq.${callerNumber}`)
         .maybeSingle();
