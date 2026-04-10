@@ -12,14 +12,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Star, Ban } from "lucide-react";
 import type { ContactFormData, ContactItem } from "@/data/providers/contacts";
+import { useCallerGroups } from "@/data/providers/callerGroups";
 
 interface ContactFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   contact?: ContactItem | null;
-  onSubmit: (data: ContactFormData) => void;
+  onSubmit: (data: ContactFormData, groupIds?: string[]) => void;
   isPending: boolean;
 }
 
@@ -44,7 +47,10 @@ export function ContactFormDialog({
   isPending,
 }: ContactFormDialogProps) {
   const [form, setForm] = useState<ContactFormData>(emptyForm);
+  const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
   const isEdit = !!contact;
+
+  const { data: groups, isLoading: groupsLoading } = useCallerGroups();
 
   useEffect(() => {
     if (contact) {
@@ -60,13 +66,22 @@ export function ContactFormDialog({
         is_favorite: contact.isFavorite,
         is_blocked: contact.isBlocked,
       });
+      setSelectedGroups(contact.groups.map((g) => g.id));
     } else {
       setForm(emptyForm);
+      setSelectedGroups([]);
     }
   }, [contact, open]);
 
   const update = (field: keyof ContactFormData, value: string | boolean) =>
     setForm((prev) => ({ ...prev, [field]: value }));
+
+  const toggleGroup = (groupId: string) =>
+    setSelectedGroups((prev) =>
+      prev.includes(groupId)
+        ? prev.filter((id) => id !== groupId)
+        : [...prev, groupId],
+    );
 
   const hasMinimumInfo =
     form.primary_phone_e164.trim() ||
@@ -77,7 +92,7 @@ export function ContactFormDialog({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!hasMinimumInfo) return;
-    onSubmit(form);
+    onSubmit(form, selectedGroups.length > 0 ? selectedGroups : undefined);
   };
 
   return (
@@ -185,6 +200,34 @@ export function ContactFormDialog({
               rows={2}
             />
           </div>
+
+          {/* Group assignment (creation mode) */}
+          {!isEdit && (
+            <div className="space-y-2">
+              <Label>Groupes (optionnel)</Label>
+              <div className="rounded-lg border border-border p-2 space-y-1 max-h-40 overflow-y-auto">
+                {groupsLoading ? (
+                  Array.from({ length: 3 }).map((_, i) => (
+                    <Skeleton key={i} className="h-8 w-full rounded" />
+                  ))
+                ) : (
+                  (groups || []).map((group) => (
+                    <label
+                      key={group.id}
+                      className="flex items-center gap-2.5 px-2 py-1.5 rounded hover:bg-secondary/50 cursor-pointer transition-colors"
+                    >
+                      <Checkbox
+                        checked={selectedGroups.includes(group.id)}
+                        onCheckedChange={() => toggleGroup(group.id)}
+                      />
+                      <span className="text-base">{group.emoji}</span>
+                      <span className="text-sm">{group.name}</span>
+                    </label>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Toggles */}
           <div className="flex items-center gap-6 pt-1">
