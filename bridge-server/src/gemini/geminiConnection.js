@@ -37,7 +37,7 @@ function connectGemini(callCtx, onAudio) {
                 text: contextBlock,
               },
             }));
-            log.gemini("runtime_context_injected", traceId);
+            log.gemini("runtime_context_injected", traceId, contextBlock);
 
             // Now trigger the greeting
             const kickoffText = "L'appel vient de commencer. Présente-toi immédiatement puis attends la réponse de l'appelant.";
