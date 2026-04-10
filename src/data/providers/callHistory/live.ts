@@ -89,7 +89,10 @@ export async function getLiveCallHistory(accountIds: string[]): Promise<CallHist
   const sessionIds = sessions.map((s) => s.id);
 
   // Parallel data fetching
-  const [contactNames, messagesRes, callbacksRes, escalationsRes, appointmentsRes, notificationsRes, groupsRes] = await Promise.all([
+  // Collect unique phones to resolve contact group memberships
+  const uniquePhones = [...new Set(sessions.map((s) => s.caller_phone_e164).filter(Boolean))] as string[];
+
+  const [contactNames, messagesRes, callbacksRes, escalationsRes, appointmentsRes, notificationsRes, groupsRes, contactsWithGroupsRes] = await Promise.all([
     resolveContactNames(sessions, accountIds),
     supabase
       .from("call_messages")
@@ -112,12 +115,29 @@ export async function getLiveCallHistory(accountIds: string[]): Promise<CallHist
       .from("notifications")
       .select("call_session_id")
       .in("call_session_id", sessionIds),
-    // Fetch all caller groups for these accounts
     supabase
       .from("caller_groups")
       .select("id, name, slug, icon")
       .in("account_id", accountIds),
+    // Resolve group memberships via contacts' phone numbers
+    uniquePhones.length > 0
+      ? supabase
+          .from("contacts")
+          .select("primary_phone_e164, contact_group_memberships(caller_group_id)")
+          .in("account_id", accountIds)
+          .in("primary_phone_e164", uniquePhones)
+      : Promise.resolve({ data: [] as any[] }),
   ]);
+
+  // Build phone → first group id mapping
+  const phoneToGroupId = new Map<string, string>();
+  for (const c of contactsWithGroupsRes.data || []) {
+    if (!c.primary_phone_e164) continue;
+    const memberships = c.contact_group_memberships as { caller_group_id: string }[] | null;
+    if (memberships && memberships.length > 0) {
+      phoneToGroupId.set(c.primary_phone_e164, memberships[0].caller_group_id);
+    }
+  }
 
   // Index by session
   const messagesBySession: Record<string, typeof messagesRes.data> = {};
@@ -138,7 +158,9 @@ export async function getLiveCallHistory(accountIds: string[]): Promise<CallHist
 
   return sessions.map((s) => {
     const contact = contactNames.get(s.caller_phone_e164 || "");
-    const group = s.caller_group_id ? groupsById[s.caller_group_id] : undefined;
+    // Resolve group: prefer session's caller_group_id, fallback to contact membership
+    const groupId = s.caller_group_id || phoneToGroupId.get(s.caller_phone_e164 || "") || undefined;
+    const group = groupId ? groupsById[groupId] : undefined;
 
     const enrichment: SessionEnrichment = {
       hasCallback: callbackSessions.has(s.id),
