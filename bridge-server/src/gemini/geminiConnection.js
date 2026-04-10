@@ -17,7 +17,7 @@ function connectGemini(callCtx, onAudio) {
   ws.on("open", () => {
     log.gemini("connected", traceId);
     const setupPayload = buildSetupPayload();
-    log.gemini("system_prompt_sent", traceId, setupPayload.setup.systemInstruction.parts[0].text);
+    log.gemini("setup_sent", traceId);
     ws.send(JSON.stringify(setupPayload));
   });
 
