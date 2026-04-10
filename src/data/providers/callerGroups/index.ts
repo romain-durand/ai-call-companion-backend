@@ -11,6 +11,7 @@ export interface CallerGroupFormData {
   icon: string;
   description: string;
   color?: string;
+  custom_instructions?: string;
 }
 
 export function useCallerGroups() {

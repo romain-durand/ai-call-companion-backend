@@ -10,6 +10,7 @@ export interface ContactItem {
   email: string | null;
   companyName: string | null;
   notes: string | null;
+  customInstructions: string | null;
   isFavorite: boolean;
   isBlocked: boolean;
   source: string;
@@ -33,6 +34,7 @@ export interface ContactFormData {
   email: string;
   company_name: string;
   notes: string;
+  custom_instructions: string;
   is_favorite: boolean;
   is_blocked: boolean;
 }
