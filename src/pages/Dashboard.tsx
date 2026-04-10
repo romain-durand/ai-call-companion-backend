@@ -41,7 +41,7 @@ export default function Dashboard() {
     queryFn: async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("phone_e164")
+        .select("display_name, phone_e164")
         .eq("id", user!.id)
         .single();
       return data;
@@ -71,7 +71,7 @@ export default function Dashboard() {
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
         <div className="flex items-center gap-3">
-          <h1 className="text-3xl font-semibold tracking-tight">Bonjour, Romain</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">Bonjour{profile?.display_name ? `, ${profile.display_name}` : ""}</h1>
           {mode?.isDemo && <DemoModeBadge />}
         </div>
         <p className="text-muted-foreground text-sm mt-2">
