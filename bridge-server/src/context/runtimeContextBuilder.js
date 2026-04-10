@@ -1,12 +1,23 @@
 const { supabaseAdmin } = require("../db/supabaseAdmin");
 const log = require("../observability/logger");
+const { DEFAULT_RUNTIME_ACCOUNT_ID, DEFAULT_RUNTIME_PROFILE_ID } = require("../config/env");
 
 /**
  * Build the runtime context block injected at the start of each call session.
  * All fields are always present — missing data gets a sensible default.
  */
 async function buildRuntimeContext(callCtx) {
-  const { traceId, accountId, activeModeId, callerNumber } = callCtx;
+  const { traceId, accountId, profileId, activeModeId, callerNumber } = callCtx;
+
+  // --- Temporary fallback when account/profile not yet resolved ---
+  const resolvedAccountId = accountId || DEFAULT_RUNTIME_ACCOUNT_ID;
+  const resolvedProfileId = profileId || DEFAULT_RUNTIME_PROFILE_ID;
+  const usingFallback = !accountId;
+
+  if (usingFallback) {
+    log.call("runtime_context_fallback_account_used", traceId,
+      `accountId missing — using fallback account=${resolvedAccountId} profile=${resolvedProfileId}`);
+  }
 
   let userName = "Unknown";
   let userPreferences = "No specific preferences configured.";
@@ -19,39 +30,48 @@ async function buildRuntimeContext(callCtx) {
 
   try {
     // 1. Resolve user name from profile via account_members (owner/admin)
-    if (accountId) {
-      const { data: member } = await supabaseAdmin
-        .from("account_members")
-        .select("profile_id, profiles(display_name, first_name, last_name)")
-        .eq("account_id", accountId)
-        .in("role", ["owner", "admin"])
-        .limit(1)
+    const { data: member } = await supabaseAdmin
+      .from("account_members")
+      .select("profile_id, profiles(display_name, first_name, last_name)")
+      .eq("account_id", resolvedAccountId)
+      .in("role", ["owner", "admin"])
+      .limit(1)
+      .maybeSingle();
+
+    if (member?.profiles) {
+      const p = member.profiles;
+      userName = p.display_name || [p.first_name, p.last_name].filter(Boolean).join(" ") || "Unknown";
+    } else if (usingFallback && resolvedProfileId) {
+      // Direct profile lookup as last resort
+      const { data: profile } = await supabaseAdmin
+        .from("profiles")
+        .select("display_name, first_name, last_name")
+        .eq("id", resolvedProfileId)
         .maybeSingle();
-
-      if (member?.profiles) {
-        const p = member.profiles;
-        userName = p.display_name || [p.first_name, p.last_name].filter(Boolean).join(" ") || "Unknown";
-      }
-
-      // 2. Resolve timezone from account
-      const { data: account } = await supabaseAdmin
-        .from("accounts")
-        .select("timezone")
-        .eq("id", accountId)
-        .maybeSingle();
-
-      if (account?.timezone) {
-        currentTimezone = account.timezone;
+      if (profile) {
+        userName = profile.display_name || [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "Unknown";
       }
     }
 
+    // 2. Resolve timezone from account
+    const { data: account } = await supabaseAdmin
+      .from("accounts")
+      .select("timezone")
+      .eq("id", resolvedAccountId)
+      .maybeSingle();
+
+    if (account?.timezone) {
+      currentTimezone = account.timezone;
+    }
+
     // 3. Resolve active mode
-    if (activeModeId && accountId) {
+    const resolvedModeId = activeModeId;
+    if (resolvedModeId) {
       const { data: mode } = await supabaseAdmin
         .from("assistant_modes")
         .select("name, description, urgency_sensitivity")
-        .eq("id", activeModeId)
-        .eq("account_id", accountId)
+        .eq("id", resolvedModeId)
+        .eq("account_id", resolvedAccountId)
         .maybeSingle();
 
       if (mode) {
@@ -60,41 +80,39 @@ async function buildRuntimeContext(callCtx) {
     }
 
     // 4. Resolve caller group rules
-    if (accountId) {
-      const { data: rules } = await supabaseAdmin
-        .from("call_handling_rules")
-        .select(`
-          priority_rank,
-          behavior,
-          escalation_allowed,
-          force_escalation,
-          callback_allowed,
-          booking_allowed,
-          caller_groups(name, slug, priority_rank)
-        `)
-        .eq("account_id", accountId)
-        .order("priority_rank", { ascending: true })
-        .limit(20);
+    const { data: rules } = await supabaseAdmin
+      .from("call_handling_rules")
+      .select(`
+        priority_rank,
+        behavior,
+        escalation_allowed,
+        force_escalation,
+        callback_allowed,
+        booking_allowed,
+        caller_groups(name, slug, priority_rank)
+      `)
+      .eq("account_id", resolvedAccountId)
+      .order("priority_rank", { ascending: true })
+      .limit(20);
 
-      if (rules && rules.length > 0) {
-        callerGroupRules = rules.map((r) => {
-          const gName = r.caller_groups?.name || "unknown group";
-          const parts = [`Group "${gName}": behavior=${r.behavior}`];
-          if (r.force_escalation) parts.push("FORCE_ESCALATE");
-          if (r.escalation_allowed) parts.push("escalation_allowed");
-          if (r.callback_allowed) parts.push("callback_allowed");
-          if (r.booking_allowed) parts.push("booking_allowed");
-          return parts.join(", ");
-        }).join("\n");
-      }
+    if (rules && rules.length > 0) {
+      callerGroupRules = rules.map((r) => {
+        const gName = r.caller_groups?.name || "unknown group";
+        const parts = [`Group "${gName}": behavior=${r.behavior}`];
+        if (r.force_escalation) parts.push("FORCE_ESCALATE");
+        if (r.escalation_allowed) parts.push("escalation_allowed");
+        if (r.callback_allowed) parts.push("callback_allowed");
+        if (r.booking_allowed) parts.push("booking_allowed");
+        return parts.join(", ");
+      }).join("\n");
     }
 
     // 5. Resolve caller context if phone number is known
-    if (callerNumber && callerNumber !== "unknown" && accountId) {
+    if (callerNumber && callerNumber !== "unknown") {
       const { data: contact } = await supabaseAdmin
         .from("contacts")
         .select("display_name, first_name, last_name, is_blocked, is_favorite, company_name, notes")
-        .eq("account_id", accountId)
+        .eq("account_id", resolvedAccountId)
         .or(`primary_phone_e164.eq.${callerNumber},secondary_phone_e164.eq.${callerNumber}`)
         .maybeSingle();
 
@@ -110,7 +128,6 @@ async function buildRuntimeContext(callCtx) {
     }
   } catch (e) {
     log.error("runtime_context_build_error", traceId, e.message);
-    // Continue with defaults — context is best-effort
   }
 
   const contextBlock = `RUNTIME CONTEXT
@@ -133,7 +150,7 @@ ${currentTimezone}
 Instruction:
 Apply this context strictly, but remain natural, brief, and efficient on the phone.`;
 
-  log.call("runtime_context_built", traceId, `user=${userName}, mode=${activeMode}, tz=${currentTimezone}`);
+  log.call("runtime_context_built", traceId, `user=${userName}, mode=${activeMode}, tz=${currentTimezone}, fallback=${usingFallback}`);
   return contextBlock;
 }
 
