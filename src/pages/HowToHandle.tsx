@@ -1,6 +1,5 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AssistantModes from "@/components/AssistantModes";
-import CallerGroups from "./CallerGroups";
 import SmartScenarios from "./SmartScenarios";
 
 export default function HowToHandle() {
@@ -15,15 +14,11 @@ export default function HowToHandle() {
 
       <Tabs defaultValue="modes" className="w-full">
         <TabsList>
-          <TabsTrigger value="modes">Modes</TabsTrigger>
-          <TabsTrigger value="rules">Règles</TabsTrigger>
+          <TabsTrigger value="modes">Modes et règles</TabsTrigger>
           <TabsTrigger value="scenarios">Scénarios</TabsTrigger>
         </TabsList>
         <TabsContent value="modes" className="mt-6">
           <AssistantModes />
-        </TabsContent>
-        <TabsContent value="rules" className="mt-6">
-          <CallerGroups />
         </TabsContent>
         <TabsContent value="scenarios" className="mt-6">
           <SmartScenarios />
