@@ -35,6 +35,9 @@ async function handleToolCall(call, traceId, callCtx) {
       case "escalate_call":
         resultPayload = await handleEscalateCall(call.args, callCtx, traceId);
         break;
+      case "generate_call_summary":
+        resultPayload = await handleGenerateCallSummary(call.args, callCtx, traceId);
+        break;
       default:
         log.tool("tool_unknown", traceId, call.name);
         resultPayload = { success: false, message: `Unknown tool: ${call.name}` };
@@ -201,6 +204,32 @@ async function handleNotifyUser(args, callCtx, traceId) {
 
 async function handleEscalateCall(args, callCtx, traceId) {
   return await createEscalation(callCtx, args);
+}
+
+// ─── generate_call_summary ───────────────────────────────────
+
+async function handleGenerateCallSummary(args, callCtx, traceId) {
+  const summary = args.summary;
+  if (!summary || !callCtx.callSessionId) {
+    log.tool("call_summary_llm_skipped", traceId, "missing summary or callSessionId");
+    return { success: false, message: "Missing summary text or call session." };
+  }
+
+  try {
+    const { error } = await supabaseAdmin
+      .from("call_sessions")
+      .update({ summary_llm: summary })
+      .eq("id", callCtx.callSessionId);
+
+    if (error) throw error;
+
+    log.tool("call_summary_llm_saved", traceId,
+      `session=${callCtx.callSessionId} summary="${summary.slice(0, 80)}…"`);
+    return { success: true, message: "Call summary saved." };
+  } catch (e) {
+    log.error("call_summary_llm_error", traceId, e.message);
+    return { success: false, message: "Failed to save call summary." };
+  }
 }
 
 module.exports = { handleToolCall };
