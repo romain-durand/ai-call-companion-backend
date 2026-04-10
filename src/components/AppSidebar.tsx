@@ -7,9 +7,8 @@ import {
   Settings,
   Bot,
   UserCircle,
-  Zap,
-  AlertTriangle,
-  Contact,
+  PhoneCall,
+  Bell,
   PlayCircle,
   LogOut,
 } from "lucide-react";
@@ -37,15 +36,14 @@ const mainNav = [
 ];
 
 const configNav = [
-  { title: "Qui peut me joindre", url: "/groups", icon: Users },
-  { title: "Contacts", url: "/contacts", icon: Contact },
-  { title: "Scénarios", url: "/scenarios", icon: Zap },
-  { title: "Urgences", url: "/urgency", icon: AlertTriangle },
-  { title: "Profils", url: "/profiles", icon: UserCircle },
-  { title: "Calendrier", url: "/calendar", icon: CalendarDays },
+  { title: "Qui peut me joindre", url: "/who", icon: Users },
+  { title: "Comment gérer leurs appels", url: "/how", icon: PhoneCall },
+  { title: "Quand me prévenir", url: "/when", icon: Bell },
 ];
 
 const secondaryNav = [
+  { title: "Profils", url: "/profiles", icon: UserCircle },
+  { title: "Calendrier", url: "/calendar", icon: CalendarDays },
   { title: "Assistant IA", url: "/assistant", icon: Bot },
   { title: "Réglages", url: "/settings", icon: Settings },
 ];

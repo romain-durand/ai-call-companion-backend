@@ -9,15 +9,13 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import Dashboard from "./pages/Dashboard";
 import Assistant from "./pages/Assistant";
 import Profiles from "./pages/Profiles";
-import CallerGroups from "./pages/CallerGroups";
-import SmartScenarios from "./pages/SmartScenarios";
-import UrgencySettings from "./pages/UrgencySettings";
-import CallHandling from "./pages/CallHandling";
 import CallHistory from "./pages/CallHistory";
 import CalendarPage from "./pages/CalendarPage";
 import SettingsPage from "./pages/SettingsPage";
 import TestAssistant from "./pages/TestAssistant";
-import ContactsPage from "./pages/ContactsPage";
+import WhoCanReachMe from "./pages/WhoCanReachMe";
+import HowToHandle from "./pages/HowToHandle";
+import WhenToAlert from "./pages/WhenToAlert";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 
@@ -41,14 +39,13 @@ const App = () => (
                       <Route path="/" element={<Dashboard />} />
                       <Route path="/assistant" element={<Assistant />} />
                       <Route path="/profiles" element={<Profiles />} />
-                      <Route path="/groups" element={<CallerGroups />} />
-                      <Route path="/scenarios" element={<SmartScenarios />} />
-                      <Route path="/urgency" element={<UrgencySettings />} />
-                      <Route path="/handling" element={<CallHandling />} />
+                      <Route path="/who" element={<WhoCanReachMe />} />
+                      <Route path="/how" element={<HowToHandle />} />
+                      <Route path="/when" element={<WhenToAlert />} />
                       <Route path="/history" element={<CallHistory />} />
                       <Route path="/calendar" element={<CalendarPage />} />
                       <Route path="/settings" element={<SettingsPage />} />
-                      <Route path="/contacts" element={<ContactsPage />} />
+                      {/* contacts moved under /who */}
                       <Route path="/test" element={<TestAssistant />} />
                       <Route path="*" element={<NotFound />} />
                     </Routes>
