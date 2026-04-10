@@ -19,26 +19,6 @@ function formatDuration(seconds: number | null) {
   return m > 0 ? `${m}m ${s}s` : `${s}s`;
 }
 
-const outcomeLabels: Record<string, string> = {
-  completed: "Traité",
-  missed: "Manqué",
-  rejected: "Bloqué",
-  failed: "Échoué",
-  voicemail: "Message",
-  escalated: "Escaladé",
-  transferred: "Transféré",
-};
-
-const outcomeToStatus: Record<string, string> = {
-  completed: "answered",
-  missed: "missed",
-  rejected: "blocked",
-  failed: "missed",
-  voicemail: "voicemail",
-  escalated: "answered",
-  transferred: "answered",
-};
-
 const speakerLabels: Record<string, string> = {
   caller: "Appelant",
   assistant: "Aria",
@@ -54,11 +34,51 @@ function formatTranscript(messages: { speaker: string; content_text: string | nu
     .join("\n\n");
 }
 
+interface SessionEnrichment {
+  hasCallback: boolean;
+  hasEscalation: boolean;
+  hasAppointment: boolean;
+  hasNotification: boolean;
+}
+
+function deriveAction(
+  outcome: string,
+  escalatedToUser: boolean,
+  enrichment: SessionEnrichment
+): { actionType: string; actionLabel: string; actionIcon: string } {
+  if (outcome === "rejected") return { actionType: "blocked", actionLabel: "Bloqué", actionIcon: "🚫" };
+  if (enrichment.hasEscalation || escalatedToUser) return { actionType: "escalated", actionLabel: "Escaladé", actionIcon: "⚠️" };
+  if (enrichment.hasCallback) return { actionType: "callback_requested", actionLabel: "Rappel demandé", actionIcon: "🔁" };
+  if (enrichment.hasAppointment) return { actionType: "booking_proposed", actionLabel: "RDV proposé", actionIcon: "📅" };
+  if (outcome === "voicemail") return { actionType: "message_taken", actionLabel: "Message pris", actionIcon: "📝" };
+  if (outcome === "missed" || outcome === "failed") return { actionType: "refused", actionLabel: "Manqué", actionIcon: "📞" };
+  return { actionType: "message_taken", actionLabel: "Message pris", actionIcon: "📝" };
+}
+
+function deriveImpact(
+  outcome: string,
+  escalatedToUser: boolean,
+  enrichment: SessionEnrichment
+): string {
+  if (outcome === "rejected") return "Aucune action requise";
+  if (enrichment.hasEscalation || escalatedToUser) return "Escalade en direct";
+  if (enrichment.hasNotification) return "Notification envoyée";
+  if (enrichment.hasCallback) return "Notification envoyée";
+  if (outcome === "voicemail") return "Message enregistré";
+  return "Aucune action requise";
+}
+
+function derivePriority(urgencyLevel: string): string {
+  if (urgencyLevel === "critical" || urgencyLevel === "high") return "high";
+  if (urgencyLevel === "medium") return "normal";
+  return "low";
+}
+
 export async function getLiveCallHistory(accountIds: string[]): Promise<CallHistoryItem[]> {
   const { data: sessions } = await supabase
     .from("call_sessions")
     .select(
-      "id, caller_name_raw, caller_phone_e164, final_outcome, summary_short, summary_long, summary_llm, urgency_level, started_at, duration_seconds, caller_group_id, detected_intent"
+      "id, caller_name_raw, caller_phone_e164, final_outcome, summary_short, summary_long, summary_llm, urgency_level, started_at, duration_seconds, caller_group_id, detected_intent, escalated_to_user, contact_id"
     )
     .in("account_id", accountIds)
     .order("started_at", { ascending: false })
@@ -66,45 +86,100 @@ export async function getLiveCallHistory(accountIds: string[]): Promise<CallHist
 
   if (!sessions || sessions.length === 0) return [];
 
-  // Resolve contact names
-  const contactNames = await resolveContactNames(sessions, accountIds);
-
-  // Fetch all messages for these sessions in one query
   const sessionIds = sessions.map((s) => s.id);
-  const { data: messages } = await supabase
-    .from("call_messages")
-    .select("call_session_id, speaker, content_text, seq_no")
-    .in("call_session_id", sessionIds)
-    .order("seq_no", { ascending: true });
 
-  // Group messages by session
-  const messagesBySession: Record<string, typeof messages> = {};
-  for (const msg of messages || []) {
-    if (!messagesBySession[msg.call_session_id]) {
-      messagesBySession[msg.call_session_id] = [];
-    }
+  // Parallel data fetching
+  const [contactNames, messagesRes, callbacksRes, escalationsRes, appointmentsRes, notificationsRes, groupsRes] = await Promise.all([
+    resolveContactNames(sessions, accountIds),
+    supabase
+      .from("call_messages")
+      .select("call_session_id, speaker, content_text, seq_no")
+      .in("call_session_id", sessionIds)
+      .order("seq_no", { ascending: true }),
+    supabase
+      .from("callback_requests")
+      .select("call_session_id")
+      .in("call_session_id", sessionIds),
+    supabase
+      .from("escalation_events")
+      .select("call_session_id")
+      .in("call_session_id", sessionIds),
+    supabase
+      .from("appointments")
+      .select("call_session_id")
+      .in("call_session_id", sessionIds),
+    supabase
+      .from("notifications")
+      .select("call_session_id")
+      .in("call_session_id", sessionIds),
+    // Fetch all caller groups for these accounts
+    supabase
+      .from("caller_groups")
+      .select("id, name, slug, icon")
+      .in("account_id", accountIds),
+  ]);
+
+  // Index by session
+  const messagesBySession: Record<string, typeof messagesRes.data> = {};
+  for (const msg of messagesRes.data || []) {
+    if (!messagesBySession[msg.call_session_id]) messagesBySession[msg.call_session_id] = [];
     messagesBySession[msg.call_session_id]!.push(msg);
+  }
+
+  const callbackSessions = new Set((callbacksRes.data || []).map((r) => r.call_session_id).filter(Boolean));
+  const escalationSessions = new Set((escalationsRes.data || []).map((r) => r.call_session_id).filter(Boolean));
+  const appointmentSessions = new Set((appointmentsRes.data || []).map((r) => r.call_session_id).filter(Boolean));
+  const notificationSessions = new Set((notificationsRes.data || []).map((r) => r.call_session_id).filter(Boolean));
+
+  const groupsById: Record<string, { name: string; slug: string; icon: string | null }> = {};
+  for (const g of groupsRes.data || []) {
+    groupsById[g.id] = { name: g.name, slug: g.slug, icon: g.icon };
   }
 
   return sessions.map((s) => {
     const contact = contactNames.get(s.caller_phone_e164 || "");
+    const group = s.caller_group_id ? groupsById[s.caller_group_id] : undefined;
+
+    const enrichment: SessionEnrichment = {
+      hasCallback: callbackSessions.has(s.id),
+      hasEscalation: escalationSessions.has(s.id),
+      hasAppointment: appointmentSessions.has(s.id),
+      hasNotification: notificationSessions.has(s.id),
+    };
+
+    const action = deriveAction(s.final_outcome, s.escalated_to_user, enrichment);
+    const impact = deriveImpact(s.final_outcome, s.escalated_to_user, enrichment);
+    const priority = derivePriority(s.urgency_level);
+
+    // Identity mismatch: if contact name differs from transcript name
+    const transcriptName = s.caller_name_raw || undefined;
+    const resolvedContactName = contact?.displayName || undefined;
+    const displayName = resolvedContactName || transcriptName || s.caller_phone_e164 || "Inconnu";
+
+    // Show contactName only when there's a mismatch
+    const showContactMismatch = transcriptName && resolvedContactName && transcriptName !== resolvedContactName;
+
     return {
       id: s.id,
-      callerName: contact?.displayName || s.caller_name_raw || s.caller_phone_e164 || "Inconnu",
+      callerName: showContactMismatch ? transcriptName! : displayName,
+      callerNameRaw: transcriptName,
+      contactName: showContactMismatch ? resolvedContactName : undefined,
       callerNumber: s.caller_phone_e164 || "",
-    groupEmoji: "📞",
-    status: outcomeToStatus[s.final_outcome] || s.final_outcome,
-    statusLabel: outcomeLabels[s.final_outcome] || s.final_outcome,
-    summary: s.summary_llm || s.summary_short || s.detected_intent || "Aucun résumé disponible",
-    urgent: s.urgency_level === "high" || s.urgency_level === "critical",
-    actionsCount: 0,
-    timeLabel: formatTime(s.started_at),
-    durationLabel: formatDuration(s.duration_seconds),
-    reasoning: s.summary_long || undefined,
-    actions: [],
-    transcript: messagesBySession[s.id]
-      ? formatTranscript(messagesBySession[s.id]!)
-      : undefined,
-  };
+      groupSlug: group?.slug,
+      groupName: group?.name,
+      groupIcon: group?.icon || undefined,
+      ...action,
+      priority,
+      summary: s.summary_llm || s.summary_short || s.detected_intent || "Aucun résumé disponible",
+      urgent: s.urgency_level === "high" || s.urgency_level === "critical",
+      impactLabel: impact,
+      timeLabel: formatTime(s.started_at),
+      durationLabel: formatDuration(s.duration_seconds),
+      reasoning: s.summary_long || undefined,
+      actions: [],
+      transcript: messagesBySession[s.id]
+        ? formatTranscript(messagesBySession[s.id]!)
+        : undefined,
+    };
   });
 }
