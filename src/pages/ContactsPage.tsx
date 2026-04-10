@@ -143,7 +143,7 @@ function ContactCard({
   );
 }
 
-export default function ContactsPage() {
+export default function ContactsPage({ forcedView }: { forcedView?: "list" | "groups" } = {}) {
   const { data: contacts, isLoading } = useContacts();
   const { data: groups } = useCallerGroups();
   const { data: mode } = useAccountMode();
@@ -155,7 +155,7 @@ export default function ContactsPage() {
   const setContactGroups = useSetContactGroups();
 
   const [search, setSearch] = useState("");
-  const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [viewMode, setViewMode] = useState<ViewMode>(forcedView || "list");
   const [formOpen, setFormOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<ContactItem | null>(null);
   const [groupContact, setGroupContact] = useState<ContactItem | null>(null);
@@ -296,13 +296,15 @@ export default function ContactsPage() {
     <div className="space-y-6 max-w-4xl">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Contacts</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Gérez vos contacts et assignez-les à des groupes pour personnaliser le traitement des appels.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
+        {!forcedView && (
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">Contacts</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Gérez vos contacts et assignez-les à des groupes pour personnaliser le traitement des appels.
+            </p>
+          </div>
+        )}
+        <div className="flex items-center gap-2 ml-auto">
           <Button
             variant="outline"
             size="sm"
@@ -331,30 +333,32 @@ export default function ContactsPage() {
             className="pl-9"
           />
         </div>
-        <div className="flex rounded-lg border border-border overflow-hidden shrink-0">
-          <button
-            onClick={() => setViewMode("list")}
-            className={`p-2 transition-colors ${
-              viewMode === "list"
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:bg-secondary/50"
-            }`}
-            title="Vue liste"
-          >
-            <List className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setViewMode("groups")}
-            className={`p-2 transition-colors ${
-              viewMode === "groups"
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:bg-secondary/50"
-            }`}
-            title="Vue par groupes"
-          >
-            <LayoutGrid className="w-4 h-4" />
-          </button>
-        </div>
+        {!forcedView && (
+          <div className="flex rounded-lg border border-border overflow-hidden shrink-0">
+            <button
+              onClick={() => setViewMode("list")}
+              className={`p-2 transition-colors ${
+                viewMode === "list"
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-secondary/50"
+              }`}
+              title="Vue liste"
+            >
+              <List className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode("groups")}
+              className={`p-2 transition-colors ${
+                viewMode === "groups"
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-secondary/50"
+              }`}
+              title="Vue par groupes"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Content */}

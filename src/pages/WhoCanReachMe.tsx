@@ -1,5 +1,4 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import CallerGroups from "./CallerGroups";
 import ContactsPage from "./ContactsPage";
 
 export default function WhoCanReachMe() {
@@ -18,10 +17,10 @@ export default function WhoCanReachMe() {
           <TabsTrigger value="contacts">Contacts</TabsTrigger>
         </TabsList>
         <TabsContent value="groups" className="mt-6">
-          <CallerGroups />
+          <ContactsPage forcedView="groups" />
         </TabsContent>
         <TabsContent value="contacts" className="mt-6">
-          <ContactsPage />
+          <ContactsPage forcedView="list" />
         </TabsContent>
       </Tabs>
     </div>
