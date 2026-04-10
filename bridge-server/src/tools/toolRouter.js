@@ -4,6 +4,7 @@ const { createCallbackRequest } = require("../db/callbackRequestsRepo");
 const { getCallerProfile } = require("../db/callerProfileRepo");
 const { createDirectNotification } = require("../db/notifyUserRepo");
 const { createEscalation } = require("../db/escalationRepo");
+const { supabaseAdmin } = require("../db/supabaseAdmin");
 
 /**
  * Route a Gemini tool call to the appropriate handler.
