@@ -52,6 +52,7 @@ export function useCreateCallerGroup() {
         icon: data.icon,
         description: data.description || null,
         color: data.color || null,
+        custom_instructions: data.custom_instructions || null,
         group_type: "custom" as const,
       });
       if (error) throw error;
@@ -72,6 +73,7 @@ export function useUpdateCallerGroup() {
           icon: data.icon,
           description: data.description || null,
           color: data.color || null,
+          custom_instructions: data.custom_instructions || null,
         })
         .eq("id", id);
       if (error) throw error;

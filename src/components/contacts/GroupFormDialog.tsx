@@ -108,6 +108,21 @@ export function GroupFormDialog({
             />
           </div>
 
+          <div className="space-y-2">
+            <Label htmlFor="group-instructions">Instructions pour l'assistant</Label>
+            <Textarea
+              id="group-instructions"
+              value={customInstructions}
+              onChange={(e) => setCustomInstructions(e.target.value)}
+              placeholder="Ex : Toujours proposer un rendez-vous. Parler en anglais…"
+              rows={3}
+              className="text-xs"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Ces instructions seront ajoutées au comportement de l'assistant pour tous les contacts de ce groupe.
+            </p>
+          </div>
+
           <DialogFooter>
             <Button
               type="button"
