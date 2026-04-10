@@ -3,14 +3,19 @@ const log = require("../observability/logger");
 
 /**
  * Create an escalation event for the current call.
- * MVP: creates an escalation_events row + a critical notification.
- * Returns the escalation event id or null.
+ * Creates escalation_events row + critical notification + updates call_session.
+ * Returns a structured result.
  */
 async function createEscalation(callCtx, args) {
   const accountId = callCtx.accountId;
   if (!accountId || !callCtx.callSessionId) {
     log.error("escalation_failed", callCtx.traceId, "missing accountId or callSessionId");
-    return null;
+    return {
+      success: false,
+      escalation_id: null,
+      escalation_status: "failed",
+      message: "Missing account or call session context.",
+    };
   }
 
   try {
@@ -26,7 +31,12 @@ async function createEscalation(callCtx, args) {
     if (mErr) throw mErr;
     if (!members || members.length === 0) {
       log.error("escalation_failed", callCtx.traceId, "no admin/owner found");
-      return null;
+      return {
+        success: false,
+        escalation_id: null,
+        escalation_status: "failed",
+        message: "No account admin or owner found for escalation.",
+      };
     }
 
     const targetProfileId = members[0].profile_id;
@@ -59,7 +69,9 @@ async function createEscalation(callCtx, args) {
       ? `⚠️ ${callerLabel}: ${args.reason}`
       : `⚠️ ${callerLabel} — escalade en cours`;
 
-    await supabaseAdmin
+    let notificationStatus = "stored";
+
+    const { data: notifData, error: notifErr } = await supabaseAdmin
       .from("notifications")
       .insert({
         account_id: accountId,
@@ -70,10 +82,21 @@ async function createEscalation(callCtx, args) {
         title: "Escalade urgente",
         body,
         status: "pending",
-      });
+      })
+      .select("id")
+      .single();
 
-    // 4. Update call_session escalation status
-    await supabaseAdmin
+    if (notifErr) {
+      log.error("escalation_notification_failed", callCtx.traceId, notifErr.message);
+      notificationStatus = "failed";
+    } else {
+      log.call("notification_created", callCtx.traceId,
+        `notif=${notifData.id} priority=critical for_escalation=${esc.id}`);
+      notificationStatus = "stored";
+    }
+
+    // 4. Update call_session escalation state
+    const { error: csErr } = await supabaseAdmin
       .from("call_sessions")
       .update({
         escalation_status: "pending",
@@ -82,10 +105,30 @@ async function createEscalation(callCtx, args) {
       })
       .eq("id", callCtx.callSessionId);
 
-    return esc.id;
+    if (csErr) {
+      log.error("escalation_session_update_failed", callCtx.traceId, csErr.message);
+    } else {
+      log.call("escalation_session_updated", callCtx.traceId,
+        `session=${callCtx.callSessionId} escalation_status=pending`);
+    }
+
+    // 5. Determine final escalation status
+    const escalationStatus = notificationStatus === "failed" ? "attempted" : "notified";
+
+    return {
+      success: true,
+      escalation_id: esc.id,
+      escalation_status: escalationStatus,
+      message: "Trying to reach the user now.",
+    };
   } catch (e) {
     log.error("escalation_failed", callCtx.traceId, e.message);
-    return null;
+    return {
+      success: false,
+      escalation_id: null,
+      escalation_status: "failed",
+      message: `Escalation failed: ${e.message}`,
+    };
   }
 }
 

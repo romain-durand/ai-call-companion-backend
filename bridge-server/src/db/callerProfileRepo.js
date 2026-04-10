@@ -1,26 +1,28 @@
 const { supabaseAdmin } = require("./supabaseAdmin");
 const log = require("../observability/logger");
 
+const EMPTY_PROFILE = {
+  success: true,
+  known_contact: false,
+  contact_id: null,
+  caller_name: null,
+  caller_group: null,
+  priority: "normal",
+  is_blocked: false,
+  is_favorite: false,
+};
+
 /**
  * Look up a caller's profile by phone number within an account.
- * Returns a structured profile object for the assistant.
+ * Always returns a structured profile with success=true.
  */
 async function getCallerProfile(accountId, phoneE164, traceId) {
   if (!accountId || !phoneE164) {
-    log.tool("caller_profile_lookup", traceId, `skip — missing accountId or phone`);
-    return {
-      known_contact: false,
-      contact_id: null,
-      caller_name: null,
-      caller_group: null,
-      priority: "normal",
-      is_blocked: false,
-      is_favorite: false,
-    };
+    log.tool("caller_profile_unknown", traceId, "skip — missing accountId or phone");
+    return { ...EMPTY_PROFILE, message: "No phone number provided." };
   }
 
   try {
-    // 1. Find contact by phone (primary or secondary)
     const { data: contact, error: cErr } = await supabaseAdmin
       .from("contacts")
       .select("id, display_name, is_blocked, is_favorite")
@@ -32,19 +34,11 @@ async function getCallerProfile(accountId, phoneE164, traceId) {
     if (cErr) throw cErr;
 
     if (!contact) {
-      log.tool("caller_profile_lookup", traceId, `unknown phone=${phoneE164}`);
-      return {
-        known_contact: false,
-        contact_id: null,
-        caller_name: null,
-        caller_group: null,
-        priority: "normal",
-        is_blocked: false,
-        is_favorite: false,
-      };
+      log.tool("caller_profile_unknown", traceId, `phone=${phoneE164}`);
+      return { ...EMPTY_PROFILE, message: "Caller not found in contacts." };
     }
 
-    // 2. Resolve group memberships
+    // Resolve group memberships
     const { data: memberships, error: mErr } = await supabaseAdmin
       .from("contact_group_memberships")
       .select("caller_group_id")
@@ -79,6 +73,7 @@ async function getCallerProfile(accountId, phoneE164, traceId) {
       `contact=${contact.id} name="${contact.display_name}" group="${callerGroup}" priority=${priority}`);
 
     return {
+      success: true,
       known_contact: true,
       contact_id: contact.id,
       caller_name: contact.display_name,
@@ -86,18 +81,11 @@ async function getCallerProfile(accountId, phoneE164, traceId) {
       priority,
       is_blocked: contact.is_blocked,
       is_favorite: contact.is_favorite,
+      message: "Caller profile resolved.",
     };
   } catch (e) {
     log.error("caller_profile_lookup_failed", traceId, e.message);
-    return {
-      known_contact: false,
-      contact_id: null,
-      caller_name: null,
-      caller_group: null,
-      priority: "normal",
-      is_blocked: false,
-      is_favorite: false,
-    };
+    return { ...EMPTY_PROFILE, message: `Lookup failed: ${e.message}` };
   }
 }
 
