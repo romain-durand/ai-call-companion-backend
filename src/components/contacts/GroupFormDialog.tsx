@@ -22,7 +22,7 @@ interface GroupFormDialogProps {
   onOpenChange: (open: boolean) => void;
   onSubmit: (data: CallerGroupFormData) => void;
   isPending?: boolean;
-  initialData?: { name: string; icon: string; description: string } | null;
+  initialData?: { name: string; icon: string; description: string; custom_instructions?: string } | null;
 }
 
 export function GroupFormDialog({

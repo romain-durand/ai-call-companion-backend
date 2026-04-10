@@ -203,6 +203,22 @@ export function ContactFormDialog({
             />
           </div>
 
+          {/* Custom instructions for assistant */}
+          <div className="space-y-1.5">
+            <Label htmlFor="custom_instructions">Instructions pour l'assistant</Label>
+            <Textarea
+              id="custom_instructions"
+              value={form.custom_instructions}
+              onChange={(e) => update("custom_instructions", e.target.value)}
+              placeholder="Ex : Toujours proposer un rendez-vous. Parler en anglais. Ne jamais transférer l'appel..."
+              rows={3}
+              className="text-xs"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Ces instructions seront ajoutées au comportement de l'assistant quand ce contact appelle.
+            </p>
+          </div>
+
           {/* Group assignment (creation mode) */}
           {!isEdit && (
             <div className="space-y-2">
