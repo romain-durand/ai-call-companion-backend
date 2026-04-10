@@ -9,6 +9,7 @@ import {
   UserCircle,
   Zap,
   AlertTriangle,
+  Contact,
   PlayCircle,
   LogOut,
 } from "lucide-react";
@@ -37,6 +38,7 @@ const mainNav = [
 
 const configNav = [
   { title: "Qui peut me joindre", url: "/groups", icon: Users },
+  { title: "Contacts", url: "/contacts", icon: Contact },
   { title: "Scénarios", url: "/scenarios", icon: Zap },
   { title: "Urgences", url: "/urgency", icon: AlertTriangle },
   { title: "Profils", url: "/profiles", icon: UserCircle },
