@@ -143,7 +143,9 @@ export function AppSidebar() {
         {!collapsed && (
           <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-primary/5 border border-primary/10">
             <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-            <span className="text-[11px] text-muted-foreground">Mode Travail actif</span>
+            <span className="text-[11px] text-muted-foreground">
+              Mode {activeMode?.name || "…"} actif {activeMode?.slug ? (modeIcons[activeMode.slug] || "") : ""}
+            </span>
           </div>
         )}
         <button
