@@ -17,6 +17,7 @@ import CallHistory from "./pages/CallHistory";
 import CalendarPage from "./pages/CalendarPage";
 import SettingsPage from "./pages/SettingsPage";
 import TestAssistant from "./pages/TestAssistant";
+import ContactsPage from "./pages/ContactsPage";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 
@@ -47,6 +48,7 @@ const App = () => (
                       <Route path="/history" element={<CallHistory />} />
                       <Route path="/calendar" element={<CalendarPage />} />
                       <Route path="/settings" element={<SettingsPage />} />
+                      <Route path="/contacts" element={<ContactsPage />} />
                       <Route path="/test" element={<TestAssistant />} />
                       <Route path="*" element={<NotFound />} />
                     </Routes>
