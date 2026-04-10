@@ -161,15 +161,48 @@ async function buildRuntimeContext(callCtx) {
       if (contactErr) {
         log.call("runtime_context_caller_context_error", traceId, contactErr.message);
       } else if (!contact) {
+        callerContext = `Unknown caller — phone: ${callerNumber}`;
         log.call("runtime_context_caller_context_not_found", traceId,
           `no contact matched callerNumber=${callerNumber} in accountId=${resolvedAccountId}`);
       } else {
         const name = contact.display_name || [contact.first_name, contact.last_name].filter(Boolean).join(" ") || "Unknown";
-        const parts = [`Known contact: ${name}`];
+        const parts = [`Known contact: ${name}`, `Phone: ${callerNumber}`];
         if (contact.company_name) parts.push(`Company: ${contact.company_name}`);
         if (contact.is_favorite) parts.push("★ Favorite");
         if (contact.is_blocked) parts.push("⛔ Blocked");
         if (contact.notes) parts.push(`Notes: ${contact.notes}`);
+
+        // Resolve caller's group membership
+        const { data: memberships } = await supabaseAdmin
+          .from("contact_group_memberships")
+          .select("caller_group_id, caller_groups(name, priority_rank)")
+          .eq("contact_id", contact.id)
+          .eq("account_id", resolvedAccountId);
+
+        if (memberships && memberships.length > 0) {
+          const groupNames = memberships
+            .filter(m => m.caller_groups?.name)
+            .map(m => m.caller_groups.name);
+          if (groupNames.length > 0) {
+            parts.push(`Groups: ${groupNames.join(", ")}`);
+          }
+          // Resolve priority from highest-ranked group
+          const sorted = memberships
+            .filter(m => m.caller_groups?.priority_rank != null)
+            .sort((a, b) => b.caller_groups.priority_rank - a.caller_groups.priority_rank);
+          if (sorted.length > 0) {
+            const rank = sorted[0].caller_groups.priority_rank;
+            let priority = "normal";
+            if (rank >= 90) priority = "urgent";
+            else if (rank >= 70) priority = "high";
+            else if (rank >= 30) priority = "normal";
+            else priority = "low";
+            parts.push(`Priority: ${priority}`);
+          }
+        } else {
+          parts.push("Groups: none (treat as Inconnus)");
+        }
+
         callerContext = parts.join(" | ");
         log.call("runtime_context_caller_context_resolved", traceId,
           `contactId=${contact.id}, name=${name}`);
