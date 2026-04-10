@@ -55,6 +55,25 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const location = useLocation();
   const navigate = useNavigate();
+  const { data: accountId } = useUserAccountId();
+
+  const modeIcons: Record<string, string> = {
+    work: "💼", personal: "🏠", night: "🌙", focus: "🎯",
+  };
+
+  const { data: activeMode } = useQuery({
+    queryKey: ["active-mode-sidebar", accountId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("assistant_modes")
+        .select("name, slug, is_active")
+        .eq("account_id", accountId!)
+        .eq("is_active", true)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!accountId,
+  });
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
