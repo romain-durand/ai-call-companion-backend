@@ -601,7 +601,16 @@ export default function ContactsPage({ forcedView }: { forcedView?: "list" | "gr
               toast.success("Groupe supprimé");
               setDeleteGroupTarget(null);
             },
-            onError: () => toast.error("Erreur lors de la suppression"),
+            onError: (err: any) => {
+              const msg = err?.message || "";
+              if (msg.includes("default group")) {
+                toast.error("Le groupe par défaut ne peut pas être supprimé.");
+              } else if (msg.includes("still has contacts")) {
+                toast.error("Ce groupe contient encore des contacts. Retirez-les d'abord.");
+              } else {
+                toast.error("Erreur lors de la suppression");
+              }
+            },
           });
         }}
         isPending={deleteCallerGroup.isPending}
