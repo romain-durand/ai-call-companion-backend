@@ -35,6 +35,7 @@ const emptyForm: ContactFormData = {
   email: "",
   company_name: "",
   notes: "",
+  custom_instructions: "",
   is_favorite: false,
   is_blocked: false,
 };
@@ -63,6 +64,7 @@ export function ContactFormDialog({
         email: contact.email || "",
         company_name: contact.companyName || "",
         notes: contact.notes || "",
+        custom_instructions: contact.customInstructions || "",
         is_favorite: contact.isFavorite,
         is_blocked: contact.isBlocked,
       });
