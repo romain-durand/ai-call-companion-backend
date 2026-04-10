@@ -105,5 +105,6 @@ export async function getLiveCallHistory(accountIds: string[]): Promise<CallHist
     transcript: messagesBySession[s.id]
       ? formatTranscript(messagesBySession[s.id]!)
       : undefined,
-  }));
+  };
+  });
 }
