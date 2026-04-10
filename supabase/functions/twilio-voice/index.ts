@@ -28,9 +28,10 @@ serve(async (req) => {
 
   console.log(`Incoming call — From: ${callerNumber}, To: ${calledNumber}, CallSid: ${callSid}`);
 
-  // Resolve accountId and phoneNumberId from the called number
+  // Resolve accountId, phoneNumberId and activeModeId from the called number
   let accountId = "";
   let phoneNumberId = "";
+  let activeModeId = "";
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -52,6 +53,24 @@ serve(async (req) => {
       accountId = data.account_id;
       phoneNumberId = data.id;
       console.log(`Resolved — accountId: ${accountId}, phoneNumberId: ${phoneNumberId}`);
+
+      // Resolve active mode for this account
+      const { data: mode, error: modeErr } = await supabase
+        .from("assistant_modes")
+        .select("id")
+        .eq("account_id", accountId)
+        .eq("is_active", true)
+        .limit(1)
+        .maybeSingle();
+
+      if (modeErr) {
+        console.error("Mode lookup error:", modeErr.message);
+      } else if (mode) {
+        activeModeId = mode.id;
+        console.log(`Resolved activeModeId: ${activeModeId}`);
+      } else {
+        console.warn("No active assistant_mode found for account");
+      }
     } else {
       console.warn(`No phone_number found for ${calledNumber} — bridge will skip DB writes`);
     }
@@ -70,6 +89,7 @@ serve(async (req) => {
       <Parameter name="providerCallId" value="${callSid}" />
       <Parameter name="accountId" value="${accountId}" />
       <Parameter name="phoneNumberId" value="${phoneNumberId}" />
+      <Parameter name="activeModeId" value="${activeModeId}" />
       <Parameter name="traceId" value="${traceId}" />
     </Stream>
   </Connect>
