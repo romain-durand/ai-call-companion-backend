@@ -64,6 +64,9 @@ export default function Dashboard() {
         )}
       </motion.div>
 
+      {/* Active mode selector */}
+      <ActiveModeSelector />
+
       {/* 1. PRIORITY SECTION — "À traiter" */}
       <PrioritySection items={priorityItems || []} isLoading={priorityLoading} />
 
