@@ -116,7 +116,10 @@ async function handleCreateCallback(args, callCtx, traceId) {
 // ─── Policy check: is callback allowed for the caller's group? ───
 
 async function isCallbackAllowedByPolicy(callCtx, traceId) {
-  if (!callCtx.accountId) return true; // no context → allow (fail-open for safety)
+  if (!callCtx.accountId) {
+    log.tool("callback_policy_no_account", traceId, "no accountId — fail-closed");
+    return "unverifiable";
+  }
 
   try {
     // Resolve the caller's group ID from callCtx or from contact lookup
@@ -161,8 +164,8 @@ async function isCallbackAllowedByPolicy(callCtx, traceId) {
     }
 
     if (!callerGroupId) {
-      log.tool("callback_policy_no_group", traceId, "no caller group resolved — allowing by default");
-      return true;
+      log.tool("callback_policy_no_group", traceId, "no caller group resolved — fail-closed");
+      return "unverifiable";
     }
 
     // Look up the call_handling_rule for this group
@@ -175,16 +178,16 @@ async function isCallbackAllowedByPolicy(callCtx, traceId) {
       .maybeSingle();
 
     if (!rule) {
-      log.tool("callback_policy_no_rule", traceId, `no rule for groupId=${callerGroupId} — allowing by default`);
-      return true;
+      log.tool("callback_policy_no_rule", traceId, `no rule for groupId=${callerGroupId} — fail-closed`);
+      return "unverifiable";
     }
 
     log.tool("callback_policy_checked", traceId,
       `groupId=${callerGroupId}, callback_allowed=${rule.callback_allowed}`);
-    return rule.callback_allowed === true;
+    return rule.callback_allowed === true ? "allowed" : "blocked";
   } catch (e) {
     log.error("callback_policy_check_error", traceId, e.message);
-    return true; // fail-open
+    return "unverifiable"; // fail-closed
   }
 }
 
