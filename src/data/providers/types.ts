@@ -30,6 +30,7 @@ export interface PriorityItem {
   id: string;
   type: "callback" | "escalation" | "notification";
   callerLabel: string;
+  callerPhone?: string;
   summary: string;
   priority: string;
   timeLabel: string;
