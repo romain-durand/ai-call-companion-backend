@@ -99,7 +99,7 @@ function CallRow({ call, onDelete }: { call: CallHistoryItem; onDelete: (id: str
 
             {/* Row 4: Impact indicator */}
             <p className="text-[10px] text-muted-foreground/50 flex items-center gap-1 mt-0.5">
-              {call.impactLabel.includes("Notification") || call.impactLabel.includes("Escalade")
+              {(call.impactLabel || "").includes("Notification") || (call.impactLabel || "").includes("Escalade")
                 ? <Bell className="w-2.5 h-2.5" />
                 : <BellOff className="w-2.5 h-2.5" />
               }
