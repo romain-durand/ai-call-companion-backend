@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { CallHistoryItem } from "./demo";
+import { resolveContactNames } from "../contactResolver";
 
 function formatTime(dateStr: string) {
   const d = new Date(dateStr);
@@ -65,6 +66,9 @@ export async function getLiveCallHistory(accountIds: string[]): Promise<CallHist
 
   if (!sessions || sessions.length === 0) return [];
 
+  // Resolve contact names
+  const contactNames = await resolveContactNames(sessions, accountIds);
+
   // Fetch all messages for these sessions in one query
   const sessionIds = sessions.map((s) => s.id);
   const { data: messages } = await supabase
@@ -82,10 +86,12 @@ export async function getLiveCallHistory(accountIds: string[]): Promise<CallHist
     messagesBySession[msg.call_session_id]!.push(msg);
   }
 
-  return sessions.map((s) => ({
-    id: s.id,
-    callerName: s.caller_name_raw || s.caller_phone_e164 || "Inconnu",
-    callerNumber: s.caller_phone_e164 || "",
+  return sessions.map((s) => {
+    const contact = contactNames.get(s.caller_phone_e164 || "");
+    return {
+      id: s.id,
+      callerName: contact?.displayName || s.caller_name_raw || s.caller_phone_e164 || "Inconnu",
+      callerNumber: s.caller_phone_e164 || "",
     groupEmoji: "📞",
     status: outcomeToStatus[s.final_outcome] || s.final_outcome,
     statusLabel: outcomeLabels[s.final_outcome] || s.final_outcome,
@@ -99,5 +105,6 @@ export async function getLiveCallHistory(accountIds: string[]): Promise<CallHist
     transcript: messagesBySession[s.id]
       ? formatTranscript(messagesBySession[s.id]!)
       : undefined,
-  }));
+  };
+  });
 }

@@ -15,6 +15,7 @@ export interface DashboardStats {
 export interface RecentCallItem {
   id: string;
   callerName: string;
+  callerPhone?: string;
   groupEmoji: string;
   status: string;
   statusLabel: string;
@@ -29,6 +30,7 @@ export interface PriorityItem {
   id: string;
   type: "callback" | "escalation" | "notification";
   callerLabel: string;
+  callerPhone?: string;
   summary: string;
   priority: string;
   timeLabel: string;
