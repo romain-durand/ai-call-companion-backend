@@ -157,8 +157,9 @@ export async function getLiveCallHistory(accountIds: string[]): Promise<CallHist
   }
 
   return sessions.map((s) => {
-    const contact = contactNames.get(s.caller_phone_e164 || "");
-    const group = s.caller_group_id ? groupsById[s.caller_group_id] : undefined;
+    // Resolve group: prefer session's caller_group_id, fallback to contact membership
+    const groupId = s.caller_group_id || phoneToGroupId.get(s.caller_phone_e164 || "") || undefined;
+    const group = groupId ? groupsById[groupId] : undefined;
 
     const enrichment: SessionEnrichment = {
       hasCallback: callbackSessions.has(s.id),
