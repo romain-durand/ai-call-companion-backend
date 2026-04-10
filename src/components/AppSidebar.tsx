@@ -15,6 +15,8 @@ import {
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
+import { useUserAccountId } from "@/hooks/useUserAccountId";
 import {
   Sidebar,
   SidebarContent,
@@ -53,6 +55,25 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const location = useLocation();
   const navigate = useNavigate();
+  const { data: accountId } = useUserAccountId();
+
+  const modeIcons: Record<string, string> = {
+    work: "💼", personal: "🏠", night: "🌙", focus: "🎯",
+  };
+
+  const { data: activeMode } = useQuery({
+    queryKey: ["active-mode-sidebar", accountId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("assistant_modes")
+        .select("name, slug, is_active")
+        .eq("account_id", accountId!)
+        .eq("is_active", true)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!accountId,
+  });
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -122,7 +143,9 @@ export function AppSidebar() {
         {!collapsed && (
           <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-primary/5 border border-primary/10">
             <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-            <span className="text-[11px] text-muted-foreground">Mode Travail actif</span>
+            <span className="text-[11px] text-muted-foreground">
+              Mode {activeMode?.name || "…"} actif {activeMode?.slug ? (modeIcons[activeMode.slug] || "") : ""}
+            </span>
           </div>
         )}
         <button
