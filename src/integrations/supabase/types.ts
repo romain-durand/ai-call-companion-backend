@@ -203,6 +203,7 @@ export type Database = {
           allow_booking: boolean
           assistant_profile_id: string
           auto_activation_rules: Json | null
+          control_mode: Database["public"]["Enums"]["assistant_control_mode"]
           created_at: string
           description: string | null
           id: string
@@ -221,6 +222,7 @@ export type Database = {
           allow_booking?: boolean
           assistant_profile_id: string
           auto_activation_rules?: Json | null
+          control_mode?: Database["public"]["Enums"]["assistant_control_mode"]
           created_at?: string
           description?: string | null
           id?: string
@@ -239,6 +241,7 @@ export type Database = {
           allow_booking?: boolean
           assistant_profile_id?: string
           auto_activation_rules?: Json | null
+          control_mode?: Database["public"]["Enums"]["assistant_control_mode"]
           created_at?: string
           description?: string | null
           id?: string
@@ -1586,6 +1589,7 @@ export type Database = {
         | "cancelled"
         | "completed"
         | "no_show"
+      assistant_control_mode: "strict_policy" | "model_discretion"
       billing_interval: "monthly" | "yearly"
       billing_provider: "stripe" | "manual"
       booked_by_type: "assistant" | "user" | "external"
@@ -1794,6 +1798,7 @@ export const Constants = {
         "completed",
         "no_show",
       ],
+      assistant_control_mode: ["strict_policy", "model_discretion"],
       billing_interval: ["monthly", "yearly"],
       billing_provider: ["stripe", "manual"],
       booked_by_type: ["assistant", "user", "external"],
