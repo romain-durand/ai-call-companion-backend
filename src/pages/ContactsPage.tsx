@@ -163,12 +163,21 @@ export default function ContactsPage({ forcedView }: { forcedView?: "list" | "gr
   const deleteContact = useDeleteContact();
   const setContactGroups = useSetContactGroups();
 
+  const createCallerGroup = useCreateCallerGroup();
+  const updateCallerGroup = useUpdateCallerGroup();
+  const deleteCallerGroup = useDeleteCallerGroup();
+
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>(forcedView || "list");
   const [formOpen, setFormOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<ContactItem | null>(null);
   const [groupContact, setGroupContact] = useState<ContactItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ContactItem | null>(null);
+
+  // Group management state
+  const [groupFormOpen, setGroupFormOpen] = useState(false);
+  const [editingGroup, setEditingGroup] = useState<{ id: string; name: string; icon: string; description: string } | null>(null);
+  const [deleteGroupTarget, setDeleteGroupTarget] = useState<{ id: string; name: string; contactCount: number } | null>(null);
 
   const filtered = useMemo(() => {
     if (!contacts) return [];
