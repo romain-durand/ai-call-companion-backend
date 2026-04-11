@@ -161,7 +161,9 @@ export default function LiveConsultBanner() {
                 {/* Header */}
                 <div className="flex items-center justify-between mb-1.5">
                   <p className="text-xs font-medium text-primary">
-                    📞 Consultation en direct — l'assistant a besoin de vous
+                    📞 {currentQuestion.callerLabel
+                      ? `Appel de ${currentQuestion.callerLabel} — l'assistant a besoin de vous`
+                      : "Consultation en direct — l'assistant a besoin de vous"}
                   </p>
                   <Button
                     variant="ghost"
