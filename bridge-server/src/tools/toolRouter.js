@@ -236,4 +236,31 @@ async function handleGenerateCallSummary(args, callCtx, traceId) {
   }
 }
 
+// ─── consult_user ────────────────────────────────────────────
+
+async function handleConsultUser(args, callCtx, traceId) {
+  const question = args.question;
+  if (!question) {
+    return { success: false, message: "Missing question parameter." };
+  }
+
+  log.tool("consult_user_started", traceId, `"${question.slice(0, 80)}"`);
+  const reply = await consultUser(callCtx, question, traceId);
+
+  if (reply) {
+    return {
+      success: true,
+      user_reply: reply,
+      message: "The user replied to your question. Use this information to continue the conversation with the caller.",
+    };
+  }
+
+  return {
+    success: false,
+    user_reply: null,
+    message: "The user did not respond within the timeout. Continue the conversation with the caller using your best judgment, or take a message.",
+  };
+}
+
 module.exports = { handleToolCall };
+
