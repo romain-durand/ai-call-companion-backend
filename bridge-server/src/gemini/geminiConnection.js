@@ -3,6 +3,11 @@ const { GEMINI_API_KEY } = require("../config/env");
 const { buildSetupPayload } = require("./geminiConfig");
 const { base64ToInt16, downsample24to8, encodeToMulaw } = require("../audio/codec");
 const { handleToolCall } = require("../tools/toolRouter");
+const {
+  createConsultUserFlowState,
+  isConsultAnnouncementPending,
+  observeConsultAnnouncement,
+} = require("../tools/consultUserFlow");
 const { buildRuntimeContext } = require("../context/runtimeContextBuilder");
 const log = require("../observability/logger");
 
@@ -76,6 +81,14 @@ function connectGemini(callCtx, onAudio) {
       if (msg.serverContent?.modelTurn?.parts) {
         for (const part of msg.serverContent.modelTurn.parts) {
           if (part.inlineData?.data) {
+            const consultFlow = callCtx.consultUserFlow || (callCtx.consultUserFlow = createConsultUserFlowState());
+            if (isConsultAnnouncementPending(consultFlow)) {
+              const observed = observeConsultAnnouncement(consultFlow);
+              if (observed) {
+                log.tool("consult_user_wait_announcement_detected", traceId, "assistant audio observed");
+              }
+            }
+
             const pcm24k = base64ToInt16(part.inlineData.data);
             const pcm8k = downsample24to8(pcm24k);
             const mulawBase64 = encodeToMulaw(pcm8k);
@@ -94,6 +107,17 @@ function connectGemini(callCtx, onAudio) {
       }
       if (msg.serverContent?.outputTranscription?.text) {
         const text = msg.serverContent.outputTranscription.text;
+        const consultFlow = callCtx.consultUserFlow || (callCtx.consultUserFlow = createConsultUserFlowState());
+        if (isConsultAnnouncementPending(consultFlow)) {
+          const observed = observeConsultAnnouncement(consultFlow, text);
+          if (observed) {
+            const detail = consultFlow.announcementTranscript
+              ? `"${consultFlow.announcementTranscript.slice(0, 80)}"`
+              : "assistant output observed";
+            log.tool("consult_user_wait_announcement_detected", traceId, detail);
+          }
+        }
+
         if (callCtx._txBuffer) {
           callCtx._txBuffer.push("assistant", text);
         }

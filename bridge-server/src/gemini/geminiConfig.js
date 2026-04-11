@@ -64,6 +64,7 @@ This waiting sentence MUST be spoken BEFORE the tool call, in its own speech tur
 Do NOT call consult_user silently.
 Do NOT wait for the tool result before saying this waiting sentence.
 After this sentence, call consult_user immediately.
+- Once the caller has already been asked to wait for a given consult_user request, do NOT repeat the waiting sentence after the tool returns. Continue directly with the answer, follow-up question, or timeout handling.
 CRITICAL SEQUENCING RULE for consult_user responses:
 - When you receive the user's reply, STOP and THINK before speaking.
 - If the user's reply is a direct answer (e.g. "oui, je suis libre"), relay it naturally to the caller.
@@ -196,7 +197,7 @@ const TOOL_DECLARATIONS = [
   {
     name: "consult_user",
     description:
-      "Ask a question to the user (the phone owner) via chat during a live call. Use this when you need specific information from the user to answer the caller, and the user might be available to respond via their dashboard. The caller will be asked to wait briefly. Returns the user's text reply or a timeout message. Do NOT use this for trivial questions — only when the caller's request genuinely requires the user's input.",
+      "Ask a question to the user (the phone owner) via chat during a live call. Use this when you need specific information from the user to answer the caller, and the user might be available to respond via their dashboard. Before calling this tool, you MUST first tell the caller to wait briefly in a separate speech turn. Returns the user's text reply or a timeout message. Do NOT use this for trivial questions — only when the caller's request genuinely requires the user's input.",
     parameters: {
       type: "OBJECT",
       properties: {
