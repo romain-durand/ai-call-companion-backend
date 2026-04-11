@@ -268,18 +268,24 @@ async function handleConsultUser(args, callCtx, traceId) {
     };
   }
 
+  // Wait up to 3s for announcement to be detected (audio/transcript may arrive after tool call)
   if (!hasObservedConsultAnnouncement(consultFlow)) {
     updatePendingConsultQuestion(consultFlow, question);
-    log.tool("consult_user_wait_announcement_missing", traceId, `"${question.slice(0, 80)}"`);
+    log.tool("consult_user_waiting_for_announcement", traceId, `"${question.slice(0, 80)}"`);
 
-    return {
-      success: true,
-      consult_status: "announce_first",
-      timed_out: false,
-      user_reply: null,
-      message:
-        "You still have not told the caller to wait. First say one short waiting sentence in French to the caller, in its own speech turn. Only after that should you call consult_user again with the same request. Do not answer the caller yet and do not mention tools.",
-    };
+    const announced = await waitForAnnouncement(consultFlow, 3000);
+    if (!announced) {
+      log.tool("consult_user_wait_announcement_missing", traceId, `"${question.slice(0, 80)}"`);
+      return {
+        success: true,
+        consult_status: "announce_first",
+        timed_out: false,
+        user_reply: null,
+        message:
+          "You still have not told the caller to wait. First say one short waiting sentence in French to the caller, in its own speech turn. Only after that should you call consult_user again with the same request. Do not answer the caller yet and do not mention tools.",
+      };
+    }
+    log.tool("consult_user_announcement_confirmed_after_wait", traceId);
   }
 
   log.tool("consult_user_started", traceId, `"${question.slice(0, 80)}"`);
