@@ -1,5 +1,5 @@
 const WebSocket = require("ws");
-const { decodeMulaw, upsample8to16, int16ToBase64 } = require("../audio/codec");
+const { decodeMulaw, upsample8to16, int16ToBase64, SILENCE_200MS } = require("../audio/codec");
 const { connectGemini } = require("../gemini/geminiConnection");
 const { createCallContext } = require("../calls/callContext");
 const callStore = require("../calls/callStateStore");
@@ -45,7 +45,18 @@ function handleTwilioConnection(twilioWs) {
         media: { payload: mulawBase64 },
       }));
     }
+    }
   }
+
+  // Send silence to keep Twilio stream alive (used during consult_user polling)
+  function sendSilenceToTwilio() {
+    if (twilioWs.readyState === WebSocket.OPEN && callCtx.streamSid) {
+      twilioWs.send(JSON.stringify({
+        event: "media",
+        streamSid: callCtx.streamSid,
+        media: { payload: SILENCE_200MS },
+      }));
+    }
 
   twilioWs.on("message", (message) => {
     try {
