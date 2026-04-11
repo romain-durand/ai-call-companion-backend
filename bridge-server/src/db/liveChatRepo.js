@@ -30,9 +30,10 @@ async function consultUser(callCtx, question, traceId, timeoutMs = 30000) {
   }
 
   const questionId = msg.id;
+  const questionCreatedAt = new Date().toISOString();
   log.tool("consult_user_question_sent", traceId, `id=${questionId} "${question.slice(0, 60)}"`);
 
-  // 2. Poll for reply (direction=to_assistant for same call_session)
+  // 2. Poll for reply (direction=to_assistant) created AFTER this question
   const pollInterval = 2000;
   const deadline = Date.now() + timeoutMs;
 
@@ -44,7 +45,7 @@ async function consultUser(callCtx, question, traceId, timeoutMs = 30000) {
       .select("content")
       .eq("call_session_id", callCtx.callSessionId)
       .eq("direction", "to_assistant")
-      .gt("created_at", new Date(Date.now() - timeoutMs).toISOString())
+      .gt("created_at", questionCreatedAt)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
