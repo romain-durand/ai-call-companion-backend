@@ -12,6 +12,8 @@ const {
   updatePendingConsultQuestion,
   isConsultAnnouncementPending,
   hasObservedConsultAnnouncement,
+  observeConsultAnnouncement,
+  matchesWaitAnnouncement,
   resetConsultUserFlow,
 } = require("./consultUserFlow");
 
@@ -262,6 +264,30 @@ function waitForAnnouncement(consultFlow, timeoutMs = 3000) {
   });
 }
 
+function observeRecentAssistantWaitAnnouncement(callCtx, consultFlow, traceId, maxAgeMs = 2500) {
+  if (hasObservedConsultAnnouncement(consultFlow)) return true;
+
+  const lastTurn = callCtx?._txBuffer?.getLastTurn?.();
+  if (!lastTurn || lastTurn.speaker !== "assistant" || !matchesWaitAnnouncement(lastTurn.text)) {
+    return false;
+  }
+
+  if (typeof lastTurn.capturedAt === "number" && Date.now() - lastTurn.capturedAt > maxAgeMs) {
+    return false;
+  }
+
+  const observed = observeConsultAnnouncement(consultFlow, lastTurn.text);
+  if (observed) {
+    log.tool(
+      "consult_user_wait_announcement_detected",
+      traceId,
+      `recent assistant turn "${lastTurn.text.slice(0, 80)}"`
+    );
+  }
+
+  return observed;
+}
+
 // ─── consult_user ────────────────────────────────────────────
 
 async function handleConsultUser(args, callCtx, traceId) {
@@ -275,10 +301,13 @@ async function handleConsultUser(args, callCtx, traceId) {
   if (!isConsultAnnouncementPending(consultFlow)) {
     queueConsultAnnouncement(consultFlow, question);
     log.tool("consult_user_checking_for_concurrent_announcement", traceId, `"${question.slice(0, 80)}"`);
+    observeRecentAssistantWaitAnnouncement(callCtx, consultFlow, traceId);
 
     // Gemini often speaks the announcement AND calls the tool simultaneously.
     // Wait briefly for the audio/transcript to confirm the announcement.
-    const alreadyAnnounced = await waitForAnnouncement(consultFlow, 3000);
+    const alreadyAnnounced = hasObservedConsultAnnouncement(consultFlow)
+      ? true
+      : await waitForAnnouncement(consultFlow, 3000);
     if (!alreadyAnnounced) {
       log.tool("consult_user_wait_announcement_required", traceId, `"${question.slice(0, 80)}"`);
       return {
@@ -297,8 +326,11 @@ async function handleConsultUser(args, callCtx, traceId) {
   if (!hasObservedConsultAnnouncement(consultFlow)) {
     updatePendingConsultQuestion(consultFlow, question);
     log.tool("consult_user_waiting_for_announcement", traceId, `"${question.slice(0, 80)}"`);
+    observeRecentAssistantWaitAnnouncement(callCtx, consultFlow, traceId);
 
-    const announced = await waitForAnnouncement(consultFlow, 3000);
+    const announced = hasObservedConsultAnnouncement(consultFlow)
+      ? true
+      : await waitForAnnouncement(consultFlow, 3000);
     if (!announced) {
       log.tool("consult_user_wait_announcement_missing", traceId, `"${question.slice(0, 80)}"`);
       return {
