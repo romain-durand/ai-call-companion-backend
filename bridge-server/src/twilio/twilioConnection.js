@@ -56,7 +56,10 @@ function handleTwilioConnection(twilioWs) {
         streamSid: callCtx.streamSid,
         media: { payload: SILENCE_200MS },
       }));
-    }
+  }
+
+  // Expose silence sender on callCtx for use by tools (e.g. consult_user)
+  callCtx._sendSilence = sendSilenceToTwilio;
 
   twilioWs.on("message", (message) => {
     try {

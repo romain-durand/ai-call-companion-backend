@@ -40,6 +40,9 @@ async function consultUser(callCtx, question, traceId, timeoutMs = 30000) {
   while (Date.now() < deadline) {
     await sleep(pollInterval);
 
+    // Keep Twilio stream alive by sending silence
+    if (callCtx._sendSilence) callCtx._sendSilence();
+
     const { data: reply } = await supabaseAdmin
       .from("live_chat_messages")
       .select("content")
