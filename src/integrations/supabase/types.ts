@@ -1142,6 +1142,54 @@ export type Database = {
           },
         ]
       }
+      live_chat_messages: {
+        Row: {
+          account_id: string
+          answered_at: string | null
+          call_session_id: string
+          content: string
+          created_at: string
+          direction: Database["public"]["Enums"]["chat_direction"]
+          id: string
+          status: Database["public"]["Enums"]["chat_message_status"]
+        }
+        Insert: {
+          account_id: string
+          answered_at?: string | null
+          call_session_id: string
+          content: string
+          created_at?: string
+          direction: Database["public"]["Enums"]["chat_direction"]
+          id?: string
+          status?: Database["public"]["Enums"]["chat_message_status"]
+        }
+        Update: {
+          account_id?: string
+          answered_at?: string | null
+          call_session_id?: string
+          content?: string
+          created_at?: string
+          direction?: Database["public"]["Enums"]["chat_direction"]
+          id?: string
+          status?: Database["public"]["Enums"]["chat_message_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "live_chat_messages_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_chat_messages_call_session_id_fkey"
+            columns: ["call_session_id"]
+            isOneToOne: false
+            referencedRelation: "call_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notification_preferences: {
         Row: {
           account_id: string
@@ -1626,6 +1674,8 @@ export type Database = {
         | "cancelled"
         | "expired"
       caller_group_type: "system" | "custom"
+      chat_direction: "to_user" | "to_assistant"
+      chat_message_status: "pending" | "answered" | "expired"
       contact_source:
         | "manual"
         | "google_contacts"
@@ -1838,6 +1888,8 @@ export const Constants = {
         "expired",
       ],
       caller_group_type: ["system", "custom"],
+      chat_direction: ["to_user", "to_assistant"],
+      chat_message_status: ["pending", "answered", "expired"],
       contact_source: [
         "manual",
         "google_contacts",
