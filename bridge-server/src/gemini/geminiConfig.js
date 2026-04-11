@@ -92,6 +92,13 @@ Before ending ANY call, you MUST call generate_call_summary with a concise Frenc
 - the outcome
 This is mandatory for every single call, even short or trivial ones.
 
+ENDING THE CALL
+After you have said goodbye and the conversation is clearly over (caller said goodbye, or you declined a spam call), you MUST:
+1. First call generate_call_summary
+2. Then call end_call with a short reason
+Do NOT hang up abruptly — always say a polite closing sentence first.
+If the caller hangs up first, you do not need to call end_call.
+
 CLARIFICATION
 If the caller is unclear:
 - ask one short question:
@@ -207,6 +214,21 @@ const TOOL_DECLARATIONS = [
         },
       },
       required: ["question"],
+    },
+  },
+  {
+    name: "end_call",
+    description:
+      "Hang up the call. Use this after saying goodbye to end the conversation, or to terminate spam/irrelevant calls after a brief decline. Always call generate_call_summary BEFORE calling end_call.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        reason: {
+          type: "STRING",
+          description: "Short reason for ending the call (e.g. 'conversation terminée', 'spam décliné').",
+        },
+      },
+      required: ["reason"],
     },
   },
 ];
