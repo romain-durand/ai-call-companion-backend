@@ -244,6 +244,24 @@ async function handleGenerateCallSummary(args, callCtx, traceId) {
   }
 }
 
+// ─── consult_user helpers ────────────────────────────────────
+
+function waitForAnnouncement(consultFlow, timeoutMs = 3000) {
+  return new Promise((resolve) => {
+    if (hasObservedConsultAnnouncement(consultFlow)) return resolve(true);
+    const start = Date.now();
+    const interval = setInterval(() => {
+      if (hasObservedConsultAnnouncement(consultFlow)) {
+        clearInterval(interval);
+        resolve(true);
+      } else if (Date.now() - start >= timeoutMs) {
+        clearInterval(interval);
+        resolve(false);
+      }
+    }, 200);
+  });
+}
+
 // ─── consult_user ────────────────────────────────────────────
 
 async function handleConsultUser(args, callCtx, traceId) {
@@ -256,30 +274,43 @@ async function handleConsultUser(args, callCtx, traceId) {
 
   if (!isConsultAnnouncementPending(consultFlow)) {
     queueConsultAnnouncement(consultFlow, question);
-    log.tool("consult_user_wait_announcement_required", traceId, `"${question.slice(0, 80)}"`);
+    log.tool("consult_user_checking_for_concurrent_announcement", traceId, `"${question.slice(0, 80)}"`);
 
-    return {
-      success: true,
-      consult_status: "announce_first",
-      timed_out: false,
-      user_reply: null,
-      message:
-        "Before consulting the user, first tell the caller in French to wait a moment. Say exactly one short waiting sentence in its own speech turn, for example: \"Un instant, je vérifie avec Romain, merci de patienter un petit moment.\" This tool call has NOT contacted the user yet. After speaking that sentence, call consult_user again with the same request. Do not answer the caller yet, do not combine the waiting sentence with the answer, and do not mention tools.",
-    };
+    // Gemini often speaks the announcement AND calls the tool simultaneously.
+    // Wait briefly for the audio/transcript to confirm the announcement.
+    const alreadyAnnounced = await waitForAnnouncement(consultFlow, 3000);
+    if (!alreadyAnnounced) {
+      log.tool("consult_user_wait_announcement_required", traceId, `"${question.slice(0, 80)}"`);
+      return {
+        success: true,
+        consult_status: "announce_first",
+        timed_out: false,
+        user_reply: null,
+        message:
+          "Before consulting the user, first tell the caller in French to wait a moment. Say exactly one short waiting sentence in its own speech turn, for example: \"Un instant, je vérifie avec Romain, merci de patienter un petit moment.\" This tool call has NOT contacted the user yet. After speaking that sentence, call consult_user again with the same request. Do not answer the caller yet, do not combine the waiting sentence with the answer, and do not mention tools.",
+      };
+    }
+    log.tool("consult_user_concurrent_announcement_detected", traceId);
   }
 
+  // Wait up to 3s for announcement to be detected (audio/transcript may arrive after tool call)
   if (!hasObservedConsultAnnouncement(consultFlow)) {
     updatePendingConsultQuestion(consultFlow, question);
-    log.tool("consult_user_wait_announcement_missing", traceId, `"${question.slice(0, 80)}"`);
+    log.tool("consult_user_waiting_for_announcement", traceId, `"${question.slice(0, 80)}"`);
 
-    return {
-      success: true,
-      consult_status: "announce_first",
-      timed_out: false,
-      user_reply: null,
-      message:
-        "You still have not told the caller to wait. First say one short waiting sentence in French to the caller, in its own speech turn. Only after that should you call consult_user again with the same request. Do not answer the caller yet and do not mention tools.",
-    };
+    const announced = await waitForAnnouncement(consultFlow, 3000);
+    if (!announced) {
+      log.tool("consult_user_wait_announcement_missing", traceId, `"${question.slice(0, 80)}"`);
+      return {
+        success: true,
+        consult_status: "announce_first",
+        timed_out: false,
+        user_reply: null,
+        message:
+          "You still have not told the caller to wait. First say one short waiting sentence in French to the caller, in its own speech turn. Only after that should you call consult_user again with the same request. Do not answer the caller yet and do not mention tools.",
+      };
+    }
+    log.tool("consult_user_announcement_confirmed_after_wait", traceId);
   }
 
   log.tool("consult_user_started", traceId, `"${question.slice(0, 80)}"`);
