@@ -1,4 +1,5 @@
 const crypto = require("crypto");
+const { createConsultUserFlowState } = require("../tools/consultUserFlow");
 
 function createCallContext() {
   let _seqNo = 0;
@@ -18,6 +19,7 @@ function createCallContext() {
     startedAt: null,
     finalized: false,
     _txBuffer: null,
+    consultUserFlow: createConsultUserFlowState(),
 
     /** Returns the next unique seq_no for this call. */
     nextSeqNo() {

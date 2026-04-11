@@ -6,6 +6,14 @@ const { createDirectNotification } = require("../db/notifyUserRepo");
 const { createEscalation } = require("../db/escalationRepo");
 const { consultUser } = require("../db/liveChatRepo");
 const { supabaseAdmin } = require("../db/supabaseAdmin");
+const {
+  createConsultUserFlowState,
+  queueConsultAnnouncement,
+  updatePendingConsultQuestion,
+  isConsultAnnouncementPending,
+  hasObservedConsultAnnouncement,
+  resetConsultUserFlow,
+} = require("./consultUserFlow");
 
 /**
  * Route a Gemini tool call to the appropriate handler.
@@ -239,12 +247,43 @@ async function handleGenerateCallSummary(args, callCtx, traceId) {
 // ─── consult_user ────────────────────────────────────────────
 
 async function handleConsultUser(args, callCtx, traceId) {
-  const question = args.question;
+  const question = typeof args.question === "string" ? args.question.trim() : "";
   if (!question) {
     return { success: false, message: "Missing question parameter." };
   }
 
+  const consultFlow = callCtx.consultUserFlow || (callCtx.consultUserFlow = createConsultUserFlowState());
+
+  if (!isConsultAnnouncementPending(consultFlow)) {
+    queueConsultAnnouncement(consultFlow, question);
+    log.tool("consult_user_wait_announcement_required", traceId, `"${question.slice(0, 80)}"`);
+
+    return {
+      success: true,
+      consult_status: "announce_first",
+      timed_out: false,
+      user_reply: null,
+      message:
+        "Before consulting the user, first tell the caller in French to wait a moment. Say exactly one short waiting sentence in its own speech turn, for example: \"Un instant, je vérifie avec Romain, merci de patienter un petit moment.\" This tool call has NOT contacted the user yet. After speaking that sentence, call consult_user again with the same request. Do not answer the caller yet, do not combine the waiting sentence with the answer, and do not mention tools.",
+    };
+  }
+
+  if (!hasObservedConsultAnnouncement(consultFlow)) {
+    updatePendingConsultQuestion(consultFlow, question);
+    log.tool("consult_user_wait_announcement_missing", traceId, `"${question.slice(0, 80)}"`);
+
+    return {
+      success: true,
+      consult_status: "announce_first",
+      timed_out: false,
+      user_reply: null,
+      message:
+        "You still have not told the caller to wait. First say one short waiting sentence in French to the caller, in its own speech turn. Only after that should you call consult_user again with the same request. Do not answer the caller yet and do not mention tools.",
+    };
+  }
+
   log.tool("consult_user_started", traceId, `"${question.slice(0, 80)}"`);
+  resetConsultUserFlow(consultFlow);
   const consultation = await consultUser(callCtx, question, traceId);
 
   if (consultation.status === "answered") {
@@ -253,7 +292,8 @@ async function handleConsultUser(args, callCtx, traceId) {
       consult_status: "answered",
       timed_out: false,
       user_reply: consultation.reply,
-      message: "The user replied to your question. Use this information to continue the conversation with the caller.",
+      message:
+        "The user replied to your question. The caller has already been asked to wait, so do NOT repeat any waiting sentence now. Use this information to continue the conversation with the caller.",
     };
   }
 
@@ -264,7 +304,7 @@ async function handleConsultUser(args, callCtx, traceId) {
       timed_out: true,
       user_reply: null,
       message:
-        "The user did not respond before the timeout. Do not call consult_user again for this same request right now. Politely tell the caller you could not reach the user and take a message instead.",
+        "The user did not respond before the timeout. The caller has already been asked to wait, so do NOT repeat any waiting sentence now. Do not call consult_user again for this same request right now. Politely tell the caller you could not reach the user and take a message instead.",
     };
   }
 
