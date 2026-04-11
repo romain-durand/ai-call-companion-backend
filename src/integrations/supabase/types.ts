@@ -1571,6 +1571,63 @@ export type Database = {
           },
         ]
       }
+      transfer_requests: {
+        Row: {
+          account_id: string
+          answered_at: string | null
+          call_session_id: string
+          caller_name: string | null
+          caller_phone_e164: string | null
+          completed_at: string | null
+          created_at: string
+          id: string
+          reason: string
+          status: Database["public"]["Enums"]["transfer_status"]
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          answered_at?: string | null
+          call_session_id: string
+          caller_name?: string | null
+          caller_phone_e164?: string | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          reason?: string
+          status?: Database["public"]["Enums"]["transfer_status"]
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          answered_at?: string | null
+          call_session_id?: string
+          caller_name?: string | null
+          caller_phone_e164?: string | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          reason?: string
+          status?: Database["public"]["Enums"]["transfer_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transfer_requests_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transfer_requests_call_session_id_fkey"
+            columns: ["call_session_id"]
+            isOneToOne: false
+            referencedRelation: "call_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       usage_counters: {
         Row: {
           account_id: string
@@ -1717,6 +1774,12 @@ export type Database = {
         | "incomplete"
       tool_invocation_status: "pending" | "success" | "error" | "timeout"
       transcript_status: "none" | "pending" | "processing" | "ready" | "failed"
+      transfer_status:
+        | "pending"
+        | "accepted"
+        | "declined"
+        | "timeout"
+        | "completed"
       urgency_level: "none" | "low" | "medium" | "high" | "critical"
       verification_status: "pending" | "verified" | "failed"
     }
@@ -1930,6 +1993,13 @@ export const Constants = {
       ],
       tool_invocation_status: ["pending", "success", "error", "timeout"],
       transcript_status: ["none", "pending", "processing", "ready", "failed"],
+      transfer_status: [
+        "pending",
+        "accepted",
+        "declined",
+        "timeout",
+        "completed",
+      ],
       urgency_level: ["none", "low", "medium", "high", "critical"],
       verification_status: ["pending", "verified", "failed"],
     },

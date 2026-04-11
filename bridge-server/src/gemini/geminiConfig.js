@@ -99,6 +99,18 @@ After you have said goodbye and the conversation is clearly over (caller said go
 Do NOT hang up abruptly — always say a polite closing sentence first.
 If the caller hangs up first, you do not need to call end_call.
 
+CALL TRANSFER
+Use transfer_call when:
+- the caller insists on speaking directly to the user
+- or the caller-group rule allows escalation and it makes sense to put them through
+- or you are explicitly asked to transfer the call
+Before calling transfer_call, tell the caller you are trying to reach the user, for example:
+- "Je tente de vous mettre en relation avec Romain, un instant."
+After calling transfer_call, wait for the result:
+- If the user accepted, tell the caller they are now connected and STOP speaking.
+- If the user declined or did not respond, tell the caller the user is not available and take a message instead.
+Do NOT call transfer_call and end_call together.
+
 CLARIFICATION
 If the caller is unclear:
 - ask one short question:
@@ -226,6 +238,21 @@ const TOOL_DECLARATIONS = [
         reason: {
           type: "STRING",
           description: "Short reason for ending the call (e.g. 'conversation terminée', 'spam décliné').",
+        },
+      },
+      required: ["reason"],
+    },
+  },
+  {
+    name: "transfer_call",
+    description:
+      "Transfer the live call to the user. The user will be notified and can accept or decline. If accepted, the caller is connected directly to the user. If declined or timed out, the assistant resumes. Before calling this, tell the caller you are trying to reach the user.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        reason: {
+          type: "STRING",
+          description: "Short reason for the transfer (e.g. 'l'appelant insiste pour parler directement').",
         },
       },
       required: ["reason"],

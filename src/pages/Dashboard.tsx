@@ -15,6 +15,7 @@ import PerformanceBlock from "@/components/PerformanceBlock";
 import DemoModeBadge from "@/components/DemoModeBadge";
 import ActiveModeSelector from "@/components/ActiveModeSelector";
 import LiveConsultBanner from "@/components/LiveConsultBanner";
+import TransferCallBanner from "@/components/TransferCallBanner";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -67,6 +68,9 @@ export default function Dashboard() {
 
       {/* Live consultation banner */}
       <LiveConsultBanner />
+
+      {/* Transfer call banner */}
+      <TransferCallBanner />
 
       {/* Active mode selector */}
       <ActiveModeSelector />

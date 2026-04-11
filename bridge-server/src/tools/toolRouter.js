@@ -6,6 +6,7 @@ const { createDirectNotification } = require("../db/notifyUserRepo");
 const { createEscalation } = require("../db/escalationRepo");
 const { consultUser } = require("../db/liveChatRepo");
 const { supabaseAdmin } = require("../db/supabaseAdmin");
+const { createTransferRequest, waitForTransferResponse, completeTransferRequest } = require("../db/transferRequestsRepo");
 const {
   createConsultUserFlowState,
   queueConsultAnnouncement,
@@ -54,6 +55,9 @@ async function handleToolCall(call, traceId, callCtx) {
         break;
       case "end_call":
         resultPayload = await handleEndCall(call.args, callCtx, traceId);
+        break;
+      case "transfer_call":
+        resultPayload = await handleTransferCall(call.args, callCtx, traceId);
         break;
       default:
         log.tool("tool_unknown", traceId, call.name);
@@ -265,6 +269,82 @@ async function handleEndCall(args, callCtx, traceId) {
   }, 1500);
 
   return { success: true, message: "Call will be terminated shortly." };
+}
+
+// ─── transfer_call ───────────────────────────────────────────
+
+async function handleTransferCall(args, callCtx, traceId) {
+  const reason = args.reason || "transfer requested";
+
+  if (!callCtx.callSessionId || !callCtx.accountId) {
+    return { success: false, message: "Cannot transfer: missing session context." };
+  }
+
+  log.tool("transfer_call_started", traceId, reason);
+
+  // 1. Create the transfer request in DB (user will see it via Realtime)
+  const requestId = await createTransferRequest(callCtx, reason);
+  if (!requestId) {
+    return { success: false, message: "Failed to create transfer request." };
+  }
+
+  // 2. Initialize transfer state on callCtx
+  callCtx._transferState = {
+    requestId,
+    active: false,
+    userWs: null,
+    sendToTwilio: null,
+    onUserDisconnect: null,
+  };
+
+  // 3. Send silence to Twilio to keep the call alive while waiting
+  const silenceInterval = setInterval(() => {
+    if (typeof callCtx._sendSilence === "function") {
+      callCtx._sendSilence();
+    }
+  }, 200);
+
+  try {
+    // 4. Wait for user to accept/decline (up to 30s)
+    const status = await waitForTransferResponse(requestId, traceId, 30000);
+
+    clearInterval(silenceInterval);
+
+    if (status === "accepted") {
+      log.tool("transfer_call_accepted", traceId, `requestId=${requestId}`);
+      callCtx._transferState.active = true;
+
+      return {
+        success: true,
+        transfer_status: "accepted",
+        message: "The user accepted the transfer. The caller is now connected to the user. STOP speaking immediately — do not say anything else. The user and caller are talking directly.",
+      };
+    }
+
+    // Declined or timeout — clean up
+    callCtx._transferState = null;
+
+    if (status === "declined") {
+      log.tool("transfer_call_declined", traceId, `requestId=${requestId}`);
+      return {
+        success: true,
+        transfer_status: "declined",
+        message: "The user declined the transfer. Inform the caller politely that the user is not available right now and take a message instead.",
+      };
+    }
+
+    log.tool("transfer_call_timeout", traceId, `requestId=${requestId}`);
+    return {
+      success: true,
+      transfer_status: "timeout",
+      message: "The user did not respond in time. Inform the caller politely that the user is not available right now and take a message instead.",
+    };
+  } catch (e) {
+    clearInterval(silenceInterval);
+    callCtx._transferState = null;
+    log.error("transfer_call_error", traceId, e.message);
+    return { success: false, message: "Transfer failed: " + e.message };
+  }
 }
 
 function waitForAnnouncement(consultFlow, timeoutMs = 3000) {

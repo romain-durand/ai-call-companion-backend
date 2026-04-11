@@ -1,5 +1,5 @@
 const WebSocket = require("ws");
-const { decodeMulaw, upsample8to16, int16ToBase64, SILENCE_200MS } = require("../audio/codec");
+const { decodeMulaw, upsample8to16, int16ToBase64, encodeToMulaw, SILENCE_200MS } = require("../audio/codec");
 const { connectGemini } = require("../gemini/geminiConnection");
 const { createCallContext } = require("../calls/callContext");
 const callStore = require("../calls/callStateStore");
@@ -64,6 +64,9 @@ function handleTwilioConnection(twilioWs) {
   // Expose hangup: close the Twilio WS which ends the call
   callCtx._hangup = (reason = "end_call") => {
     log.call("hangup_requested", callCtx.traceId, reason);
+    if (callCtx._transferState?.userWs) {
+      try { callCtx._transferState.userWs.close(1000, reason); } catch (_) {}
+    }
     if (geminiWs && geminiWs.readyState === WebSocket.OPEN) {
       geminiWs.close(1000, reason);
     }
@@ -102,6 +105,22 @@ function handleTwilioConnection(twilioWs) {
         }
 
         case "media":
+          // Transfer mode: relay audio to user's browser instead of Gemini
+          if (callCtx._transferState?.active && callCtx._transferState?.userWs) {
+            // Lazily wire up sendToTwilio for the user audio handler
+            if (!callCtx._transferState.sendToTwilio) {
+              callCtx._transferState.sendToTwilio = sendAudioToTwilio;
+            }
+            const userWs = callCtx._transferState.userWs;
+            if (userWs.readyState === WebSocket.OPEN) {
+              const pcm8kT = decodeMulaw(msg.media.payload);
+              const pcm16kT = upsample8to16(pcm8kT);
+              const pcmBase64T = int16ToBase64(pcm16kT);
+              userWs.send(JSON.stringify({ type: "audio", data: pcmBase64T }));
+            }
+            return;
+          }
+
           if (!callCtx.geminiReady || !geminiWs || geminiWs.readyState !== WebSocket.OPEN) return;
 
           const pcm8k = decodeMulaw(msg.media.payload);
