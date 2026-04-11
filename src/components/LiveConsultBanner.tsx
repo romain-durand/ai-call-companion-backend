@@ -31,14 +31,39 @@ export default function LiveConsultBanner() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("live_chat_messages")
-        .select("*")
+        .select("*, call_sessions!live_chat_messages_call_session_id_fkey(caller_name_raw, contact_id, caller_phone_e164)")
         .eq("account_id", accountId!)
         .eq("direction", "to_user")
         .eq("status", "pending")
         .order("created_at", { ascending: false })
         .limit(5);
       if (error) throw error;
-      return data as LiveChatMessage[];
+
+      // Resolve contact names for known contacts
+      const contactIds = [...new Set(
+        (data || [])
+          .map((m: any) => m.call_sessions?.contact_id)
+          .filter(Boolean)
+      )];
+      
+      let contactMap = new Map<string, string>();
+      if (contactIds.length > 0) {
+        const { data: contacts } = await supabase
+          .from("contacts")
+          .select("id, display_name, first_name, last_name")
+          .in("id", contactIds);
+        for (const c of contacts || []) {
+          const name = [c.first_name, c.last_name].filter(Boolean).join(" ") || c.display_name || "";
+          if (name) contactMap.set(c.id, name);
+        }
+      }
+
+      return (data || []).map((m: any) => {
+        const session = m.call_sessions;
+        const contactName = session?.contact_id ? contactMap.get(session.contact_id) : null;
+        const callerLabel = contactName || session?.caller_name_raw || session?.caller_phone_e164 || null;
+        return { ...m, callerLabel };
+      }) as (LiveChatMessage & { callerLabel: string | null })[];
     },
     enabled: !!accountId,
     refetchInterval: 3000,
