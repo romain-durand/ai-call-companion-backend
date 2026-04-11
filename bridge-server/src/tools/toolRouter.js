@@ -244,6 +244,24 @@ async function handleGenerateCallSummary(args, callCtx, traceId) {
   }
 }
 
+// ─── consult_user helpers ────────────────────────────────────
+
+function waitForAnnouncement(consultFlow, timeoutMs = 3000) {
+  return new Promise((resolve) => {
+    if (hasObservedConsultAnnouncement(consultFlow)) return resolve(true);
+    const start = Date.now();
+    const interval = setInterval(() => {
+      if (hasObservedConsultAnnouncement(consultFlow)) {
+        clearInterval(interval);
+        resolve(true);
+      } else if (Date.now() - start >= timeoutMs) {
+        clearInterval(interval);
+        resolve(false);
+      }
+    }, 200);
+  });
+}
+
 // ─── consult_user ────────────────────────────────────────────
 
 async function handleConsultUser(args, callCtx, traceId) {
