@@ -45,7 +45,6 @@ function handleTwilioConnection(twilioWs) {
         media: { payload: mulawBase64 },
       }));
     }
-    }
   }
 
   // Send silence to keep Twilio stream alive (used during consult_user polling)
@@ -56,6 +55,7 @@ function handleTwilioConnection(twilioWs) {
         streamSid: callCtx.streamSid,
         media: { payload: SILENCE_200MS },
       }));
+    }
   }
 
   // Expose silence sender on callCtx for use by tools (e.g. consult_user)
