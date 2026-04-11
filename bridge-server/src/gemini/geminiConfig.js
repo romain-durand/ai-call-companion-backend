@@ -168,6 +168,21 @@ const TOOL_DECLARATIONS = [
       required: ["summary"],
     },
   },
+  {
+    name: "consult_user",
+    description:
+      "Ask a question to the user (the phone owner) via chat during a live call. Use this when you need specific information from the user to answer the caller, and the user might be available to respond via their dashboard. The caller will be asked to wait briefly. Returns the user's text reply or a timeout message. Do NOT use this for trivial questions — only when the caller's request genuinely requires the user's input.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        question: {
+          type: "STRING",
+          description: "The question to ask the user, in French. Be concise and specific.",
+        },
+      },
+      required: ["question"],
+    },
+  },
 ];
 
 function buildSetupPayload() {

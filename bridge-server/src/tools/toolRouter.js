@@ -4,6 +4,7 @@ const { createCallbackRequest } = require("../db/callbackRequestsRepo");
 const { getCallerProfile } = require("../db/callerProfileRepo");
 const { createDirectNotification } = require("../db/notifyUserRepo");
 const { createEscalation } = require("../db/escalationRepo");
+const { consultUser } = require("../db/liveChatRepo");
 const { supabaseAdmin } = require("../db/supabaseAdmin");
 
 /**
@@ -37,6 +38,9 @@ async function handleToolCall(call, traceId, callCtx) {
         break;
       case "generate_call_summary":
         resultPayload = await handleGenerateCallSummary(call.args, callCtx, traceId);
+        break;
+      case "consult_user":
+        resultPayload = await handleConsultUser(call.args, callCtx, traceId);
         break;
       default:
         log.tool("tool_unknown", traceId, call.name);
