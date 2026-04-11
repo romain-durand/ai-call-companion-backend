@@ -31,7 +31,7 @@ export default function LiveConsultBanner() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("live_chat_messages")
-        .select("*, call_sessions!live_chat_messages_call_session_id_fkey(caller_name_raw, contact_id, caller_phone_e164)")
+        .select("*, call_sessions!live_chat_messages_call_session_id_fkey(caller_name_raw, caller_phone_e164)")
         .eq("account_id", accountId!)
         .eq("direction", "to_user")
         .eq("status", "pending")
@@ -39,29 +39,32 @@ export default function LiveConsultBanner() {
         .limit(5);
       if (error) throw error;
 
-      // Resolve contact names for known contacts
-      const contactIds = [...new Set(
+      // Resolve contact names by phone number
+      const phones = [...new Set(
         (data || [])
-          .map((m: any) => m.call_sessions?.contact_id)
+          .map((m: any) => m.call_sessions?.caller_phone_e164)
           .filter(Boolean)
       )];
       
-      let contactMap = new Map<string, string>();
-      if (contactIds.length > 0) {
+      let phoneToName = new Map<string, string>();
+      if (phones.length > 0) {
         const { data: contacts } = await supabase
           .from("contacts")
-          .select("id, display_name, first_name, last_name")
-          .in("id", contactIds);
+          .select("display_name, first_name, last_name, primary_phone_e164")
+          .eq("account_id", accountId!)
+          .in("primary_phone_e164", phones);
         for (const c of contacts || []) {
+          if (!c.primary_phone_e164) continue;
           const name = [c.first_name, c.last_name].filter(Boolean).join(" ") || c.display_name || "";
-          if (name) contactMap.set(c.id, name);
+          if (name) phoneToName.set(c.primary_phone_e164, name);
         }
       }
 
       return (data || []).map((m: any) => {
         const session = m.call_sessions;
-        const contactName = session?.contact_id ? contactMap.get(session.contact_id) : null;
-        const callerLabel = contactName || session?.caller_name_raw || session?.caller_phone_e164 || null;
+        const phone = session?.caller_phone_e164;
+        const contactName = phone ? phoneToName.get(phone) : null;
+        const callerLabel = contactName || session?.caller_name_raw || phone || null;
         return { ...m, callerLabel };
       }) as (LiveChatMessage & { callerLabel: string | null })[];
     },
