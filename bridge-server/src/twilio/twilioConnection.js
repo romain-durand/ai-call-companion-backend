@@ -61,6 +61,17 @@ function handleTwilioConnection(twilioWs) {
   // Expose silence sender on callCtx for use by tools (e.g. consult_user)
   callCtx._sendSilence = sendSilenceToTwilio;
 
+  // Expose hangup: close the Twilio WS which ends the call
+  callCtx._hangup = (reason = "end_call") => {
+    log.call("hangup_requested", callCtx.traceId, reason);
+    if (geminiWs && geminiWs.readyState === WebSocket.OPEN) {
+      geminiWs.close(1000, reason);
+    }
+    if (twilioWs.readyState === WebSocket.OPEN) {
+      twilioWs.close(1000, reason);
+    }
+  };
+
   twilioWs.on("message", (message) => {
     try {
       const msg = JSON.parse(message.toString());

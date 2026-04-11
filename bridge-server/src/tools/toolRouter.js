@@ -52,6 +52,9 @@ async function handleToolCall(call, traceId, callCtx) {
       case "consult_user":
         resultPayload = await handleConsultUser(call.args, callCtx, traceId);
         break;
+      case "end_call":
+        resultPayload = await handleEndCall(call.args, callCtx, traceId);
+        break;
       default:
         log.tool("tool_unknown", traceId, call.name);
         resultPayload = { success: false, message: `Unknown tool: ${call.name}` };
@@ -247,6 +250,22 @@ async function handleGenerateCallSummary(args, callCtx, traceId) {
 }
 
 // ─── consult_user helpers ────────────────────────────────────
+
+// ─── end_call ────────────────────────────────────────────────
+
+async function handleEndCall(args, callCtx, traceId) {
+  const reason = args.reason || "end_call";
+  log.tool("end_call", traceId, reason);
+
+  // Give Gemini a moment to finish speaking before hanging up
+  setTimeout(() => {
+    if (typeof callCtx._hangup === "function") {
+      callCtx._hangup(reason);
+    }
+  }, 1500);
+
+  return { success: true, message: "Call will be terminated shortly." };
+}
 
 function waitForAnnouncement(consultFlow, timeoutMs = 3000) {
   return new Promise((resolve) => {
