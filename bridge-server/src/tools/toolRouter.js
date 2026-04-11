@@ -4,6 +4,7 @@ const { createCallbackRequest } = require("../db/callbackRequestsRepo");
 const { getCallerProfile } = require("../db/callerProfileRepo");
 const { createDirectNotification } = require("../db/notifyUserRepo");
 const { createEscalation } = require("../db/escalationRepo");
+const { consultUser } = require("../db/liveChatRepo");
 const { supabaseAdmin } = require("../db/supabaseAdmin");
 
 /**
@@ -37,6 +38,9 @@ async function handleToolCall(call, traceId, callCtx) {
         break;
       case "generate_call_summary":
         resultPayload = await handleGenerateCallSummary(call.args, callCtx, traceId);
+        break;
+      case "consult_user":
+        resultPayload = await handleConsultUser(call.args, callCtx, traceId);
         break;
       default:
         log.tool("tool_unknown", traceId, call.name);
@@ -232,4 +236,31 @@ async function handleGenerateCallSummary(args, callCtx, traceId) {
   }
 }
 
+// ─── consult_user ────────────────────────────────────────────
+
+async function handleConsultUser(args, callCtx, traceId) {
+  const question = args.question;
+  if (!question) {
+    return { success: false, message: "Missing question parameter." };
+  }
+
+  log.tool("consult_user_started", traceId, `"${question.slice(0, 80)}"`);
+  const reply = await consultUser(callCtx, question, traceId);
+
+  if (reply) {
+    return {
+      success: true,
+      user_reply: reply,
+      message: "The user replied to your question. Use this information to continue the conversation with the caller.",
+    };
+  }
+
+  return {
+    success: false,
+    user_reply: null,
+    message: "The user did not respond within the timeout. Continue the conversation with the caller using your best judgment, or take a message.",
+  };
+}
+
 module.exports = { handleToolCall };
+

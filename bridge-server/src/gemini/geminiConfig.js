@@ -51,6 +51,15 @@ Use notify_user when:
 - the user should be informed
 - but does not need to be interrupted live
 
+CONSULTATION HANDLING
+Use consult_user when:
+- you need specific information from the user to properly answer the caller
+- the caller's request genuinely requires the user's personal input or decision
+- example: "Should I give them your personal number?", "Are you available Thursday at 3pm?"
+Before calling consult_user, tell the caller you are checking with the user ("Un instant, je vérifie avec [user name]").
+After receiving the reply, relay the information naturally to the caller.
+If the user does not respond (timeout), inform the caller politely and take a message instead.
+
 ESCALATION HANDLING
 Use escalate_call when:
 - the situation is urgent
@@ -166,6 +175,21 @@ const TOOL_DECLARATIONS = [
         },
       },
       required: ["summary"],
+    },
+  },
+  {
+    name: "consult_user",
+    description:
+      "Ask a question to the user (the phone owner) via chat during a live call. Use this when you need specific information from the user to answer the caller, and the user might be available to respond via their dashboard. The caller will be asked to wait briefly. Returns the user's text reply or a timeout message. Do NOT use this for trivial questions — only when the caller's request genuinely requires the user's input.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        question: {
+          type: "STRING",
+          description: "The question to ask the user, in French. Be concise and specific.",
+        },
+      },
+      required: ["question"],
     },
   },
 ];
