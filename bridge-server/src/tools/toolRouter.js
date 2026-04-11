@@ -274,16 +274,23 @@ async function handleConsultUser(args, callCtx, traceId) {
 
   if (!isConsultAnnouncementPending(consultFlow)) {
     queueConsultAnnouncement(consultFlow, question);
-    log.tool("consult_user_wait_announcement_required", traceId, `"${question.slice(0, 80)}"`);
+    log.tool("consult_user_checking_for_concurrent_announcement", traceId, `"${question.slice(0, 80)}"`);
 
-    return {
-      success: true,
-      consult_status: "announce_first",
-      timed_out: false,
-      user_reply: null,
-      message:
-        "Before consulting the user, first tell the caller in French to wait a moment. Say exactly one short waiting sentence in its own speech turn, for example: \"Un instant, je vérifie avec Romain, merci de patienter un petit moment.\" This tool call has NOT contacted the user yet. After speaking that sentence, call consult_user again with the same request. Do not answer the caller yet, do not combine the waiting sentence with the answer, and do not mention tools.",
-    };
+    // Gemini often speaks the announcement AND calls the tool simultaneously.
+    // Wait briefly for the audio/transcript to confirm the announcement.
+    const alreadyAnnounced = await waitForAnnouncement(consultFlow, 3000);
+    if (!alreadyAnnounced) {
+      log.tool("consult_user_wait_announcement_required", traceId, `"${question.slice(0, 80)}"`);
+      return {
+        success: true,
+        consult_status: "announce_first",
+        timed_out: false,
+        user_reply: null,
+        message:
+          "Before consulting the user, first tell the caller in French to wait a moment. Say exactly one short waiting sentence in its own speech turn, for example: \"Un instant, je vérifie avec Romain, merci de patienter un petit moment.\" This tool call has NOT contacted the user yet. After speaking that sentence, call consult_user again with the same request. Do not answer the caller yet, do not combine the waiting sentence with the answer, and do not mention tools.",
+      };
+    }
+    log.tool("consult_user_concurrent_announcement_detected", traceId);
   }
 
   // Wait up to 3s for announcement to be detected (audio/transcript may arrive after tool call)
