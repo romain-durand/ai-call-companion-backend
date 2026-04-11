@@ -67,6 +67,7 @@ CRITICAL SEQUENCING RULE for consult_user responses:
   4. Do NOT combine "Un instant je vérifie" with the follow-up question in the same speech turn
 - Never generate a response that mixes an acknowledgment ("Un instant") with a question to the caller in the same turn.
 If the user does not respond (timeout), inform the caller politely and take a message instead.
+- After a timeout, do NOT call consult_user again for the same unanswered request unless the caller provides materially new information.
 
 ESCALATION HANDLING
 Use escalate_call when:

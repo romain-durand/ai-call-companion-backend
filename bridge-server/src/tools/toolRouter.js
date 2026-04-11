@@ -245,20 +245,35 @@ async function handleConsultUser(args, callCtx, traceId) {
   }
 
   log.tool("consult_user_started", traceId, `"${question.slice(0, 80)}"`);
-  const reply = await consultUser(callCtx, question, traceId);
+  const consultation = await consultUser(callCtx, question, traceId);
 
-  if (reply) {
+  if (consultation.status === "answered") {
     return {
       success: true,
-      user_reply: reply,
+      consult_status: "answered",
+      timed_out: false,
+      user_reply: consultation.reply,
       message: "The user replied to your question. Use this information to continue the conversation with the caller.",
+    };
+  }
+
+  if (consultation.status === "timeout") {
+    return {
+      success: true,
+      consult_status: "timeout",
+      timed_out: true,
+      user_reply: null,
+      message:
+        "The user did not respond before the timeout. Do not call consult_user again for this same request right now. Politely tell the caller you could not reach the user and take a message instead.",
     };
   }
 
   return {
     success: false,
+    consult_status: "error",
+    timed_out: false,
     user_reply: null,
-    message: "The user did not respond within the timeout. Continue the conversation with the caller using your best judgment, or take a message.",
+    message: consultation.error || "Failed to consult the user.",
   };
 }
 
