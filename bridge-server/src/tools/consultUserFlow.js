@@ -1,6 +1,11 @@
 const WAIT_ANNOUNCEMENT_REGEX =
   /(?:un instant|je (?:vérifie|verifie|regarde)|merci de patienter|ne quittez pas|patientez|attendez|je tente de(?: le)? joindre|one moment|please hold|let me check|i(?:'|’)ll check)/i;
 
+function matchesWaitAnnouncement(text = "") {
+  const normalized = typeof text === "string" ? text.trim() : "";
+  return Boolean(normalized) && WAIT_ANNOUNCEMENT_REGEX.test(normalized);
+}
+
 function createConsultUserFlowState() {
   return {
     phase: "idle",
@@ -44,7 +49,7 @@ function observeConsultAnnouncement(state, text = "") {
       : normalized;
   }
 
-  if (!normalized || WAIT_ANNOUNCEMENT_REGEX.test(state.announcementTranscript)) {
+  if (!normalized || matchesWaitAnnouncement(state.announcementTranscript)) {
     state.announcementObserved = true;
     return true;
   }
@@ -68,5 +73,6 @@ module.exports = {
   isConsultAnnouncementPending,
   hasObservedConsultAnnouncement,
   observeConsultAnnouncement,
+  matchesWaitAnnouncement,
   resetConsultUserFlow,
 };

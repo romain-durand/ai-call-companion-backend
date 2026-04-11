@@ -15,6 +15,7 @@ function createTranscriptBuffer(callCtx) {
     chunks: [],
     lastFlushedSpeaker: null,
     lastFlushedText: null,
+    lastTurn: null,
     _flushPromise: Promise.resolve(),
   };
 
@@ -51,7 +52,14 @@ function createTranscriptBuffer(callCtx) {
     buf.currentSpeaker = null;
 
     if (!text) return null;
-    return { speaker, text };
+
+    const turn = { speaker, text, capturedAt: Date.now() };
+    buf.lastTurn = turn;
+    return turn;
+  }
+
+  function getLastTurn() {
+    return buf.lastTurn ? { ...buf.lastTurn } : null;
   }
 
   /**
@@ -103,7 +111,7 @@ function createTranscriptBuffer(callCtx) {
     }
   }
 
-  return { push, flush, flushAll };
+  return { push, flush, flushAll, getLastTurn };
 }
 
 module.exports = { createTranscriptBuffer };
