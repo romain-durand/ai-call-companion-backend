@@ -9,7 +9,7 @@ import { useUserAccountId } from "@/hooks/useUserAccountId";
 import { toast } from "sonner";
 
 // Bridge WS URL — defaults to same host on /transfer-audio
-const BRIDGE_WS_URL = import.meta.env.VITE_BRIDGE_WS_URL || "";
+const BRIDGE_WS_URL = import.meta.env.VITE_BRIDGE_WS_URL || "wss://bridgeserver.ted.paris";
 
 function getBridgeTransferUrl(): string {
   if (BRIDGE_WS_URL) {
