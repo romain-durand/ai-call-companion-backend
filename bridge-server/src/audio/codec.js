@@ -82,6 +82,9 @@ function base64ToInt16(base64) {
   return new Int16Array(buf.buffer, buf.byteOffset, buf.byteLength / 2);
 }
 
+// Pre-computed 200ms of mulaw silence at 8kHz (byte 0xFF = mulaw zero)
+const SILENCE_200MS = Buffer.alloc(1600, 0xff).toString("base64");
+
 module.exports = {
   decodeMulaw,
   upsample8to16,
@@ -89,4 +92,5 @@ module.exports = {
   encodeToMulaw,
   int16ToBase64,
   base64ToInt16,
+  SILENCE_200MS,
 };
