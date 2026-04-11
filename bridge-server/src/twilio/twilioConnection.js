@@ -107,6 +107,10 @@ function handleTwilioConnection(twilioWs) {
         case "media":
           // Transfer mode: relay audio to user's browser instead of Gemini
           if (callCtx._transferState?.active && callCtx._transferState?.userWs) {
+            // Lazily wire up sendToTwilio for the user audio handler
+            if (!callCtx._transferState.sendToTwilio) {
+              callCtx._transferState.sendToTwilio = sendAudioToTwilio;
+            }
             const userWs = callCtx._transferState.userWs;
             if (userWs.readyState === WebSocket.OPEN) {
               const pcm8kT = decodeMulaw(msg.media.payload);
