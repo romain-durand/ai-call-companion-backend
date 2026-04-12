@@ -104,7 +104,11 @@ const OUTBOUND_TOOL_DECLARATIONS = [
   },
 ];
 
-function buildOutboundSetupPayload() {
+function buildOutboundSetupPayload(missionContext) {
+  const systemParts = [{ text: OUTBOUND_SYSTEM_INSTRUCTION }];
+  if (missionContext) {
+    systemParts.push({ text: missionContext });
+  }
   return {
     setup: {
       model: MODEL,
@@ -117,7 +121,7 @@ function buildOutboundSetupPayload() {
         },
       },
       systemInstruction: {
-        parts: [{ text: OUTBOUND_SYSTEM_INSTRUCTION }],
+        parts: systemParts,
       },
       tools: [{ functionDeclarations: OUTBOUND_TOOL_DECLARATIONS }],
     },

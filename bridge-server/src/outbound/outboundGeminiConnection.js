@@ -15,8 +15,10 @@ function connectOutboundGemini(callCtx, onAudio) {
 
   ws.on("open", () => {
     log.gemini("outbound_connected", traceId);
-    const setupPayload = buildOutboundSetupPayload();
+    const contextBlock = buildOutboundContext(callCtx);
+    const setupPayload = buildOutboundSetupPayload(contextBlock);
     ws.send(JSON.stringify(setupPayload));
+    log.gemini("outbound_context_injected", traceId, contextBlock);
   });
 
   ws.on("message", (data) => {
@@ -25,12 +27,6 @@ function connectOutboundGemini(callCtx, onAudio) {
 
       if (msg.setupComplete) {
         log.gemini("outbound_setup_complete", traceId);
-
-        const contextBlock = buildOutboundContext(callCtx);
-        ws.send(JSON.stringify({
-          realtimeInput: { text: contextBlock },
-        }));
-        log.gemini("outbound_context_injected", traceId, contextBlock);
 
         callCtx.geminiReady = true;
         callCtx.awaitingOutboundFirstTurn = true;
