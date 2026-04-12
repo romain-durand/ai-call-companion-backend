@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useUserAccountId } from "@/hooks/useUserAccountId";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { CalendarDays, CheckCircle2, ExternalLink, Loader2, Unplug } from "lucide-react";
+import { CalendarDays, CheckCircle2, ExternalLink, Loader2, Unplug, Radio } from "lucide-react";
 
 const BRIDGE_URL = "https://bridgeserver.ted.paris";
 
