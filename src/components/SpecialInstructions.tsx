@@ -223,7 +223,7 @@ export default function SpecialInstructions() {
       ) : (
         <div className="space-y-2">
           {entries.map((entry) => (
-            <Card key={`${entry.type}-${entry.id}`} className="bg-card/30">
+            <Card key={`${entry.type}-${entry.id}`} className="bg-card/30 cursor-pointer hover:bg-card/50 transition-all" onClick={() => handleEdit(entry)}>
               <CardContent className="p-4 flex items-start gap-4">
                 <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center text-xl shrink-0">
                   {entry.emoji}
