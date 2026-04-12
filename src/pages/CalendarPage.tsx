@@ -1,87 +1,199 @@
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { bookingRules } from "@/data/mockData";
+import { supabase } from "@/integrations/supabase/client";
+import { useUserAccountId } from "@/hooks/useUserAccountId";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
+import { CalendarDays, CheckCircle2, ExternalLink, Loader2, Unplug } from "lucide-react";
 
-const dayNames = ["", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
+const BRIDGE_URL = "https://bridgeserver.ted.paris";
 
 export default function CalendarPage() {
+  const { data: accountId } = useUserAccountId();
+  const { session } = useAuth();
+  const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [disconnecting, setDisconnecting] = useState(false);
+
+  // Show toast based on redirect status
+  useEffect(() => {
+    const status = searchParams.get("status");
+    if (status === "success") {
+      toast.success("Google Calendar connecté avec succès !");
+      queryClient.invalidateQueries({ queryKey: ["calendar-connection"] });
+      queryClient.invalidateQueries({ queryKey: ["calendar-calendars"] });
+      setSearchParams({}, { replace: true });
+    } else if (status === "error") {
+      const reason = searchParams.get("reason") || "unknown";
+      toast.error(`Erreur de connexion : ${reason}`);
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams, queryClient]);
+
+  // Fetch active calendar connection
+  const { data: connection, isLoading: connLoading } = useQuery({
+    queryKey: ["calendar-connection", accountId],
+    queryFn: async () => {
+      if (!accountId) return null;
+      const { data, error } = await supabase
+        .from("calendar_connections")
+        .select("*")
+        .eq("account_id", accountId)
+        .eq("status", "active")
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!accountId,
+  });
+
+  // Fetch calendars
+  const { data: calendars } = useQuery({
+    queryKey: ["calendar-calendars", connection?.id],
+    queryFn: async () => {
+      if (!connection?.id) return [];
+      const { data, error } = await supabase
+        .from("calendar_calendars")
+        .select("*")
+        .eq("calendar_connection_id", connection.id)
+        .order("is_primary", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!connection?.id,
+  });
+
+  const handleConnect = () => {
+    if (!accountId || !session?.access_token) return;
+    const startUrl = `${BRIDGE_URL}/auth/google/start?account_id=${accountId}&token=${session.access_token}`;
+    window.location.href = startUrl;
+  };
+
+  const handleDisconnect = async () => {
+    if (!connection) return;
+    setDisconnecting(true);
+    try {
+      // Delete calendars first, then connection
+      await supabase
+        .from("calendar_calendars")
+        .delete()
+        .eq("calendar_connection_id", connection.id);
+      await supabase
+        .from("calendar_connections")
+        .delete()
+        .eq("id", connection.id);
+      toast.success("Calendrier déconnecté");
+      queryClient.invalidateQueries({ queryKey: ["calendar-connection"] });
+      queryClient.invalidateQueries({ queryKey: ["calendar-calendars"] });
+    } catch {
+      toast.error("Erreur lors de la déconnexion");
+    } finally {
+      setDisconnecting(false);
+    }
+  };
+
+  const isConnected = !!connection;
+
   return (
     <div className="space-y-8 max-w-3xl">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Calendrier</h1>
-        <p className="text-sm text-muted-foreground mt-1">Gérez vos disponibilités et règles de réservation.</p>
+        <p className="text-sm text-muted-foreground mt-1">
+          Connectez votre agenda pour que l'assistant puisse consulter vos disponibilités et prendre des rendez-vous.
+        </p>
       </div>
 
-      {/* Working hours */}
+      {/* Connection status */}
       <Card className="bg-card/30">
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Horaires de disponibilité</CardTitle>
+          <CardTitle className="text-base flex items-center gap-2">
+            <CalendarDays className="h-4 w-4" />
+            Google Calendar
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <span className="text-sm">Heures de travail</span>
-            <span className="text-sm font-mono text-primary">{bookingRules.workingHours.start} — {bookingRules.workingHours.end}</span>
-          </div>
-          <div className="flex gap-2">
-            {[1, 2, 3, 4, 5, 6, 7].map((d) => (
-              <div
-                key={d}
-                className={`w-10 h-10 rounded-lg flex items-center justify-center text-xs font-medium transition-colors ${
-                  bookingRules.workingDays.includes(d)
-                    ? "bg-primary/10 text-primary border border-primary/20"
-                    : "bg-secondary/30 text-muted-foreground"
-                }`}
-              >
-                {dayNames[d]}
+          {connLoading ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Chargement…
+            </div>
+          ) : isConnected ? (
+            <>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  <span className="text-sm font-medium">Connecté</span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDisconnect}
+                  disabled={disconnecting}
+                  className="text-destructive hover:text-destructive"
+                >
+                  {disconnecting ? (
+                    <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                  ) : (
+                    <Unplug className="h-3 w-3 mr-1" />
+                  )}
+                  Déconnecter
+                </Button>
               </div>
-            ))}
-          </div>
+
+              {/* Calendar list */}
+              {calendars && calendars.length > 0 && (
+                <div className="space-y-2 pt-2 border-t border-border/50">
+                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
+                    Agendas synchronisés
+                  </p>
+                  {calendars.map((cal) => (
+                    <div key={cal.id} className="flex items-center justify-between py-1">
+                      <span className="text-sm">{cal.name}</span>
+                      <div className="flex gap-1.5">
+                        {cal.is_primary && (
+                          <Badge variant="secondary" className="text-xs">Principal</Badge>
+                        )}
+                        {cal.is_read_only && (
+                          <Badge variant="outline" className="text-xs">Lecture seule</Badge>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Autorisez l'accès à votre Google Calendar pour permettre à l'assistant de vérifier vos disponibilités et de créer des rendez-vous.
+              </p>
+              <Button onClick={handleConnect} disabled={!accountId || !session}>
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Connecter Google Calendar
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Booking rules */}
-      <Card className="bg-card/30">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Règles de réservation</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {[
-            { label: "Préavis minimum", value: `${bookingRules.minNotice} heures` },
-            { label: "Maximum par jour", value: `${bookingRules.maxPerDay} rendez-vous` },
-            { label: "Durée d'un créneau", value: `${bookingRules.slotDuration} minutes` },
-            { label: "Pause entre créneaux", value: `${bookingRules.bufferBetween} minutes` },
-          ].map((rule) => (
-            <div key={rule.label} className="flex items-center justify-between py-1">
-              <span className="text-sm text-muted-foreground">{rule.label}</span>
-              <Badge variant="secondary">{rule.value}</Badge>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-
-      {/* Integration status */}
-      <Card className="bg-card/30">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Intégrations</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium">Google Calendar</p>
-              <p className="text-xs text-muted-foreground">Synchronisation automatique</p>
-            </div>
-            <Switch defaultChecked />
-          </div>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium">Webhooks n8n</p>
-              <p className="text-xs text-muted-foreground">GetCalendar / setCalendar</p>
-            </div>
-            <Badge className="bg-primary/10 text-primary border-0">Actif</Badge>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Booking types info */}
+      {isConnected && (
+        <Card className="bg-card/30">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Types de rendez-vous</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Configurez les types de rendez-vous que l'assistant peut proposer dans la section <strong>Gestion des appels</strong>.
+            </p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
