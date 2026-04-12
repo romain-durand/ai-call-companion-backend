@@ -79,6 +79,11 @@ export default function MissionsPage() {
 
   const detailMission = missions?.find((mission) => mission.id === detailMissionId) ?? null;
 
+  useEffect(() => {
+    if (!detailMissionId || !accountId) return;
+    queryClient.invalidateQueries({ queryKey: ["outbound-missions", accountId] });
+  }, [accountId, detailMissionId, queryClient]);
+
   const deleteMission = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("outbound_missions").delete().eq("id", id);
@@ -301,7 +306,7 @@ function MissionDetail({ mission }: { mission: Mission }) {
           <div>
             <div className="mb-1 flex items-center justify-between">
               <Label className="text-xs text-muted-foreground">Transcription</Label>
-              <Badge variant="outline" className="text-[9px] bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 animate-pulse">
+              <Badge variant="outline" className="border-primary/30 bg-primary/10 text-[9px] text-primary animate-pulse">
                 ● En direct
               </Badge>
             </div>
@@ -391,7 +396,7 @@ function MissionTranscript({ callSessionId, isLive }: { callSessionId: string; i
         <div className="mb-1 flex items-center justify-between">
           <Label className="text-xs text-muted-foreground">Transcription</Label>
           {isLive && (
-            <Badge variant="outline" className="text-[9px] bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 animate-pulse">
+            <Badge variant="outline" className="border-primary/30 bg-primary/10 text-[9px] text-primary animate-pulse">
               ● En direct
             </Badge>
           )}
@@ -415,7 +420,7 @@ function MissionTranscript({ callSessionId, isLive }: { callSessionId: string; i
       <div className="flex items-center justify-between mb-1">
         <Label className="text-xs text-muted-foreground">Transcription</Label>
         {isLive && (
-          <Badge variant="outline" className="text-[9px] bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 animate-pulse">
+            <Badge variant="outline" className="border-primary/30 bg-primary/10 text-[9px] text-primary animate-pulse">
             ● En direct
           </Badge>
         )}
