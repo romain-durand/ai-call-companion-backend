@@ -466,6 +466,7 @@ export type Database = {
           id: string
           is_primary: boolean
           is_read_only: boolean
+          is_watched: boolean
           name: string
           provider_calendar_id: string
         }
@@ -476,6 +477,7 @@ export type Database = {
           id?: string
           is_primary?: boolean
           is_read_only?: boolean
+          is_watched?: boolean
           name: string
           provider_calendar_id: string
         }
@@ -486,6 +488,7 @@ export type Database = {
           id?: string
           is_primary?: boolean
           is_read_only?: boolean
+          is_watched?: boolean
           name?: string
           provider_calendar_id?: string
         }

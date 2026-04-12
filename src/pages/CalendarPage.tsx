@@ -19,6 +19,7 @@ export default function CalendarPage() {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [disconnecting, setDisconnecting] = useState(false);
+  const [togglingCalendar, setTogglingCalendar] = useState<string | null>(null);
 
   // Show toast based on redirect status
   useEffect(() => {
@@ -78,7 +79,6 @@ export default function CalendarPage() {
     if (!connection) return;
     setDisconnecting(true);
     try {
-      // Delete calendars first, then connection
       await supabase
         .from("calendar_calendars")
         .delete()
@@ -94,6 +94,22 @@ export default function CalendarPage() {
       toast.error("Erreur lors de la déconnexion");
     } finally {
       setDisconnecting(false);
+    }
+  };
+
+  const handleToggleWatched = async (calendarId: string, currentValue: boolean) => {
+    setTogglingCalendar(calendarId);
+    try {
+      const { error } = await supabase
+        .from("calendar_calendars")
+        .update({ is_watched: !currentValue })
+        .eq("id", calendarId);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["calendar-calendars"] });
+    } catch {
+      toast.error("Erreur lors de la mise à jour");
+    } finally {
+      setTogglingCalendar(null);
     }
   };
 
@@ -145,16 +161,26 @@ export default function CalendarPage() {
                 </Button>
               </div>
 
-              {/* Calendar list */}
+              {/* Calendar list with toggle */}
               {calendars && calendars.length > 0 && (
-                <div className="space-y-2 pt-2 border-t border-border/50">
+                <div className="space-y-3 pt-2 border-t border-border/50">
                   <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
                     Agendas synchronisés
                   </p>
-                  {calendars.map((cal) => (
-                    <div key={cal.id} className="flex items-center justify-between py-1">
-                      <span className="text-sm">{cal.name}</span>
-                      <div className="flex gap-1.5">
+                  <p className="text-xs text-muted-foreground">
+                    Activez les agendas que l'assistant doit consulter pour vérifier vos disponibilités.
+                  </p>
+                  {calendars.map((cal: any) => (
+                    <div key={cal.id} className="flex items-center justify-between py-2">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <Switch
+                          checked={cal.is_watched ?? false}
+                          onCheckedChange={() => handleToggleWatched(cal.id, cal.is_watched ?? false)}
+                          disabled={togglingCalendar === cal.id}
+                        />
+                        <span className="text-sm truncate">{cal.name}</span>
+                      </div>
+                      <div className="flex gap-1.5 shrink-0 ml-2">
                         {cal.is_primary && (
                           <Badge variant="secondary" className="text-xs">Principal</Badge>
                         )}
