@@ -118,7 +118,19 @@ function triggerOutboundFirstReply(ws, callCtx, traceId, source) {
 
   ws.send(JSON.stringify({
     realtimeInput: {
-      text: signal,
+      audioStreamEnd: true,
+    },
+  }));
+
+  ws.send(JSON.stringify({
+    clientContent: {
+      turns: [
+        {
+          role: "user",
+          parts: [{ text: signal }],
+        },
+      ],
+      turnComplete: true,
     },
   }));
 

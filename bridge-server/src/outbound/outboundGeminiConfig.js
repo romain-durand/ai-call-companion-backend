@@ -136,6 +136,15 @@ function buildOutboundSetupPayload(callCtx) {
           },
         },
       },
+      realtimeInputConfig: {
+        automaticActivityDetection: {
+          startOfSpeechSensitivity: "START_SENSITIVITY_HIGH",
+          endOfSpeechSensitivity: "END_SENSITIVITY_HIGH",
+          prefixPaddingMs: 40,
+          silenceDurationMs: 180,
+        },
+        turnCoverage: "TURN_INCLUDES_ONLY_ACTIVITY",
+      },
       systemInstruction: {
         parts: [{ text: fullInstruction }],
       },
