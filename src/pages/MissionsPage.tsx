@@ -84,6 +84,26 @@ export default function MissionsPage() {
     queryClient.invalidateQueries({ queryKey: ["outbound-missions", accountId] });
   }, [accountId, detailMissionId, queryClient]);
 
+  // Auto-open detail dialog when a mission transitions to in_progress
+  const prevMissionsRef = useRef<Mission[] | undefined>();
+  useEffect(() => {
+    if (!missions || !prevMissionsRef.current) {
+      prevMissionsRef.current = missions;
+      return;
+    }
+    const prev = prevMissionsRef.current;
+    for (const m of missions) {
+      if (m.status === "in_progress") {
+        const old = prev.find((p) => p.id === m.id);
+        if (!old || old.status !== "in_progress") {
+          setDetailMissionId(m.id);
+          break;
+        }
+      }
+    }
+    prevMissionsRef.current = missions;
+  }, [missions]);
+
   const deleteMission = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("outbound_missions").delete().eq("id", id);
