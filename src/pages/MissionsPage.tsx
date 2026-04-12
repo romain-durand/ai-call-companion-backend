@@ -61,6 +61,8 @@ export default function MissionsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [detailMissionId, setDetailMissionId] = useState<string | null>(null);
 
+  const [autoRefresh, setAutoRefresh] = useState(false);
+
   const { data: missions, isLoading } = useQuery({
     queryKey: ["outbound-missions", accountId],
     queryFn: async () => {
@@ -73,7 +75,7 @@ export default function MissionsPage() {
       return (data ?? []) as unknown as Mission[];
     },
     enabled: !!accountId,
-    refetchInterval: detailMissionId ? 1500 : false,
+    refetchInterval: detailMissionId ? 1500 : (autoRefresh ? 3000 : false),
     refetchIntervalInBackground: true,
   });
 
@@ -83,6 +85,32 @@ export default function MissionsPage() {
     if (!detailMissionId || !accountId) return;
     queryClient.invalidateQueries({ queryKey: ["outbound-missions", accountId] });
   }, [accountId, detailMissionId, queryClient]);
+
+  // Auto-open detail dialog when a mission transitions to in_progress
+  const prevMissionsRef = useRef<Mission[] | undefined>();
+  useEffect(() => {
+    if (!missions || !prevMissionsRef.current) {
+      prevMissionsRef.current = missions;
+      return;
+    }
+    const prev = prevMissionsRef.current;
+    for (const m of missions) {
+      if (m.status === "in_progress") {
+        const old = prev.find((p) => p.id === m.id);
+        if (!old || old.status !== "in_progress") {
+          setDetailMissionId(m.id);
+          break;
+        }
+      }
+    }
+    prevMissionsRef.current = missions;
+  }, [missions]);
+
+  // Keep polling while there are queued/in_progress missions
+  useEffect(() => {
+    const hasActive = missions?.some(m => m.status === "queued" || m.status === "in_progress");
+    setAutoRefresh(!!hasActive);
+  }, [missions]);
 
   const deleteMission = useMutation({
     mutationFn: async (id: string) => {
