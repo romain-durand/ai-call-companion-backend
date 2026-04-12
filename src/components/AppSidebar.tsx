@@ -39,7 +39,7 @@ const mainNav = [
 
 const configNav = [
   { title: "Qui peut me joindre", url: "/who", icon: Users },
-  { title: "Comment gérer leurs appels", url: "/how", icon: PhoneCall },
+  { title: "Comment gérer les appels", url: "/how", icon: PhoneCall },
   { title: "Quand me prévenir", url: "/when", icon: Bell },
 ];
 
