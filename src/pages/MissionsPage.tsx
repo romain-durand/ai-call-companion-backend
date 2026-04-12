@@ -464,6 +464,41 @@ function CreateMissionDialog({ accountId, onClose, onCreated }: CreateMissionDia
   const [scheduledDate, setScheduledDate] = useState("");
   const [scheduledTime, setScheduledTime] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [inputMode, setInputMode] = useState<"manual" | "contact">("manual");
+  const [contactSearch, setContactSearch] = useState("");
+  const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
+
+  const { data: contacts } = useQuery({
+    queryKey: ["contacts-for-mission", accountId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("contacts")
+        .select("id, display_name, first_name, last_name, primary_phone_e164, company_name")
+        .eq("account_id", accountId!)
+        .eq("is_blocked", false)
+        .order("display_name");
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!accountId && inputMode === "contact",
+  });
+
+  const filteredContacts = useMemo(() => {
+    if (!contacts) return [];
+    if (!contactSearch.trim()) return contacts;
+    const q = contactSearch.toLowerCase();
+    return contacts.filter((c) => {
+      const name = c.display_name || [c.first_name, c.last_name].filter(Boolean).join(" ") || "";
+      return name.toLowerCase().includes(q) || c.primary_phone_e164?.includes(q) || c.company_name?.toLowerCase().includes(q);
+    });
+  }, [contacts, contactSearch]);
+
+  const selectContact = (contact: typeof contacts extends (infer T)[] ? T : never) => {
+    const name = contact.display_name || [contact.first_name, contact.last_name].filter(Boolean).join(" ") || "";
+    setTargetName(name);
+    setTargetPhone(contact.primary_phone_e164 || "");
+    setSelectedContactId(contact.id);
+  };
 
   const handleSubmit = async () => {
     if (!accountId || !objective.trim() || !targetPhone.trim()) return;
@@ -507,26 +542,99 @@ function CreateMissionDialog({ accountId, onClose, onCreated }: CreateMissionDia
             rows={3}
           />
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label>Numéro à appeler *</Label>
-            <Input
-              placeholder="+33 1 23 45 67 89"
-              value={targetPhone}
-              onChange={(e) => setTargetPhone(e.target.value)}
-              className="mt-1"
-            />
-          </div>
-          <div>
-            <Label>Nom du destinataire</Label>
-            <Input
-              placeholder="Restaurant Le Petit Bistrot"
-              value={targetName}
-              onChange={(e) => setTargetName(e.target.value)}
-              className="mt-1"
-            />
-          </div>
+
+        <div>
+          <Label className="mb-2 block">Destinataire *</Label>
+          <Tabs value={inputMode} onValueChange={(v) => { setInputMode(v as "manual" | "contact"); setSelectedContactId(null); }}>
+            <TabsList className="w-full">
+              <TabsTrigger value="manual" className="flex-1 text-xs gap-1.5">
+                <Phone className="h-3 w-3" /> Saisie manuelle
+              </TabsTrigger>
+              <TabsTrigger value="contact" className="flex-1 text-xs gap-1.5">
+                <Users className="h-3 w-3" /> Mes contacts
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
+
+        {inputMode === "contact" && (
+          <div className="space-y-2">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                placeholder="Rechercher un contact…"
+                value={contactSearch}
+                onChange={(e) => setContactSearch(e.target.value)}
+                className="pl-8 h-9 text-sm"
+              />
+            </div>
+            <ScrollArea className="h-36 rounded-lg border">
+              {!contacts ? (
+                <div className="p-3 space-y-2">
+                  {[1, 2, 3].map((i) => <Skeleton key={i} className="h-8 w-full" />)}
+                </div>
+              ) : filteredContacts.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-6">Aucun contact trouvé</p>
+              ) : (
+                <div className="p-1">
+                  {filteredContacts.map((c) => {
+                    const name = c.display_name || [c.first_name, c.last_name].filter(Boolean).join(" ") || "Sans nom";
+                    const isSelected = selectedContactId === c.id;
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => selectContact(c)}
+                        className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors flex items-center justify-between ${
+                          isSelected
+                            ? "bg-primary/10 text-primary"
+                            : "hover:bg-muted"
+                        }`}
+                      >
+                        <div className="min-w-0">
+                          <p className="font-medium text-xs truncate">{name}</p>
+                          {c.primary_phone_e164 && (
+                            <p className="text-[10px] text-muted-foreground">{c.primary_phone_e164}</p>
+                          )}
+                        </div>
+                        {isSelected && <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-primary" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </ScrollArea>
+            {selectedContactId && (
+              <p className="text-xs text-muted-foreground">
+                Sélectionné : <span className="font-medium text-foreground">{targetName}</span> · {targetPhone}
+              </p>
+            )}
+          </div>
+        )}
+
+        {inputMode === "manual" && (
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Numéro à appeler *</Label>
+              <Input
+                placeholder="+33 1 23 45 67 89"
+                value={targetPhone}
+                onChange={(e) => setTargetPhone(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label>Nom du destinataire</Label>
+              <Input
+                placeholder="Restaurant Le Petit Bistrot"
+                value={targetName}
+                onChange={(e) => setTargetName(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+          </div>
+        )}
+
         <div className="flex items-center gap-3">
           <Switch checked={isScheduled} onCheckedChange={setIsScheduled} />
           <Label className="text-sm">Planifier l'appel</Label>
