@@ -1403,6 +1403,7 @@ export type Database = {
           created_at: string
           e164_number: string
           id: string
+          is_default_outbound: boolean
           label: string | null
           ownership_type: Database["public"]["Enums"]["ownership_type"]
           provider: string
@@ -1418,6 +1419,7 @@ export type Database = {
           created_at?: string
           e164_number: string
           id?: string
+          is_default_outbound?: boolean
           label?: string | null
           ownership_type?: Database["public"]["Enums"]["ownership_type"]
           provider?: string
@@ -1433,6 +1435,7 @@ export type Database = {
           created_at?: string
           e164_number?: string
           id?: string
+          is_default_outbound?: boolean
           label?: string | null
           ownership_type?: Database["public"]["Enums"]["ownership_type"]
           provider?: string
