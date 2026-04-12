@@ -60,8 +60,11 @@ async function handleGoogleStart(req, res) {
     authUrl.searchParams.set("response_type", "code");
     authUrl.searchParams.set("scope", SCOPES);
     authUrl.searchParams.set("access_type", "offline");
-    authUrl.searchParams.set("prompt", "consent");
+    authUrl.searchParams.set("prompt", "consent select_account");
     authUrl.searchParams.set("state", state);
+    if (user.email) {
+      authUrl.searchParams.set("login_hint", user.email);
+    }
 
     log.info("google_oauth_start", null, `Redirecting user ${user.id} to Google consent`);
     res.writeHead(302, { Location: authUrl.toString() });
