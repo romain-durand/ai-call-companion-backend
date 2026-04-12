@@ -11,6 +11,7 @@ import {
   Bell,
   PlayCircle,
   LogOut,
+  PhoneOutgoing,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -33,6 +34,7 @@ import {
 
 const mainNav = [
   { title: "Tableau de bord", url: "/", icon: LayoutDashboard },
+  { title: "Missions", url: "/missions", icon: PhoneOutgoing },
   { title: "Historique", url: "/history", icon: History },
   { title: "Tester", url: "/test", icon: PlayCircle },
 ];

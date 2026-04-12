@@ -1320,6 +1320,81 @@ export type Database = {
           },
         ]
       }
+      outbound_missions: {
+        Row: {
+          account_id: string
+          attempt_count: number
+          call_session_id: string | null
+          completed_at: string | null
+          constraints_json: Json | null
+          created_at: string
+          id: string
+          max_attempts: number
+          objective: string
+          result_status: Database["public"]["Enums"]["mission_result"]
+          result_summary: string | null
+          scheduled_at: string | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["mission_status"]
+          target_name: string | null
+          target_phone_e164: string
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          attempt_count?: number
+          call_session_id?: string | null
+          completed_at?: string | null
+          constraints_json?: Json | null
+          created_at?: string
+          id?: string
+          max_attempts?: number
+          objective: string
+          result_status?: Database["public"]["Enums"]["mission_result"]
+          result_summary?: string | null
+          scheduled_at?: string | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["mission_status"]
+          target_name?: string | null
+          target_phone_e164: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          attempt_count?: number
+          call_session_id?: string | null
+          completed_at?: string | null
+          constraints_json?: Json | null
+          created_at?: string
+          id?: string
+          max_attempts?: number
+          objective?: string
+          result_status?: Database["public"]["Enums"]["mission_result"]
+          result_summary?: string | null
+          scheduled_at?: string | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["mission_status"]
+          target_name?: string | null
+          target_phone_e164?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outbound_missions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outbound_missions_call_session_id_fkey"
+            columns: ["call_session_id"]
+            isOneToOne: false
+            referencedRelation: "call_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       phone_numbers: {
         Row: {
           account_id: string
@@ -1760,6 +1835,19 @@ export type Database = {
         | "accepted"
         | "declined"
         | "timeout"
+      mission_result:
+        | "pending"
+        | "success"
+        | "partial"
+        | "failure"
+        | "no_answer"
+      mission_status:
+        | "draft"
+        | "queued"
+        | "in_progress"
+        | "completed"
+        | "failed"
+        | "cancelled"
       mode_type: "manual" | "scheduled" | "auto"
       notification_channel: "push" | "sms" | "email"
       notification_event_type:
@@ -1977,6 +2065,15 @@ export const Constants = {
       ],
       escalation_method: ["call", "push", "sms"],
       escalation_status: ["none", "pending", "accepted", "declined", "timeout"],
+      mission_result: ["pending", "success", "partial", "failure", "no_answer"],
+      mission_status: [
+        "draft",
+        "queued",
+        "in_progress",
+        "completed",
+        "failed",
+        "cancelled",
+      ],
       mode_type: ["manual", "scheduled", "auto"],
       notification_channel: ["push", "sms", "email"],
       notification_event_type: [
