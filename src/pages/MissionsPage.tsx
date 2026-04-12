@@ -498,6 +498,7 @@ function CreateMissionDialog({ accountId, onClose, onCreated }: CreateMissionDia
     setTargetName(name);
     setTargetPhone(contact.primary_phone_e164 || "");
     setSelectedContactId(contact.id);
+    setContactSearch("");
   };
 
   const handleSubmit = async () => {
