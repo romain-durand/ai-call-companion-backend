@@ -1,7 +1,6 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AssistantModes from "@/components/AssistantModes";
 import SpecialInstructions from "@/components/SpecialInstructions";
-import SmartScenarios from "./SmartScenarios";
 
 export default function HowToHandle() {
   return (
@@ -17,16 +16,12 @@ export default function HowToHandle() {
         <TabsList>
           <TabsTrigger value="modes">Modes et règles</TabsTrigger>
           <TabsTrigger value="special">Traitements spéciaux</TabsTrigger>
-          <TabsTrigger value="scenarios">Scénarios</TabsTrigger>
         </TabsList>
         <TabsContent value="modes" className="mt-6">
           <AssistantModes />
         </TabsContent>
         <TabsContent value="special" className="mt-6">
           <SpecialInstructions />
-        </TabsContent>
-        <TabsContent value="scenarios" className="mt-6">
-          <SmartScenarios />
         </TabsContent>
       </Tabs>
     </div>
