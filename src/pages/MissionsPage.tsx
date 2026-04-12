@@ -59,7 +59,7 @@ export default function MissionsPage() {
   const { data: accountId } = useUserAccountId();
   const queryClient = useQueryClient();
   const [createOpen, setCreateOpen] = useState(false);
-  const [detailMission, setDetailMission] = useState<Mission | null>(null);
+  const [detailMissionId, setDetailMissionId] = useState<string | null>(null);
 
   const { data: missions, isLoading } = useQuery({
     queryKey: ["outbound-missions", accountId],
@@ -73,7 +73,16 @@ export default function MissionsPage() {
       return (data ?? []) as unknown as Mission[];
     },
     enabled: !!accountId,
+    refetchInterval: detailMissionId ? 1500 : false,
+    refetchIntervalInBackground: true,
   });
+
+  const detailMission = missions?.find((mission) => mission.id === detailMissionId) ?? null;
+
+  useEffect(() => {
+    if (!detailMissionId || !accountId) return;
+    queryClient.invalidateQueries({ queryKey: ["outbound-missions", accountId] });
+  }, [accountId, detailMissionId, queryClient]);
 
   const deleteMission = useMutation({
     mutationFn: async (id: string) => {
@@ -150,7 +159,7 @@ export default function MissionsPage() {
               >
                 <Card
                   className="cursor-pointer hover:border-primary/30 transition-colors"
-                  onClick={() => setDetailMission(mission)}
+                  onClick={() => setDetailMissionId(mission.id)}
                 >
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between gap-4">
@@ -212,10 +221,17 @@ export default function MissionsPage() {
         </div>
       )}
 
-      {/* Detail dialog */}
-      <Dialog open={!!detailMission} onOpenChange={(open) => !open && setDetailMission(null)}>
+      <Dialog open={!!detailMissionId} onOpenChange={(open) => !open && setDetailMissionId(null)}>
         <DialogContent className="max-w-lg">
-          {detailMission && <MissionDetail mission={detailMission} />}
+          {detailMission ? (
+            <MissionDetail mission={detailMission} />
+          ) : (
+            <div className="space-y-3 py-6">
+              <Skeleton className="h-5 w-40" />
+              <Skeleton className="h-20 w-full" />
+              <Skeleton className="h-32 w-full" />
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
@@ -286,7 +302,23 @@ function MissionDetail({ mission }: { mission: Mission }) {
           </div>
         )}
 
-        {/* Live transcript */}
+        {mission.status === "in_progress" && !mission.call_session_id && (
+          <div>
+            <div className="mb-1 flex items-center justify-between">
+              <Label className="text-xs text-muted-foreground">Transcription</Label>
+              <Badge variant="outline" className="border-primary/30 bg-primary/10 text-[9px] text-primary animate-pulse">
+                ● En direct
+              </Badge>
+            </div>
+            <div className="mt-1 rounded-lg border border-dashed p-4 text-center">
+              <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Connexion du suivi en direct…
+              </div>
+            </div>
+          </div>
+        )}
+
         {mission.call_session_id && (
           <MissionTranscript callSessionId={mission.call_session_id} isLive={mission.status === "in_progress"} />
         )}
@@ -361,7 +393,14 @@ function MissionTranscript({ callSessionId, isLive }: { callSessionId: string; i
   if (!messages?.length) {
     return (
       <div>
-        <Label className="text-xs text-muted-foreground">Transcription</Label>
+        <div className="mb-1 flex items-center justify-between">
+          <Label className="text-xs text-muted-foreground">Transcription</Label>
+          {isLive && (
+            <Badge variant="outline" className="border-primary/30 bg-primary/10 text-[9px] text-primary animate-pulse">
+              ● En direct
+            </Badge>
+          )}
+        </div>
         <div className="mt-1 rounded-lg border border-dashed p-4 text-center">
           {isLive ? (
             <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
@@ -381,7 +420,7 @@ function MissionTranscript({ callSessionId, isLive }: { callSessionId: string; i
       <div className="flex items-center justify-between mb-1">
         <Label className="text-xs text-muted-foreground">Transcription</Label>
         {isLive && (
-          <Badge variant="outline" className="text-[9px] bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 animate-pulse">
+            <Badge variant="outline" className="border-primary/30 bg-primary/10 text-[9px] text-primary animate-pulse">
             ● En direct
           </Badge>
         )}

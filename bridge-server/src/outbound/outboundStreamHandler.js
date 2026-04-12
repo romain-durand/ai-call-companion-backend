@@ -25,6 +25,15 @@ function handleOutboundStreamConnection(twilioWs) {
     if (callCtx.finalized) return;
     callCtx.finalized = true;
 
+    if (callCtx._hangupWatcher) {
+      clearTimeout(callCtx._hangupWatcher);
+      callCtx._hangupWatcher = null;
+    }
+    if (callCtx._firstCallerTurnTimer) {
+      clearTimeout(callCtx._firstCallerTurnTimer);
+      callCtx._firstCallerTurnTimer = null;
+    }
+
     if (callCtx._txBuffer) {
       await callCtx._txBuffer.flushAll();
     }
@@ -58,6 +67,12 @@ function handleOutboundStreamConnection(twilioWs) {
   callCtx._sendSilence = sendSilenceToTwilio;
 
   callCtx._hangup = (reason = "end_call") => {
+    if (callCtx._hangupRequested) return;
+    callCtx._hangupRequested = true;
+    if (callCtx._hangupWatcher) {
+      clearTimeout(callCtx._hangupWatcher);
+      callCtx._hangupWatcher = null;
+    }
     log.call("outbound_hangup_requested", callCtx.traceId, reason);
     if (geminiWs && geminiWs.readyState === WebSocket.OPEN) {
       geminiWs.close(1000, reason);
@@ -65,6 +80,34 @@ function handleOutboundStreamConnection(twilioWs) {
     if (twilioWs.readyState === WebSocket.OPEN) {
       twilioWs.close(1000, reason);
     }
+  };
+
+  callCtx._requestHangup = (reason = "end_call") => {
+    if (callCtx._hangupRequested) return;
+
+    const requestedAt = Date.now();
+    const waitForSpeechEnd = () => {
+      if (callCtx._hangupRequested) return;
+
+      const lastAssistantActivityAt = callCtx.lastAssistantActivityAt || 0;
+      const quietForMs = lastAssistantActivityAt > 0
+        ? Date.now() - lastAssistantActivityAt
+        : Number.POSITIVE_INFINITY;
+      const maxWaitReached = Date.now() - requestedAt >= 9000;
+
+      if (quietForMs >= 2200 || maxWaitReached) {
+        if (maxWaitReached && quietForMs < 2200) {
+          log.call("outbound_hangup_forced_after_timeout", callCtx.traceId, reason);
+        }
+        callCtx._hangup(reason);
+        return;
+      }
+
+      callCtx._hangupWatcher = setTimeout(waitForSpeechEnd, 350);
+    };
+
+    log.call("outbound_hangup_deferred", callCtx.traceId, reason);
+    callCtx._hangupWatcher = setTimeout(waitForSpeechEnd, 350);
   };
 
   twilioWs.on("message", (message) => {

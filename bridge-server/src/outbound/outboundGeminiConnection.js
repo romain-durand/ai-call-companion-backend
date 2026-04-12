@@ -26,24 +26,18 @@ function connectOutboundGemini(callCtx, onAudio) {
       if (msg.setupComplete) {
         log.gemini("outbound_setup_complete", traceId);
 
-        // Inject mission context
         const contextBlock = buildOutboundContext(callCtx);
         ws.send(JSON.stringify({
           realtimeInput: { text: contextBlock },
         }));
         log.gemini("outbound_context_injected", traceId, contextBlock);
 
-        // Trigger the outbound greeting
-        const kickoff = "L'appel vient d'être connecté. La personne vient de décrocher. Présente-toi immédiatement et explique la raison de ton appel.";
-        ws.send(JSON.stringify({
-          realtimeInput: { text: kickoff },
-        }));
-
-        // Audio gate
-        setTimeout(() => {
-          callCtx.geminiReady = true;
-          log.gemini("outbound_mic_gate_ended", traceId);
-        }, 3000);
+        callCtx.geminiReady = true;
+        callCtx.awaitingOutboundFirstTurn = true;
+        callCtx.outboundFirstTurnTriggered = false;
+        callCtx.pendingCallerTurnText = "";
+        callCtx.lastAssistantActivityAt = 0;
+        log.gemini("outbound_waiting_for_callee", traceId, "awaiting first caller utterance");
 
         return;
       }
@@ -52,6 +46,7 @@ function connectOutboundGemini(callCtx, onAudio) {
       if (msg.serverContent?.modelTurn?.parts) {
         for (const part of msg.serverContent.modelTurn.parts) {
           if (part.inlineData?.data) {
+            callCtx.lastAssistantActivityAt = Date.now();
             const pcm24k = base64ToInt16(part.inlineData.data);
             const pcm8k = downsample24to8(pcm24k);
             const mulawBase64 = encodeToMulaw(pcm8k);
@@ -67,9 +62,13 @@ function connectOutboundGemini(callCtx, onAudio) {
         if (callCtx._txBuffer) {
           callCtx._txBuffer.push("caller", text);
         }
+        if (callCtx.awaitingOutboundFirstTurn && hasMeaningfulCallerSpeech(text)) {
+          scheduleOutboundFirstReply(ws, callCtx, traceId, text);
+        }
       }
       if (msg.serverContent?.outputTranscription?.text) {
         const text = msg.serverContent.outputTranscription.text;
+        callCtx.lastAssistantActivityAt = Date.now();
         if (callCtx._txBuffer) {
           callCtx._txBuffer.push("assistant", text);
         }
@@ -93,7 +92,9 @@ function connectOutboundGemini(callCtx, onAudio) {
   });
 
   ws.on("close", (code, reason) => {
+    clearFirstCallerTurnTimer(callCtx);
     callCtx.geminiReady = false;
+    callCtx.awaitingOutboundFirstTurn = false;
     log.gemini("outbound_disconnected", traceId, `${code} ${reason}`);
   });
 
@@ -102,6 +103,62 @@ function connectOutboundGemini(callCtx, onAudio) {
   });
 
   return ws;
+}
+
+function hasMeaningfulCallerSpeech(text) {
+  if (typeof text !== "string") return false;
+  const normalized = text.replace(/\s+/g, " ").trim();
+  return normalized.length >= 2 && /[\p{L}\p{N}]/u.test(normalized);
+}
+
+function clearFirstCallerTurnTimer(callCtx) {
+  if (callCtx._firstCallerTurnTimer) {
+    clearTimeout(callCtx._firstCallerTurnTimer);
+    callCtx._firstCallerTurnTimer = null;
+  }
+}
+
+function scheduleOutboundFirstReply(ws, callCtx, traceId, callerText) {
+  if (callCtx.outboundFirstTurnTriggered || !callCtx.awaitingOutboundFirstTurn) {
+    return;
+  }
+
+  callCtx.pendingCallerTurnText = callerText.replace(/\s+/g, " ").trim();
+  clearFirstCallerTurnTimer(callCtx);
+
+  callCtx._firstCallerTurnTimer = setTimeout(() => {
+    callCtx._firstCallerTurnTimer = null;
+
+    if (callCtx.outboundFirstTurnTriggered || !callCtx.awaitingOutboundFirstTurn) {
+      return;
+    }
+
+    if (ws.readyState !== WebSocket.OPEN) {
+      return;
+    }
+
+    callCtx.awaitingOutboundFirstTurn = false;
+    callCtx.outboundFirstTurnTriggered = true;
+    callCtx.firstCallerTurnObservedAt = new Date().toISOString();
+
+    const kickoff = buildOutboundFirstReplyPrompt(callCtx.pendingCallerTurnText);
+    ws.send(JSON.stringify({
+      realtimeInput: { text: kickoff },
+    }));
+    log.gemini("outbound_first_turn_detected", traceId, callCtx.pendingCallerTurnText);
+    log.gemini("outbound_first_reply_triggered", traceId, kickoff);
+  }, 1200);
+}
+
+function buildOutboundFirstReplyPrompt(callerText) {
+  const parts = [
+    "La personne appelée vient de parler.",
+    callerText ? `Dernière prise de parole entendue: \"${callerText.slice(0, 160)}\".` : null,
+    "Attends la fin naturelle de sa phrase, puis réponds maintenant.",
+    "Présente-toi brièvement, précise pour qui tu appelles, puis explique la raison de l'appel.",
+  ];
+
+  return parts.filter(Boolean).join(" ");
 }
 
 /**

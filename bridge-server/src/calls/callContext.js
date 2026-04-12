@@ -20,6 +20,14 @@ function createCallContext() {
     finalized: false,
     _txBuffer: null,
     consultUserFlow: createConsultUserFlowState(),
+    awaitingOutboundFirstTurn: false,
+    outboundFirstTurnTriggered: false,
+    pendingCallerTurnText: "",
+    firstCallerTurnObservedAt: null,
+    lastAssistantActivityAt: 0,
+    _hangupRequested: false,
+    _hangupWatcher: null,
+    _firstCallerTurnTimer: null,
 
     /** Returns the next unique seq_no for this call. */
     nextSeqNo() {
