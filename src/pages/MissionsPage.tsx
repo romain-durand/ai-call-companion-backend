@@ -106,6 +106,12 @@ export default function MissionsPage() {
     prevMissionsRef.current = missions;
   }, [missions]);
 
+  // Keep polling while there are queued/in_progress missions
+  useEffect(() => {
+    const hasActive = missions?.some(m => m.status === "queued" || m.status === "in_progress");
+    setAutoRefresh(!!hasActive);
+  }, [missions]);
+
   const deleteMission = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("outbound_missions").delete().eq("id", id);
