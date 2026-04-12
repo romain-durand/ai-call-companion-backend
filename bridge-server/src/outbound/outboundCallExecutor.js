@@ -41,13 +41,25 @@ async function executeOutboundMission(mission) {
   // 2. Resolve phone number for caller ID (from_number)
   let fromNumber = null;
   try {
-    const { data: phone } = await supabaseAdmin
+    // Prefer the default outbound number, fallback to any active number
+    let { data: phone } = await supabaseAdmin
       .from("phone_numbers")
       .select("e164_number, id")
       .eq("account_id", mission.account_id)
       .eq("status", "active")
+      .eq("is_default_outbound", true)
       .limit(1)
       .maybeSingle();
+
+    if (!phone) {
+      ({ data: phone } = await supabaseAdmin
+        .from("phone_numbers")
+        .select("e164_number, id")
+        .eq("account_id", mission.account_id)
+        .eq("status", "active")
+        .limit(1)
+        .maybeSingle());
+    }
 
     if (phone) {
       fromNumber = phone.e164_number;
