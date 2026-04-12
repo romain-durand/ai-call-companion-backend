@@ -7,6 +7,7 @@ const { createEscalation } = require("../db/escalationRepo");
 const { consultUser } = require("../db/liveChatRepo");
 const { supabaseAdmin } = require("../db/supabaseAdmin");
 const { createTransferRequest, waitForTransferResponse, completeTransferRequest } = require("../db/transferRequestsRepo");
+const { checkAvailability, bookAppointment } = require("../calendar/googleCalendarClient");
 const {
   createConsultUserFlowState,
   queueConsultAnnouncement,
@@ -58,6 +59,12 @@ async function handleToolCall(call, traceId, callCtx) {
         break;
       case "transfer_call":
         resultPayload = await handleTransferCall(call.args, callCtx, traceId);
+        break;
+      case "check_availability":
+        resultPayload = await handleCheckAvailability(call.args, callCtx, traceId);
+        break;
+      case "book_appointment":
+        resultPayload = await handleBookAppointment(call.args, callCtx, traceId);
         break;
       default:
         log.tool("tool_unknown", traceId, call.name);
