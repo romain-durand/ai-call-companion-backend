@@ -173,7 +173,7 @@ function scheduleOutboundFirstReply(ws, callCtx, traceId, callerText) {
     }));
     log.gemini("outbound_first_turn_detected", traceId, callCtx.pendingCallerTurnText);
     log.gemini("outbound_first_reply_triggered", traceId, kickoff);
-  }, 600);
+  }, 6);
 }
 
 function buildOutboundFirstReplyPrompt(callerText) {
