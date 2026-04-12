@@ -10,7 +10,7 @@ const log = require("../observability/logger");
 
 /**
  * Handle a Twilio Media Stream WebSocket for an outbound call.
- * Similar to handleTwilioConnection but uses outbound Gemini config.
+ * Attempts to reuse a pre-connected Gemini WS if available.
  */
 function handleOutboundStreamConnection(twilioWs) {
   const callCtx = createCallContext();
@@ -144,8 +144,34 @@ function handleOutboundStreamConnection(twilioWs) {
           log.call("outbound_call_started", callCtx.traceId,
             `mission=${callCtx.missionId} objective="${callCtx.missionObjective?.slice(0, 60)}"`);
 
-          // Connect to Gemini with outbound config
-          geminiWs = connectOutboundGemini(callCtx, sendAudioToTwilio);
+          // Try to reuse pre-connected Gemini WS
+          const preconnectKey = callCtx.missionId ? `preconnect:${callCtx.missionId}` : null;
+          const preconnect = preconnectKey ? callStore.get(preconnectKey) : null;
+
+          if (preconnect && preconnect.ws && preconnect.ws.readyState === WebSocket.OPEN && preconnect.ctx.geminiReady) {
+            // Reuse the pre-warmed connection
+            geminiWs = preconnect.ws;
+            callStore.remove(preconnectKey);
+
+            // Transfer context and attach audio callback
+            geminiWs.setCallCtx(callCtx);
+            geminiWs.setAudioCallback(sendAudioToTwilio);
+
+            log.call("outbound_gemini_preconnect_reused", callCtx.traceId,
+              `preconnect_age_ms=${Date.now() - preconnect.createdAt}`);
+          } else {
+            // Fallback: clean up stale preconnect if any
+            if (preconnect) {
+              callStore.remove(preconnectKey);
+              if (preconnect.ws && preconnect.ws.readyState === WebSocket.OPEN) {
+                preconnect.ws.close(1000, "fallback_to_new_connection");
+              }
+              log.call("outbound_gemini_preconnect_not_ready", callCtx.traceId, "falling back to new connection");
+            }
+
+            // Connect to Gemini normally
+            geminiWs = connectOutboundGemini(callCtx, sendAudioToTwilio);
+          }
           break;
         }
 
