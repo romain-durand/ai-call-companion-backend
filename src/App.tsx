@@ -16,6 +16,7 @@ import TestAssistant from "./pages/TestAssistant";
 import WhoCanReachMe from "./pages/WhoCanReachMe";
 import HowToHandle from "./pages/HowToHandle";
 import WhenToAlert from "./pages/WhenToAlert";
+import MissionsPage from "./pages/MissionsPage";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 
@@ -44,8 +45,8 @@ const App = () => (
                       <Route path="/when" element={<WhenToAlert />} />
                       <Route path="/history" element={<CallHistory />} />
                       <Route path="/calendar" element={<CalendarPage />} />
+                      <Route path="/missions" element={<MissionsPage />} />
                       <Route path="/settings" element={<SettingsPage />} />
-                      {/* contacts moved under /who */}
                       <Route path="/test" element={<TestAssistant />} />
                       <Route path="*" element={<NotFound />} />
                     </Routes>
