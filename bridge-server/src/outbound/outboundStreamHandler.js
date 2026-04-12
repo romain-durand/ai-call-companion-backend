@@ -33,6 +33,10 @@ function handleOutboundStreamConnection(twilioWs) {
       clearTimeout(callCtx._firstCallerTurnTimer);
       callCtx._firstCallerTurnTimer = null;
     }
+    if (callCtx._outboundSuppressCallerAudioTimer) {
+      clearTimeout(callCtx._outboundSuppressCallerAudioTimer);
+      callCtx._outboundSuppressCallerAudioTimer = null;
+    }
 
     if (callCtx._txBuffer) {
       await callCtx._txBuffer.flushAll();
@@ -151,6 +155,7 @@ function handleOutboundStreamConnection(twilioWs) {
 
         case "media":
           if (!callCtx.geminiReady || !geminiWs || geminiWs.readyState !== WebSocket.OPEN) return;
+          if (callCtx.outboundSuppressCallerAudio) return;
 
           const pcm8k = decodeMulaw(msg.media.payload);
           const pcm16k = upsample8to16(pcm8k);

@@ -34,6 +34,8 @@ function connectOutboundGemini(callCtx, onAudio) {
         callCtx.awaitingOutboundFirstTurn = true;
         callCtx.outboundFirstTurnTriggered = false;
         callCtx.outboundAudioGateOpen = false; // Block audio output until callee speaks
+        callCtx.outboundIntroPending = false;
+        clearOutboundCallerAudioSuppression(callCtx);
         callCtx.pendingCallerTurnText = "";
         callCtx.lastAssistantActivityAt = 0;
         log.gemini("outbound_waiting_for_callee", traceId, "audio gate CLOSED, awaiting callee speech");
@@ -51,6 +53,8 @@ function connectOutboundGemini(callCtx, onAudio) {
               // Gemini is trying to speak before callee answered — swallow it
               continue;
             }
+
+            markOutboundAssistantStarted(callCtx, traceId);
 
             const pcm24k = base64ToInt16(part.inlineData.data);
             const pcm8k = downsample24to8(pcm24k);
@@ -74,6 +78,9 @@ function connectOutboundGemini(callCtx, onAudio) {
       if (msg.serverContent?.outputTranscription?.text) {
         const text = msg.serverContent.outputTranscription.text;
         callCtx.lastAssistantActivityAt = Date.now();
+        if (callCtx.outboundAudioGateOpen) {
+          markOutboundAssistantStarted(callCtx, traceId);
+        }
         if (callCtx._txBuffer && callCtx.outboundAudioGateOpen) {
           callCtx._txBuffer.push("assistant", text);
         }
@@ -98,6 +105,8 @@ function connectOutboundGemini(callCtx, onAudio) {
 
   ws.on("close", (code, reason) => {
     clearFirstCallerTurnTimer(callCtx);
+    clearOutboundCallerAudioSuppression(callCtx);
+    callCtx.outboundIntroPending = false;
     callCtx.geminiReady = false;
     callCtx.awaitingOutboundFirstTurn = false;
     log.gemini("outbound_disconnected", traceId, `${code} ${reason}`);
@@ -120,6 +129,43 @@ function clearFirstCallerTurnTimer(callCtx) {
   if (callCtx._firstCallerTurnTimer) {
     clearTimeout(callCtx._firstCallerTurnTimer);
     callCtx._firstCallerTurnTimer = null;
+  }
+}
+
+function clearOutboundCallerAudioSuppression(callCtx) {
+  if (callCtx._outboundSuppressCallerAudioTimer) {
+    clearTimeout(callCtx._outboundSuppressCallerAudioTimer);
+    callCtx._outboundSuppressCallerAudioTimer = null;
+  }
+  callCtx.outboundSuppressCallerAudio = false;
+}
+
+function armOutboundCallerAudioSuppression(callCtx, traceId) {
+  clearOutboundCallerAudioSuppression(callCtx);
+  callCtx.outboundSuppressCallerAudio = true;
+  log.gemini("outbound_caller_audio_suppressed", traceId, "waiting for assistant intro");
+
+  callCtx._outboundSuppressCallerAudioTimer = setTimeout(() => {
+    callCtx._outboundSuppressCallerAudioTimer = null;
+    if (!callCtx.outboundSuppressCallerAudio) {
+      return;
+    }
+
+    callCtx.outboundSuppressCallerAudio = false;
+    callCtx.outboundIntroPending = false;
+    log.gemini("outbound_caller_audio_resumed", traceId, "intro wait timeout");
+  }, 5000);
+}
+
+function markOutboundAssistantStarted(callCtx, traceId) {
+  if (!callCtx.outboundIntroPending && !callCtx.outboundSuppressCallerAudio) {
+    return;
+  }
+
+  clearOutboundCallerAudioSuppression(callCtx);
+  if (callCtx.outboundIntroPending) {
+    callCtx.outboundIntroPending = false;
+    log.gemini("outbound_intro_started", traceId);
   }
 }
 
@@ -150,6 +196,8 @@ function scheduleOutboundFirstReply(ws, callCtx, traceId, callerText) {
     callCtx.awaitingOutboundFirstTurn = false;
     callCtx.outboundFirstTurnTriggered = true;
     callCtx.outboundAudioGateOpen = true; // NOW allow audio through
+    callCtx.outboundIntroPending = true;
+    armOutboundCallerAudioSuppression(callCtx, traceId);
     callCtx.firstCallerTurnObservedAt = new Date().toISOString();
 
     // Send the [CALLEE_READY] signal using the same realtime text format as the inbound flow.
