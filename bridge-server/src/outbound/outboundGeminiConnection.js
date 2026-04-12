@@ -147,15 +147,16 @@ function scheduleOutboundFirstReply(ws, callCtx, traceId, callerText) {
     }));
     log.gemini("outbound_first_turn_detected", traceId, callCtx.pendingCallerTurnText);
     log.gemini("outbound_first_reply_triggered", traceId, kickoff);
-  }, 1200);
+  }, 2500);
 }
 
 function buildOutboundFirstReplyPrompt(callerText) {
   const parts = [
-    "La personne appelée vient de parler.",
-    callerText ? `Dernière prise de parole entendue: \"${callerText.slice(0, 160)}\".` : null,
-    "Attends la fin naturelle de sa phrase, puis réponds maintenant.",
-    "Présente-toi brièvement, précise pour qui tu appelles, puis explique la raison de l'appel.",
+    "La personne appelée vient de décrocher et a dit quelque chose.",
+    callerText ? `Ce qu'elle a dit: \"${callerText.slice(0, 160)}\".` : null,
+    "Marque une courte pause naturelle (comme un humain qui rassemble ses idées), puis présente-toi calmement.",
+    "Commence par \"Bonjour\", précise pour qui tu appelles, puis explique la raison de l'appel.",
+    "Ne te précipite pas, sois posé et naturel.",
   ];
 
   return parts.filter(Boolean).join(" ");
