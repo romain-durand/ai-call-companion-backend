@@ -3,7 +3,8 @@ const log = require("../observability/logger");
 
 const OUTBOUND_SPEECH_AVG_THRESHOLD = 700;
 const OUTBOUND_SPEECH_PEAK_THRESHOLD = 2600;
-const OUTBOUND_POST_SPEECH_SILENCE_MS = 240;
+const OUTBOUND_SPEECH_MIN_FRAMES = 4;
+const OUTBOUND_POST_SPEECH_SILENCE_MS = 220;
 const OUTBOUND_TRANSCRIPT_FALLBACK_MS = 700;
 const OUTBOUND_INTRO_SUPPRESSION_TIMEOUT_MS = 5000;
 
@@ -58,6 +59,7 @@ function resetOutboundSpeechObservation(callCtx) {
   callCtx._outboundSpeechArmed = false;
   callCtx._outboundSpeechSeen = false;
   callCtx._outboundLastSpeechAt = 0;
+  callCtx._outboundSpeechFrameCount = 0;
 }
 
 function armOutboundCallerAudioSuppression(callCtx, traceId) {
@@ -104,6 +106,7 @@ function triggerOutboundFirstReply(ws, callCtx, traceId, source) {
   callCtx.outboundAudioGateOpen = true;
   callCtx.outboundIntroPending = true;
   armOutboundCallerAudioSuppression(callCtx, traceId);
+
   if (!callCtx.firstCallerTurnObservedAt) {
     callCtx.firstCallerTurnObservedAt = new Date().toISOString();
   }
@@ -169,8 +172,11 @@ function cleanupOutboundFirstTurn(callCtx) {
   clearFirstCallerTurnTimer(callCtx);
   clearOutboundCallerAudioSuppression(callCtx);
   resetOutboundSpeechObservation(callCtx);
-  callCtx.outboundIntroPending = false;
   callCtx.awaitingOutboundFirstTurn = false;
+  callCtx.outboundFirstTurnTriggered = false;
+  callCtx.outboundAudioGateOpen = false;
+  callCtx.outboundIntroPending = false;
+  callCtx.pendingCallerTurnText = "";
 }
 
 function observeOutboundCallerTranscription(ws, callCtx, traceId, text) {
@@ -216,8 +222,17 @@ function observeOutboundCallerAudio(ws, callCtx, traceId, pcm8k) {
   if (isSpeechFrame) {
     callCtx._outboundSpeechSeen = true;
     callCtx._outboundLastSpeechAt = now;
+    callCtx._outboundSpeechFrameCount = (callCtx._outboundSpeechFrameCount || 0) + 1;
+
+    if (!callCtx._outboundSpeechArmed && callCtx._outboundSpeechFrameCount >= OUTBOUND_SPEECH_MIN_FRAMES) {
+      callCtx._outboundSpeechArmed = true;
+      log.gemini("outbound_callee_voice_detected", traceId, `avg=${Math.round(avgAbs)} peak=${peakAbs}`);
+    }
+
     return;
   }
+
+  callCtx._outboundSpeechFrameCount = 0;
 
   if (!callCtx._outboundSpeechArmed || !callCtx._outboundSpeechSeen || !callCtx._outboundLastSpeechAt) {
     return;
