@@ -15,7 +15,8 @@ function connectOutboundGemini(callCtx, onAudio) {
 
   ws.on("open", () => {
     log.gemini("outbound_connected", traceId);
-    const setupPayload = buildOutboundSetupPayload();
+    // Pass callCtx so mission context is baked into the system instruction
+    const setupPayload = buildOutboundSetupPayload(callCtx);
     ws.send(JSON.stringify(setupPayload));
   });
 
@@ -26,27 +27,31 @@ function connectOutboundGemini(callCtx, onAudio) {
       if (msg.setupComplete) {
         log.gemini("outbound_setup_complete", traceId);
 
-        const contextBlock = buildOutboundContext(callCtx);
-        ws.send(JSON.stringify({
-          realtimeInput: { text: contextBlock },
-        }));
-        log.gemini("outbound_context_injected", traceId, contextBlock);
+        // No context injection here — it's in the system instruction.
+        // No realtimeInput.text that would trigger Gemini to speak.
 
         callCtx.geminiReady = true;
         callCtx.awaitingOutboundFirstTurn = true;
         callCtx.outboundFirstTurnTriggered = false;
+        callCtx.outboundAudioGateOpen = false; // Block audio output until callee speaks
         callCtx.pendingCallerTurnText = "";
         callCtx.lastAssistantActivityAt = 0;
-        log.gemini("outbound_waiting_for_callee", traceId, "awaiting first caller utterance");
+        log.gemini("outbound_waiting_for_callee", traceId, "audio gate CLOSED, awaiting callee speech");
 
         return;
       }
 
-      // Audio response
+      // Audio response — only forward to Twilio if audio gate is open
       if (msg.serverContent?.modelTurn?.parts) {
         for (const part of msg.serverContent.modelTurn.parts) {
           if (part.inlineData?.data) {
             callCtx.lastAssistantActivityAt = Date.now();
+
+            if (!callCtx.outboundAudioGateOpen) {
+              // Gemini is trying to speak before callee answered — swallow it
+              continue;
+            }
+
             const pcm24k = base64ToInt16(part.inlineData.data);
             const pcm8k = downsample24to8(pcm24k);
             const mulawBase64 = encodeToMulaw(pcm8k);
@@ -69,7 +74,7 @@ function connectOutboundGemini(callCtx, onAudio) {
       if (msg.serverContent?.outputTranscription?.text) {
         const text = msg.serverContent.outputTranscription.text;
         callCtx.lastAssistantActivityAt = Date.now();
-        if (callCtx._txBuffer) {
+        if (callCtx._txBuffer && callCtx.outboundAudioGateOpen) {
           callCtx._txBuffer.push("assistant", text);
         }
       }
@@ -118,6 +123,11 @@ function clearFirstCallerTurnTimer(callCtx) {
   }
 }
 
+/**
+ * After detecting meaningful callee speech, wait 2.5s then:
+ * 1. Open the audio gate
+ * 2. Send the [CALLEE_READY] signal so Gemini starts its introduction
+ */
 function scheduleOutboundFirstReply(ws, callCtx, traceId, callerText) {
   if (callCtx.outboundFirstTurnTriggered || !callCtx.awaitingOutboundFirstTurn) {
     return;
@@ -139,48 +149,21 @@ function scheduleOutboundFirstReply(ws, callCtx, traceId, callerText) {
 
     callCtx.awaitingOutboundFirstTurn = false;
     callCtx.outboundFirstTurnTriggered = true;
+    callCtx.outboundAudioGateOpen = true; // NOW allow audio through
     callCtx.firstCallerTurnObservedAt = new Date().toISOString();
 
-    const kickoff = buildOutboundFirstReplyPrompt(callCtx.pendingCallerTurnText);
+    // Send the [CALLEE_READY] signal — this is what the system instruction waits for
+    const signal = `[CALLEE_READY] L'interlocuteur a décroché et dit: "${callCtx.pendingCallerTurnText.slice(0, 160)}". Présente-toi maintenant calmement.`;
     ws.send(JSON.stringify({
-      realtimeInput: { text: kickoff },
+      clientContent: {
+        turns: [{ role: "user", parts: [{ text: signal }] }],
+        turnComplete: true,
+      },
     }));
+
     log.gemini("outbound_first_turn_detected", traceId, callCtx.pendingCallerTurnText);
-    log.gemini("outbound_first_reply_triggered", traceId, kickoff);
+    log.gemini("outbound_audio_gate_opened", traceId, "callee ready signal sent");
   }, 2500);
-}
-
-function buildOutboundFirstReplyPrompt(callerText) {
-  const parts = [
-    "La personne appelée vient de décrocher et a dit quelque chose.",
-    callerText ? `Ce qu'elle a dit: \"${callerText.slice(0, 160)}\".` : null,
-    "Marque une courte pause naturelle (comme un humain qui rassemble ses idées), puis présente-toi calmement.",
-    "Commence par \"Bonjour\", précise pour qui tu appelles, puis explique la raison de l'appel.",
-    "Ne te précipite pas, sois posé et naturel.",
-  ];
-
-  return parts.filter(Boolean).join(" ");
-}
-
-/**
- * Build the outbound mission context block.
- */
-function buildOutboundContext(callCtx) {
-  const parts = [
-    "OUTBOUND MISSION CONTEXT",
-    `User name: ${callCtx.userName || "Unknown"}`,
-    `Mission objective: ${callCtx.missionObjective || "Not specified"}`,
-    `Target name: ${callCtx.missionTargetName || "Unknown"}`,
-    `Target phone: ${callCtx.missionTargetPhone || "Unknown"}`,
-  ];
-
-  if (callCtx.missionConstraints && Object.keys(callCtx.missionConstraints).length > 0) {
-    parts.push(`Constraints: ${JSON.stringify(callCtx.missionConstraints)}`);
-  }
-
-  parts.push("", "Instruction: Accomplish the mission objective. Be natural and polite.");
-
-  return parts.join("\n");
 }
 
 module.exports = { connectOutboundGemini };
