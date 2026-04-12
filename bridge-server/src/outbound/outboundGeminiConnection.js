@@ -166,11 +166,14 @@ function scheduleOutboundFirstReply(ws, callCtx, traceId, callerText) {
 
     const kickoff = buildOutboundFirstReplyPrompt(callCtx.pendingCallerTurnText);
     ws.send(JSON.stringify({
-      realtimeInput: { text: kickoff },
+      clientContent: {
+        turns: [{ role: "user", parts: [{ text: kickoff }] }],
+        turnComplete: true,
+      },
     }));
     log.gemini("outbound_first_turn_detected", traceId, callCtx.pendingCallerTurnText);
     log.gemini("outbound_first_reply_triggered", traceId, kickoff);
-  }, 1200);
+  }, 600);
 }
 
 function buildOutboundFirstReplyPrompt(callerText) {
