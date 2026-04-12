@@ -137,13 +137,17 @@ async function handleEndCall(args, callCtx, traceId) {
   const reason = args.reason || "end_call";
   log.tool("outbound_end_call", traceId, reason);
 
-  setTimeout(() => {
-    if (typeof callCtx._hangup === "function") {
-      callCtx._hangup(reason);
-    }
-  }, 1500);
+  if (typeof callCtx._requestHangup === "function") {
+    callCtx._requestHangup(reason);
+  } else {
+    setTimeout(() => {
+      if (typeof callCtx._hangup === "function") {
+        callCtx._hangup(reason);
+      }
+    }, 1500);
+  }
 
-  return { success: true, message: "Call will be terminated shortly." };
+  return { success: true, message: "Call termination scheduled after the closing speech." };
 }
 
 module.exports = { handleOutboundToolCall };
