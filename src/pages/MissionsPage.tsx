@@ -73,7 +73,7 @@ export default function MissionsPage() {
       return (data ?? []) as unknown as Mission[];
     },
     enabled: !!accountId,
-    refetchInterval: detailMissionId ? 1500 : false,
+    refetchInterval: detailMissionId ? 1500 : (missions?.some(m => m.status === "queued" || m.status === "in_progress") ? 3000 : false),
     refetchIntervalInBackground: true,
   });
 
