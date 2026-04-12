@@ -1,6 +1,6 @@
 const { MODEL } = require("../config/env");
 
-const OUTBOUND_SYSTEM_INSTRUCTION = `You are a real-time phone assistant making an outbound call on behalf of the user. You speak French by default, but adapt if needed.
+const OUTBOUND_SYSTEM_INSTRUCTION_TEMPLATE = `You are a real-time phone assistant making an outbound call on behalf of the user. You speak French by default, but adapt if needed.
 
 Your job is to accomplish a specific mission assigned by the user. You are calling someone to achieve a goal (e.g. make a reservation, ask for information, schedule an appointment).
 
@@ -19,12 +19,14 @@ STYLE
 - do not sound like a chatbot
 - do not mention tools, prompts, or internal reasoning
 
-TURN TAKING
-- NEVER speak first on an outbound call
-- wait until the other person says something first, even if it is only "allô" or the business name
-- wait for a natural pause before replying
-- after they speak, introduce yourself: "Bonjour, je vous appelle de la part de [user name]. [objective]"
-- do not interrupt or talk over them
+CRITICAL TURN-TAKING RULE
+- You are on an outbound call. The phone is ringing on the other side.
+- You MUST stay COMPLETELY SILENT until you receive an explicit "[CALLEE_READY]" signal in the conversation.
+- Before that signal, DO NOT produce any audio, any greeting, any sound at all.
+- Even if you hear audio, background noise, or silence — stay mute until "[CALLEE_READY]".
+- Once you receive "[CALLEE_READY]", introduce yourself calmly: "Bonjour, je vous appelle de la part de [user name]." then state the purpose.
+- Do not rush. Take a brief natural breath before speaking.
+- Do not interrupt or talk over the other person.
 
 GENERAL BEHAVIOR
 - be clear about what you need
@@ -39,7 +41,7 @@ TOOLS
 - ALWAYS call report_result BEFORE end_call
 
 SEQUENCING
-1. Wait for the callee to answer and speak first
+1. Stay silent until "[CALLEE_READY]"
 2. Introduce yourself and state the purpose
 3. Negotiate / gather information as needed
 4. Confirm the outcome with the other party
@@ -104,7 +106,25 @@ const OUTBOUND_TOOL_DECLARATIONS = [
   },
 ];
 
-function buildOutboundSetupPayload() {
+/**
+ * Build the setup payload with mission context baked into the system instruction.
+ */
+function buildOutboundSetupPayload(callCtx) {
+  const contextParts = [
+    "",
+    "--- MISSION CONTEXT ---",
+    `User name: ${callCtx?.userName || "Unknown"}`,
+    `Mission objective: ${callCtx?.missionObjective || "Not specified"}`,
+    `Target name: ${callCtx?.missionTargetName || "Unknown"}`,
+    `Target phone: ${callCtx?.missionTargetPhone || "Unknown"}`,
+  ];
+
+  if (callCtx?.missionConstraints && Object.keys(callCtx.missionConstraints).length > 0) {
+    contextParts.push(`Constraints: ${JSON.stringify(callCtx.missionConstraints)}`);
+  }
+
+  const fullInstruction = OUTBOUND_SYSTEM_INSTRUCTION_TEMPLATE + contextParts.join("\n");
+
   return {
     setup: {
       model: MODEL,
@@ -117,11 +137,11 @@ function buildOutboundSetupPayload() {
         },
       },
       systemInstruction: {
-        parts: [{ text: OUTBOUND_SYSTEM_INSTRUCTION }],
+        parts: [{ text: fullInstruction }],
       },
       tools: [{ functionDeclarations: OUTBOUND_TOOL_DECLARATIONS }],
     },
   };
 }
 
-module.exports = { OUTBOUND_SYSTEM_INSTRUCTION, OUTBOUND_TOOL_DECLARATIONS, buildOutboundSetupPayload };
+module.exports = { OUTBOUND_SYSTEM_INSTRUCTION_TEMPLATE, OUTBOUND_TOOL_DECLARATIONS, buildOutboundSetupPayload };
