@@ -22,12 +22,16 @@ function createCallContext() {
     consultUserFlow: createConsultUserFlowState(),
     awaitingOutboundFirstTurn: false,
     outboundFirstTurnTriggered: false,
+    outboundAudioGateOpen: false,
+    outboundIntroPending: false,
+    outboundSuppressCallerAudio: false,
     pendingCallerTurnText: "",
     firstCallerTurnObservedAt: null,
     lastAssistantActivityAt: 0,
     _hangupRequested: false,
     _hangupWatcher: null,
     _firstCallerTurnTimer: null,
+    _outboundSuppressCallerAudioTimer: null,
 
     /** Returns the next unique seq_no for this call. */
     nextSeqNo() {
