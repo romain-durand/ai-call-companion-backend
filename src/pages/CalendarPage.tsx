@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useUserAccountId } from "@/hooks/useUserAccountId";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { CalendarDays, CheckCircle2, ExternalLink, Loader2, Unplug } from "lucide-react";
+import { CalendarDays, CheckCircle2, ExternalLink, Loader2, Unplug, Radio } from "lucide-react";
 
 const BRIDGE_URL = "https://bridgeserver.ted.paris";
 
@@ -113,6 +113,30 @@ export default function CalendarPage() {
     }
   };
 
+  const handleSetTarget = async (calendarId: string) => {
+    if (!connection?.id) return;
+    setTogglingCalendar(calendarId);
+    try {
+      // Remove target from all calendars in this connection
+      await supabase
+        .from("calendar_calendars")
+        .update({ is_target: false } as any)
+        .eq("calendar_connection_id", connection.id);
+      // Set the selected one as target
+      const { error } = await supabase
+        .from("calendar_calendars")
+        .update({ is_target: true } as any)
+        .eq("id", calendarId);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["calendar-calendars"] });
+      toast.success("Calendrier cible mis à jour");
+    } catch {
+      toast.error("Erreur lors de la mise à jour");
+    } finally {
+      setTogglingCalendar(null);
+    }
+  };
+
   const isConnected = !!connection;
 
   return (
@@ -163,33 +187,65 @@ export default function CalendarPage() {
 
               {/* Calendar list with toggle */}
               {calendars && calendars.length > 0 && (
-                <div className="space-y-3 pt-2 border-t border-border/50">
-                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
-                    Agendas synchronisés
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Activez les agendas que l'assistant doit consulter pour vérifier vos disponibilités.
-                  </p>
-                  {calendars.map((cal: any) => (
-                    <div key={cal.id} className="flex items-center justify-between py-2">
-                      <div className="flex items-center gap-3 min-w-0 flex-1">
-                        <Switch
-                          checked={cal.is_watched ?? false}
-                          onCheckedChange={() => handleToggleWatched(cal.id, cal.is_watched ?? false)}
-                          disabled={togglingCalendar === cal.id}
-                        />
-                        <span className="text-sm truncate">{cal.name}</span>
-                      </div>
-                      <div className="flex gap-1.5 shrink-0 ml-2">
+                <div className="space-y-4 pt-2 border-t border-border/50">
+                  {/* Target calendar (write) */}
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
+                      📝 Calendrier pour les rendez-vous
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      L'assistant inscrira les rendez-vous dans ce calendrier.
+                    </p>
+                    {calendars.filter((c: any) => !c.is_read_only).map((cal: any) => (
+                      <div key={cal.id} className="flex items-center justify-between py-1.5">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <button
+                            onClick={() => handleSetTarget(cal.id)}
+                            disabled={togglingCalendar === cal.id}
+                            className="flex items-center justify-center"
+                          >
+                            <Radio
+                              className={`h-4 w-4 ${(cal as any).is_target ? 'text-primary fill-primary' : 'text-muted-foreground'}`}
+                            />
+                          </button>
+                          <span className="text-sm truncate">{cal.name}</span>
+                        </div>
                         {cal.is_primary && (
-                          <Badge variant="secondary" className="text-xs">Principal</Badge>
-                        )}
-                        {cal.is_read_only && (
-                          <Badge variant="outline" className="text-xs">Lecture seule</Badge>
+                          <Badge variant="secondary" className="text-xs shrink-0">Principal</Badge>
                         )}
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+
+                  {/* Watched calendars (read for availability) */}
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
+                      👀 Vérification des disponibilités
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      L'assistant consultera ces agendas pour vérifier vos disponibilités.
+                    </p>
+                    {calendars.map((cal: any) => (
+                      <div key={cal.id} className="flex items-center justify-between py-1.5">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <Switch
+                            checked={cal.is_watched ?? false}
+                            onCheckedChange={() => handleToggleWatched(cal.id, cal.is_watched ?? false)}
+                            disabled={togglingCalendar === cal.id}
+                          />
+                          <span className="text-sm truncate">{cal.name}</span>
+                        </div>
+                        <div className="flex gap-1.5 shrink-0 ml-2">
+                          {cal.is_primary && (
+                            <Badge variant="secondary" className="text-xs">Principal</Badge>
+                          )}
+                          {cal.is_read_only && (
+                            <Badge variant="outline" className="text-xs">Lecture seule</Badge>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </>
