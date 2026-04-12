@@ -285,12 +285,127 @@ function MissionDetail({ mission }: { mission: Mission }) {
             <p className="text-sm mt-1">{mission.result_summary}</p>
           </div>
         )}
+
+        {/* Live transcript */}
+        {mission.call_session_id && (
+          <MissionTranscript callSessionId={mission.call_session_id} isLive={mission.status === "in_progress"} />
+        )}
+
         <div className="text-[10px] text-muted-foreground/50">
           Créé le {format(new Date(mission.created_at), "dd/MM/yyyy HH:mm", { locale: fr })}
           {mission.attempt_count > 0 && ` · ${mission.attempt_count} tentative(s)`}
         </div>
       </div>
     </>
+  );
+}
+
+interface CallMessage {
+  id: string;
+  speaker: string;
+  content_text: string | null;
+  tool_name: string | null;
+  seq_no: number;
+  created_at: string;
+}
+
+const speakerLabels: Record<string, { label: string; color: string }> = {
+  caller: { label: "Interlocuteur", color: "text-blue-600 dark:text-blue-400" },
+  assistant: { label: "Assistant", color: "text-primary" },
+  tool: { label: "Outil", color: "text-amber-600 dark:text-amber-400" },
+  system: { label: "Système", color: "text-muted-foreground" },
+};
+
+function MissionTranscript({ callSessionId, isLive }: { callSessionId: string; isLive: boolean }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const { data: messages } = useQuery({
+    queryKey: ["call-messages", callSessionId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("call_messages")
+        .select("id, speaker, content_text, tool_name, seq_no, created_at")
+        .eq("call_session_id", callSessionId)
+        .order("seq_no", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as CallMessage[];
+    },
+    refetchInterval: isLive ? 2000 : false,
+  });
+
+  // Realtime subscription for live missions
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    if (!isLive) return;
+    const channel = supabase
+      .channel(`transcript-${callSessionId}`)
+      .on("postgres_changes", {
+        event: "INSERT",
+        schema: "public",
+        table: "call_messages",
+        filter: `call_session_id=eq.${callSessionId}`,
+      }, () => {
+        queryClient.invalidateQueries({ queryKey: ["call-messages", callSessionId] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [callSessionId, isLive, queryClient]);
+
+  // Auto-scroll
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  if (!messages?.length) {
+    return (
+      <div>
+        <Label className="text-xs text-muted-foreground">Transcription</Label>
+        <div className="mt-1 rounded-lg border border-dashed p-4 text-center">
+          {isLive ? (
+            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              En attente des premiers messages…
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">Aucun message enregistré</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1">
+        <Label className="text-xs text-muted-foreground">Transcription</Label>
+        {isLive && (
+          <Badge variant="outline" className="text-[9px] bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 animate-pulse">
+            ● En direct
+          </Badge>
+        )}
+      </div>
+      <div
+        ref={scrollRef}
+        className="max-h-48 overflow-y-auto rounded-lg border bg-muted/30 p-3 space-y-2"
+      >
+        {messages.map((msg) => {
+          const sp = speakerLabels[msg.speaker] || { label: msg.speaker, color: "text-foreground" };
+          return (
+            <div key={msg.id} className="text-xs">
+              <span className={`font-semibold ${sp.color}`}>
+                {sp.label}
+                {msg.tool_name ? ` (${msg.tool_name})` : ""}
+              </span>
+              {msg.content_text && (
+                <span className="text-foreground/80 ml-1.5">{msg.content_text}</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
