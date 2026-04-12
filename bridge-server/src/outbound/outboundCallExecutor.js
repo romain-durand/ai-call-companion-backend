@@ -6,6 +6,7 @@ const { finalizeCallSession } = require("../db/callSessionsRepo");
 const { connectOutboundGemini } = require("./outboundGeminiConnection");
 const { decodeMulaw, upsample8to16, int16ToBase64, SILENCE_200MS } = require("../audio/codec");
 const log = require("../observability/logger");
+const callStore = require("../calls/callStateStore");
 const {
   TWILIO_ACCOUNT_SID,
   TWILIO_AUTH_TOKEN,
@@ -19,8 +20,7 @@ const {
  * 1. Resolve account context (user name, profile)
  * 2. Create a call_sessions row (direction=outbound)
  * 3. Initiate the Twilio call via REST API
- * 4. The Twilio stream callback connects back to the bridge server
- *    and the outbound Gemini connection handles the conversation
+ * 4. Pre-connect Gemini during ringing so it's ready when callee answers
  */
 async function executeOutboundMission(mission) {
   const traceId = `ob-${mission.id.slice(0, 8)}`;
@@ -111,12 +111,10 @@ async function executeOutboundMission(mission) {
   }
 
   // 4. Initiate Twilio call
-  // The TwiML instructs Twilio to stream audio back to our bridge server
   const bridgeWsUrl = TWILIO_BRIDGE_WS_URL || "wss://bridgeserver.ted.paris";
   const twiml = `<Response><Connect><Stream url="${bridgeWsUrl}/outbound-stream"><Parameter name="missionId" value="${mission.id}"/><Parameter name="accountId" value="${mission.account_id}"/><Parameter name="callSessionId" value="${callSessionId}"/><Parameter name="userName" value="${userName}"/><Parameter name="objective" value="${encodeURIComponent(mission.objective)}"/><Parameter name="targetName" value="${mission.target_name || ""}"/><Parameter name="constraintsJson" value="${encodeURIComponent(JSON.stringify(mission.constraints_json || {}))}"/></Stream></Connect></Response>`;
 
   try {
-    // Use Twilio REST API to initiate the call
     const twilioAccountSid = TWILIO_ACCOUNT_SID;
     const twilioAuthToken = TWILIO_AUTH_TOKEN;
     const twilioApiKeySid = TWILIO_API_KEY_SID;
@@ -186,6 +184,48 @@ async function executeOutboundMission(mission) {
     }
 
     log.server("outbound_call_initiated", `${traceId} twilioSid=${result.sid}`);
+
+    // 5. Pre-connect Gemini while the phone is ringing
+    try {
+      const tempCtx = {
+        traceId,
+        missionId: mission.id,
+        accountId: mission.account_id,
+        callSessionId,
+        userName,
+        missionObjective: mission.objective,
+        missionTargetName: mission.target_name || null,
+        missionTargetPhone: mission.target_phone_e164,
+        missionConstraints: mission.constraints_json || {},
+        geminiReady: false,
+        awaitingOutboundFirstTurn: false,
+        outboundFirstTurnTriggered: false,
+        pendingCallerTurnText: "",
+        lastAssistantActivityAt: 0,
+        isOutbound: true,
+      };
+
+      const geminiWs = connectOutboundGemini(tempCtx, null);
+      const storeKey = `preconnect:${mission.id}`;
+      callStore.set(storeKey, { ws: geminiWs, ctx: tempCtx, createdAt: Date.now() });
+
+      log.server("outbound_gemini_preconnect_started", `${traceId} key=${storeKey}`);
+
+      // Safety: clean up pre-connection after 60s if never consumed
+      setTimeout(() => {
+        const entry = callStore.get(storeKey);
+        if (entry && entry.ws === geminiWs) {
+          log.server("outbound_gemini_preconnect_expired", `${traceId} key=${storeKey}`);
+          callStore.remove(storeKey);
+          if (geminiWs.readyState === WebSocket.OPEN) {
+            geminiWs.close(1000, "preconnect_expired");
+          }
+        }
+      }, 60000);
+    } catch (preErr) {
+      // Pre-connection failure is non-fatal — stream handler will fallback
+      log.error("outbound_gemini_preconnect_error", traceId, preErr.message);
+    }
   } catch (e) {
     log.error("outbound_twilio_call_error", traceId, e.message);
     // Mark mission as failed

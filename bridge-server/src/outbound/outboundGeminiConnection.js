@@ -7,11 +7,36 @@ const log = require("../observability/logger");
 
 /**
  * Create a Gemini Live WebSocket connection for an outbound call.
+ * onAudio can be null initially — use ws.setAudioCallback(fn) to attach later.
  */
 function connectOutboundGemini(callCtx, onAudio) {
   const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${GEMINI_API_KEY}`;
   const ws = new WebSocket(wsUrl);
   const { traceId } = callCtx;
+
+  // Mutable audio callback — can be set/changed after connection
+  let _onAudio = onAudio || null;
+
+  /**
+   * Attach or replace the audio callback after connection.
+   */
+  ws.setAudioCallback = function (fn) {
+    _onAudio = fn;
+  };
+
+  /**
+   * Replace the callCtx reference used by this connection.
+   * Preserves geminiReady and other connection-level state.
+   */
+  ws.setCallCtx = function (newCtx) {
+    // Copy connection-level state to the new context
+    newCtx.geminiReady = callCtx.geminiReady;
+    newCtx.awaitingOutboundFirstTurn = callCtx.awaitingOutboundFirstTurn;
+    newCtx.outboundFirstTurnTriggered = callCtx.outboundFirstTurnTriggered;
+    newCtx.pendingCallerTurnText = callCtx.pendingCallerTurnText || "";
+    newCtx.lastAssistantActivityAt = callCtx.lastAssistantActivityAt || 0;
+    callCtx = newCtx;
+  };
 
   ws.on("open", () => {
     log.gemini("outbound_connected", traceId);
@@ -43,10 +68,12 @@ function connectOutboundGemini(callCtx, onAudio) {
         for (const part of msg.serverContent.modelTurn.parts) {
           if (part.inlineData?.data) {
             callCtx.lastAssistantActivityAt = Date.now();
-            const pcm24k = base64ToInt16(part.inlineData.data);
-            const pcm8k = downsample24to8(pcm24k);
-            const mulawBase64 = encodeToMulaw(pcm8k);
-            onAudio(mulawBase64);
+            if (_onAudio) {
+              const pcm24k = base64ToInt16(part.inlineData.data);
+              const pcm8k = downsample24to8(pcm24k);
+              const mulawBase64 = encodeToMulaw(pcm8k);
+              _onAudio(mulawBase64);
+            }
           }
         }
       }
