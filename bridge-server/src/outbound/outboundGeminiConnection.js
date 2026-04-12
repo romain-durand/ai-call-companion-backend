@@ -152,12 +152,11 @@ function scheduleOutboundFirstReply(ws, callCtx, traceId, callerText) {
     callCtx.outboundAudioGateOpen = true; // NOW allow audio through
     callCtx.firstCallerTurnObservedAt = new Date().toISOString();
 
-    // Send the [CALLEE_READY] signal — this is what the system instruction waits for
-    const signal = `[CALLEE_READY] L'interlocuteur a décroché et dit: "${callCtx.pendingCallerTurnText.slice(0, 160)}". Présente-toi maintenant calmement.`;
+    // Send the [CALLEE_READY] signal using the same realtime text format as the inbound flow.
+    const signal = `[CALLEE_READY] L'interlocuteur a décroché et a dit : "${callCtx.pendingCallerTurnText.slice(0, 160)}". Marque une courte pause naturelle, puis présente-toi calmement et explique l'objet de l'appel.`;
     ws.send(JSON.stringify({
-      clientContent: {
-        turns: [{ role: "user", parts: [{ text: signal }] }],
-        turnComplete: true,
+      realtimeInput: {
+        text: signal,
       },
     }));
 
