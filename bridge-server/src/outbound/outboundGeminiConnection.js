@@ -210,7 +210,7 @@ function scheduleOutboundFirstReply(ws, callCtx, traceId, callerText) {
 
     log.gemini("outbound_first_turn_detected", traceId, callCtx.pendingCallerTurnText);
     log.gemini("outbound_audio_gate_opened", traceId, "callee ready signal sent");
-  }, 2500);
+  }, 800);
 }
 
 module.exports = { connectOutboundGemini };
