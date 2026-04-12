@@ -32,6 +32,10 @@ function createCallContext() {
     _hangupWatcher: null,
     _firstCallerTurnTimer: null,
     _outboundSuppressCallerAudioTimer: null,
+    _outboundSpeechArmed: false,
+    _outboundSpeechSeen: false,
+    _outboundLastSpeechAt: 0,
+    _outboundSpeechFrameCount: 0,
 
     /** Returns the next unique seq_no for this call. */
     nextSeqNo() {
