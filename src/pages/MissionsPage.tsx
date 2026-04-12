@@ -90,7 +90,7 @@ export default function MissionsPage() {
     mutationFn: async (id: string) => {
       const { error } = await supabase
         .from("outbound_missions")
-        .update({ status: "cancelled" as unknown as string })
+        .update({ status: "cancelled" } as any)
         .eq("id", id);
       if (error) throw error;
     },
