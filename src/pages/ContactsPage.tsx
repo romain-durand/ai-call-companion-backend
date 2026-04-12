@@ -67,7 +67,7 @@ function ContactCard({
   showGroupBadges?: boolean;
 }) {
   return (
-    <Card className="bg-card/30 hover:bg-card/50 transition-all">
+    <Card className="bg-card/30 hover:bg-card/50 transition-all cursor-pointer" onClick={onEdit}>
       <CardContent className="p-4 flex items-center gap-4">
         <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-sm font-semibold shrink-0">
           {contact.displayName.charAt(0).toUpperCase()}
@@ -125,7 +125,7 @@ function ContactCard({
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="shrink-0">
+            <Button variant="ghost" size="icon" className="shrink-0" onClick={(e) => e.stopPropagation()}>
               <MoreHorizontal className="w-4 h-4" />
             </Button>
           </DropdownMenuTrigger>
