@@ -113,6 +113,30 @@ export default function CalendarPage() {
     }
   };
 
+  const handleSetTarget = async (calendarId: string) => {
+    if (!connection?.id) return;
+    setTogglingCalendar(calendarId);
+    try {
+      // Remove target from all calendars in this connection
+      await supabase
+        .from("calendar_calendars")
+        .update({ is_target: false } as any)
+        .eq("calendar_connection_id", connection.id);
+      // Set the selected one as target
+      const { error } = await supabase
+        .from("calendar_calendars")
+        .update({ is_target: true } as any)
+        .eq("id", calendarId);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["calendar-calendars"] });
+      toast.success("Calendrier cible mis à jour");
+    } catch {
+      toast.error("Erreur lors de la mise à jour");
+    } finally {
+      setTogglingCalendar(null);
+    }
+  };
+
   const isConnected = !!connection;
 
   return (
