@@ -560,55 +560,66 @@ function CreateMissionDialog({ accountId, onClose, onCreated }: CreateMissionDia
 
         {inputMode === "contact" && (
           <div className="space-y-2">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-              <Input
-                placeholder="Rechercher un contact…"
-                value={contactSearch}
-                onChange={(e) => setContactSearch(e.target.value)}
-                className="pl-8 h-9 text-sm"
-              />
-            </div>
-            <ScrollArea className="h-36 rounded-lg border">
-              {!contacts ? (
-                <div className="p-3 space-y-2">
-                  {[1, 2, 3].map((i) => <Skeleton key={i} className="h-8 w-full" />)}
+            {selectedContactId ? (
+              <div className="flex items-center justify-between rounded-lg border bg-primary/5 px-3 py-2.5">
+                <div>
+                  <p className="text-sm font-medium">{targetName}</p>
+                  <p className="text-xs text-muted-foreground">{targetPhone}</p>
                 </div>
-              ) : filteredContacts.length === 0 ? (
-                <p className="text-xs text-muted-foreground text-center py-6">Aucun contact trouvé</p>
-              ) : (
-                <div className="p-1">
-                  {filteredContacts.map((c) => {
-                    const name = c.display_name || [c.first_name, c.last_name].filter(Boolean).join(" ") || "Sans nom";
-                    const isSelected = selectedContactId === c.id;
-                    return (
-                      <button
-                        key={c.id}
-                        type="button"
-                        onClick={() => selectContact(c)}
-                        className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors flex items-center justify-between ${
-                          isSelected
-                            ? "bg-primary/10 text-primary"
-                            : "hover:bg-muted"
-                        }`}
-                      >
-                        <div className="min-w-0">
-                          <p className="font-medium text-xs truncate">{name}</p>
-                          {c.primary_phone_e164 && (
-                            <p className="text-[10px] text-muted-foreground">{c.primary_phone_e164}</p>
-                          )}
-                        </div>
-                        {isSelected && <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-primary" />}
-                      </button>
-                    );
-                  })}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => {
+                    setSelectedContactId(null);
+                    setTargetName("");
+                    setTargetPhone("");
+                    setContactSearch("");
+                  }}
+                >
+                  Changer
+                </Button>
+              </div>
+            ) : (
+              <>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    placeholder="Rechercher un contact…"
+                    value={contactSearch}
+                    onChange={(e) => setContactSearch(e.target.value)}
+                    className="pl-8 h-9 text-sm"
+                  />
                 </div>
-              )}
-            </ScrollArea>
-            {selectedContactId && (
-              <p className="text-xs text-muted-foreground">
-                Sélectionné : <span className="font-medium text-foreground">{targetName}</span> · {targetPhone}
-              </p>
+                <ScrollArea className="h-36 rounded-lg border">
+                  {!contacts ? (
+                    <div className="p-3 space-y-2">
+                      {[1, 2, 3].map((i) => <Skeleton key={i} className="h-8 w-full" />)}
+                    </div>
+                  ) : filteredContacts.length === 0 ? (
+                    <p className="text-xs text-muted-foreground text-center py-6">Aucun contact trouvé</p>
+                  ) : (
+                    <div className="p-1">
+                      {filteredContacts.map((c) => {
+                        const name = c.display_name || [c.first_name, c.last_name].filter(Boolean).join(" ") || "Sans nom";
+                        return (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onClick={() => selectContact(c)}
+                            className="w-full text-left px-3 py-2 rounded-md text-sm transition-colors hover:bg-muted"
+                          >
+                            <p className="font-medium text-xs truncate">{name}</p>
+                            {c.primary_phone_e164 && (
+                              <p className="text-[10px] text-muted-foreground">{c.primary_phone_e164}</p>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </ScrollArea>
+              </>
             )}
           </div>
         )}
