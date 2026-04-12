@@ -4,6 +4,8 @@ const url = require("url");
 const { PORT } = require("./config/env");
 const { handleTwilioConnection } = require("./twilio/twilioConnection");
 const { handleTransferAudioConnection } = require("./transfer/transferAudioHandler");
+const { handleOutboundStreamConnection } = require("./outbound/outboundStreamHandler");
+const { startOutboundPoller } = require("./outbound/outboundPoller");
 const { handleGoogleStart, handleGoogleCallback } = require("./auth/googleOAuth");
 const log = require("./observability/logger");
 
@@ -35,6 +37,7 @@ const server = http.createServer((req, res) => {
 
 const wss = new WebSocket.Server({ noServer: true });
 const transferWss = new WebSocket.Server({ noServer: true });
+const outboundWss = new WebSocket.Server({ noServer: true });
 
 server.on("upgrade", (req, socket, head) => {
   const pathname = url.parse(req.url).pathname;
@@ -43,8 +46,12 @@ server.on("upgrade", (req, socket, head) => {
     transferWss.handleUpgrade(req, socket, head, (ws) => {
       handleTransferAudioConnection(ws);
     });
+  } else if (pathname === "/outbound-stream") {
+    outboundWss.handleUpgrade(req, socket, head, (ws) => {
+      handleOutboundStreamConnection(ws);
+    });
   } else {
-    // Default: Twilio media stream
+    // Default: Twilio media stream (inbound)
     wss.handleUpgrade(req, socket, head, (ws) => {
       handleTwilioConnection(ws);
     });
@@ -54,4 +61,7 @@ server.on("upgrade", (req, socket, head) => {
 server.listen(PORT, () => {
   log.server("bridge_started", `port ${PORT} — ${new Date().toISOString()}`);
   log.server("ws_url", `ws://localhost:${PORT}`);
+
+  // Start outbound mission poller
+  startOutboundPoller();
 });
