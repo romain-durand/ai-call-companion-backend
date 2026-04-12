@@ -1,7 +1,6 @@
 const WebSocket = require("ws");
 const { decodeMulaw, upsample8to16, int16ToBase64, SILENCE_200MS } = require("../audio/codec");
 const { connectOutboundGemini } = require("./outboundGeminiConnection");
-const { observeOutboundCallerAudio } = require("./outboundFirstTurnGate");
 const { createCallContext } = require("../calls/callContext");
 const callStore = require("../calls/callStateStore");
 const { createTranscriptBuffer } = require("../db/transcriptBuffer");
@@ -33,10 +32,6 @@ function handleOutboundStreamConnection(twilioWs) {
     if (callCtx._firstCallerTurnTimer) {
       clearTimeout(callCtx._firstCallerTurnTimer);
       callCtx._firstCallerTurnTimer = null;
-    }
-    if (callCtx._outboundSuppressCallerAudioTimer) {
-      clearTimeout(callCtx._outboundSuppressCallerAudioTimer);
-      callCtx._outboundSuppressCallerAudioTimer = null;
     }
 
     if (callCtx._txBuffer) {
@@ -128,6 +123,7 @@ function handleOutboundStreamConnection(twilioWs) {
           callCtx.streamSid = msg.start.streamSid;
           callCtx.startedAt = new Date().toISOString();
 
+          // Extract outbound mission parameters
           const params = msg.start.customParameters || {};
           callCtx.missionId = params.missionId || null;
           callCtx.accountId = params.accountId || null;
@@ -148,18 +144,15 @@ function handleOutboundStreamConnection(twilioWs) {
           log.call("outbound_call_started", callCtx.traceId,
             `mission=${callCtx.missionId} objective="${callCtx.missionObjective?.slice(0, 60)}"`);
 
+          // Connect to Gemini with outbound config
           geminiWs = connectOutboundGemini(callCtx, sendAudioToTwilio);
           break;
         }
 
-        case "media": {
+        case "media":
           if (!callCtx.geminiReady || !geminiWs || geminiWs.readyState !== WebSocket.OPEN) return;
 
           const pcm8k = decodeMulaw(msg.media.payload);
-          observeOutboundCallerAudio(geminiWs, callCtx, callCtx.traceId, pcm8k);
-
-          if (callCtx.outboundSuppressCallerAudio) return;
-
           const pcm16k = upsample8to16(pcm8k);
           const pcmBase64 = int16ToBase64(pcm16k);
 
@@ -172,7 +165,6 @@ function handleOutboundStreamConnection(twilioWs) {
             },
           }));
           break;
-        }
 
         case "stop":
           log.call("outbound_call_ended_stop", callCtx.traceId);
