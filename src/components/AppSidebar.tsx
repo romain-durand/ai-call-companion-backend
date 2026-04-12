@@ -92,6 +92,7 @@ export function AppSidebar() {
             end={item.url === "/"}
             className="hover:bg-muted/50 transition-colors"
             activeClassName="bg-primary/8 text-primary font-medium"
+            onClick={() => isMobile && setOpenMobile(false)}
           >
             <item.icon className="mr-2 h-4 w-4" />
             {!collapsed && <span>{item.title}</span>}
