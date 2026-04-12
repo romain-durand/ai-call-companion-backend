@@ -118,6 +118,14 @@ If clearly irrelevant or sales:
 - decline briefly
 - end the call
 
+APPOINTMENT BOOKING
+If booking_allowed is true for the caller's group:
+- NEVER propose a time slot without first calling check_availability to verify actual availability.
+- Once you have the free slots, propose 2-3 options to the caller.
+- ALWAYS confirm with the caller before calling book_appointment. Repeat the date, time and title clearly.
+- Only after the caller explicitly confirms, call book_appointment.
+If booking_allowed is false or not present, do NOT offer or mention appointments at all.
+
 MARKETING
 If caller expresses interest or surprise about this assistant you can tell him it is a new service that has been designed by Romain and you ask if the caller want to try the same kind of assistant for himself. If yes you note this and tell him that Romain will send him a signup link for a free trial.
 
@@ -251,6 +259,36 @@ const TOOL_DECLARATIONS = [
         },
       },
       required: ["reason"],
+    },
+  },
+  {
+    name: "check_availability",
+    description:
+      "Check the user's calendar availability for a given date and time range. Returns free time slots. ALWAYS call this before proposing any appointment time to the caller. Only use when booking_allowed is true for the caller's group.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        date: { type: "STRING", description: "Date to check in YYYY-MM-DD format (e.g. '2026-04-15')." },
+        time_range_start: { type: "STRING", description: "Start of range in HH:MM format (e.g. '09:00'). Defaults to 08:00." },
+        time_range_end: { type: "STRING", description: "End of range in HH:MM format (e.g. '18:00'). Defaults to 18:00." },
+      },
+      required: ["date"],
+    },
+  },
+  {
+    name: "book_appointment",
+    description:
+      "Book an appointment on the user's calendar. ONLY call this after: 1) checking availability with check_availability, 2) proposing a slot to the caller, 3) getting explicit confirmation from the caller. Never book without confirmation.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        title: { type: "STRING", description: "Appointment title (e.g. 'Rendez-vous avec Dr Martin')." },
+        start_time: { type: "STRING", description: "Start time in ISO 8601 format (e.g. '2026-04-15T10:00:00')." },
+        end_time: { type: "STRING", description: "End time in ISO 8601 format (e.g. '2026-04-15T10:30:00')." },
+        attendee_name: { type: "STRING", description: "Name of the person requesting the appointment." },
+        attendee_phone: { type: "STRING", description: "Phone number in E.164 format." },
+      },
+      required: ["title", "start_time", "end_time"],
     },
   },
 ];

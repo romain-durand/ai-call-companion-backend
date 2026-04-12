@@ -7,6 +7,7 @@ const { createEscalation } = require("../db/escalationRepo");
 const { consultUser } = require("../db/liveChatRepo");
 const { supabaseAdmin } = require("../db/supabaseAdmin");
 const { createTransferRequest, waitForTransferResponse, completeTransferRequest } = require("../db/transferRequestsRepo");
+const { checkAvailability, bookAppointment } = require("../calendar/googleCalendarClient");
 const {
   createConsultUserFlowState,
   queueConsultAnnouncement,
@@ -58,6 +59,12 @@ async function handleToolCall(call, traceId, callCtx) {
         break;
       case "transfer_call":
         resultPayload = await handleTransferCall(call.args, callCtx, traceId);
+        break;
+      case "check_availability":
+        resultPayload = await handleCheckAvailability(call.args, callCtx, traceId);
+        break;
+      case "book_appointment":
+        resultPayload = await handleBookAppointment(call.args, callCtx, traceId);
         break;
       default:
         log.tool("tool_unknown", traceId, call.name);
@@ -477,6 +484,141 @@ async function handleConsultUser(args, callCtx, traceId) {
     user_reply: null,
     message: consultation.error || "Failed to consult the user.",
   };
+}
+
+// ─── check_availability ──────────────────────────────────────
+
+async function handleCheckAvailability(args, callCtx, traceId) {
+  if (!callCtx.accountId) {
+    return { success: false, message: "No account context — cannot check availability." };
+  }
+
+  try {
+    // Parse date and time range into ISO timestamps
+    const date = args.date; // e.g. "2026-04-15"
+    const rangeStart = args.time_range_start || "08:00"; // e.g. "09:00"
+    const rangeEnd = args.time_range_end || "18:00"; // e.g. "17:00"
+
+    const timeMin = new Date(`${date}T${rangeStart}:00+02:00`).toISOString();
+    const timeMax = new Date(`${date}T${rangeEnd}:00+02:00`).toISOString();
+
+    const result = await checkAvailability(callCtx.accountId, timeMin, timeMax, traceId);
+
+    // Format for Gemini
+    const freeSlots = result.free.map((s) => {
+      const start = new Date(s.start).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
+      const end = new Date(s.end).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
+      return `${start} – ${end}`;
+    });
+
+    return {
+      success: true,
+      date,
+      free_slots: freeSlots,
+      busy_count: result.busy.length,
+      message: freeSlots.length > 0
+        ? `Available slots on ${date}: ${freeSlots.join(", ")}`
+        : `No availability found on ${date} between ${rangeStart} and ${rangeEnd}.`,
+    };
+  } catch (e) {
+    log.error("check_availability_error", traceId, e.message);
+    return { success: false, message: `Failed to check availability: ${e.message}` };
+  }
+}
+
+// ─── book_appointment ────────────────────────────────────────
+
+async function handleBookAppointment(args, callCtx, traceId) {
+  if (!callCtx.accountId) {
+    return { success: false, message: "No account context — cannot book appointment." };
+  }
+
+  // Backend guardrail: check booking_allowed policy
+  const policyOk = await isBookingAllowedByPolicy(callCtx, traceId);
+  if (!policyOk) {
+    return { success: false, message: "Booking is not allowed for this caller group. Take a message instead." };
+  }
+
+  try {
+    const result = await bookAppointment(
+      callCtx.accountId,
+      {
+        title: args.title || "Rendez-vous",
+        startTime: args.start_time,
+        endTime: args.end_time,
+        attendeeName: args.attendee_name || callCtx.callerName || null,
+        attendeePhone: args.attendee_phone || callCtx.callerNumber || null,
+        callSessionId: callCtx.callSessionId,
+      },
+      traceId
+    );
+
+    return {
+      success: true,
+      event_id: result.event_id,
+      message: `Appointment booked: "${result.title}" on ${new Date(result.start).toLocaleDateString("fr-FR")} from ${new Date(result.start).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" })} to ${new Date(result.end).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" })}.`,
+    };
+  } catch (e) {
+    log.error("book_appointment_error", traceId, e.message);
+    return { success: false, message: `Failed to book appointment: ${e.message}` };
+  }
+}
+
+// ─── Policy check: is booking allowed for the caller's group? ───
+
+async function isBookingAllowedByPolicy(callCtx, traceId) {
+  if (!callCtx.accountId) return false;
+
+  try {
+    let callerGroupId = callCtx.callerGroupId || null;
+
+    if (!callerGroupId && callCtx.callerNumber && callCtx.callerNumber !== "unknown") {
+      const { data: contact } = await supabaseAdmin
+        .from("contacts")
+        .select("id")
+        .eq("account_id", callCtx.accountId)
+        .or(`primary_phone_e164.eq.${callCtx.callerNumber},secondary_phone_e164.eq.${callCtx.callerNumber}`)
+        .maybeSingle();
+
+      if (contact) {
+        const { data: membership } = await supabaseAdmin
+          .from("contact_group_memberships")
+          .select("caller_group_id")
+          .eq("contact_id", contact.id)
+          .eq("account_id", callCtx.accountId)
+          .limit(1)
+          .maybeSingle();
+        if (membership) callerGroupId = membership.caller_group_id;
+      }
+    }
+
+    if (!callerGroupId) {
+      const { data: unknownGroup } = await supabaseAdmin
+        .from("caller_groups")
+        .select("id")
+        .eq("account_id", callCtx.accountId)
+        .eq("slug", "unknown")
+        .maybeSingle();
+      if (unknownGroup) callerGroupId = unknownGroup.id;
+    }
+
+    if (!callerGroupId) return false;
+
+    const { data: rule } = await supabaseAdmin
+      .from("call_handling_rules")
+      .select("booking_allowed")
+      .eq("account_id", callCtx.accountId)
+      .eq("caller_group_id", callerGroupId)
+      .limit(1)
+      .maybeSingle();
+
+    log.tool("booking_policy_checked", traceId,
+      `groupId=${callerGroupId}, booking_allowed=${rule?.booking_allowed}`);
+    return rule?.booking_allowed === true;
+  } catch (e) {
+    log.error("booking_policy_check_error", traceId, e.message);
+    return false; // fail-closed
+  }
 }
 
 module.exports = { handleToolCall };
