@@ -45,6 +45,7 @@ const server = http.createServer((req, res) => {
 const wss = new WebSocket.Server({ noServer: true });
 const transferWss = new WebSocket.Server({ noServer: true });
 const outboundWss = new WebSocket.Server({ noServer: true });
+const webCallWss = new WebSocket.Server({ noServer: true });
 
 server.on("upgrade", (req, socket, head) => {
   const pathname = url.parse(req.url).pathname;
@@ -56,6 +57,10 @@ server.on("upgrade", (req, socket, head) => {
   } else if (pathname === "/outbound-stream") {
     outboundWss.handleUpgrade(req, socket, head, (ws) => {
       handleOutboundStreamConnection(ws);
+    });
+  } else if (pathname === "/web-call") {
+    webCallWss.handleUpgrade(req, socket, head, (ws) => {
+      handleWebCallConnection(ws);
     });
   } else {
     // Default: Twilio media stream (inbound)
