@@ -140,6 +140,7 @@ async function handleTwilioVoice(req, res) {
       <Parameter name="accountId" value="${accountId}" />
       <Parameter name="phoneNumberId" value="${phoneNumberId}" />
       <Parameter name="activeModeId" value="${activeModeId}" />
+      <Parameter name="profileId" value="${matchedProfileId || ""}" />
       <Parameter name="traceId" value="${traceId}" />
     </Stream>
   </Connect>
