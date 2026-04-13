@@ -16,6 +16,9 @@ export default function SettingsPage() {
   const [initialName, setInitialName] = useState("");
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const callUrl = user ? `${window.location.origin}/call/${user.id}` : "";
 
   useEffect(() => {
     if (!user) return;
