@@ -570,6 +570,22 @@ async function isBookingAllowedByPolicy(callCtx, traceId) {
   if (!callCtx.accountId) return false;
 
   try {
+    // 1. Check mode-level allow_booking flag first
+    if (callCtx.activeModeId) {
+      const { data: mode } = await supabaseAdmin
+        .from("assistant_modes")
+        .select("allow_booking")
+        .eq("id", callCtx.activeModeId)
+        .maybeSingle();
+
+      if (mode?.allow_booking === true) {
+        log.tool("booking_policy_checked", traceId,
+          `mode=${callCtx.activeModeId} allow_booking=true — allowed by mode`);
+        return true;
+      }
+    }
+
+    // 2. Fall back to per-group rule
     let callerGroupId = callCtx.callerGroupId || null;
 
     if (!callerGroupId && callCtx.callerNumber && callCtx.callerNumber !== "unknown") {
