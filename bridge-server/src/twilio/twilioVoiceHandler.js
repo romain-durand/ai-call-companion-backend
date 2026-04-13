@@ -29,18 +29,26 @@ async function handleTwilioVoice(req, res) {
   // Parse Twilio POST form data
   let callerNumber = "unknown";
   let calledNumber = "unknown";
+  let forwardedFrom = "";
+  let calledVia = "";
   let callSid = "";
 
   try {
     const body = await parseFormBody(req);
     callerNumber = body.From || "unknown";
     calledNumber = body.To || "unknown";
+    forwardedFrom = body.ForwardedFrom || "";
+    calledVia = body.CalledVia || "";
     callSid = body.CallSid || "";
   } catch (e) {
     log.error("twilio_voice_parse", null, e.message);
   }
 
-  log.server("twilio_voice_incoming", `From: ${callerNumber}, To: ${calledNumber}, CallSid: ${callSid}`);
+  // The number to route on: prefer ForwardedFrom/CalledVia (call-forwarding scenario),
+  // fall back to To (direct call to a dedicated Twilio number).
+  const routingNumber = forwardedFrom || calledVia || "";
+
+  log.server("twilio_voice_incoming", `From: ${callerNumber}, To: ${calledNumber}, ForwardedFrom: ${forwardedFrom}, CalledVia: ${calledVia}, CallSid: ${callSid}`);
 
   // Resolve accountId, phoneNumberId, activeModeId
   let accountId = "";
@@ -48,19 +56,33 @@ async function handleTwilioVoice(req, res) {
   let activeModeId = "";
 
   try {
-    const { data, error } = await supabaseAdmin
-      .from("phone_numbers")
-      .select("id, account_id")
-      .eq("e164_number", calledNumber)
-      .eq("status", "active")
-      .limit(1)
-      .maybeSingle();
+    let matched = null;
 
-    if (error) {
-      log.error("twilio_voice_db", null, error.message);
-    } else if (data) {
-      accountId = data.account_id;
-      phoneNumberId = data.id;
+    if (routingNumber) {
+      // Suffix-based matching: extract digits, compare right-to-left (min 8 digits)
+      matched = await resolveByDigitSuffix(routingNumber);
+    }
+
+    if (!matched) {
+      // Fallback: exact match on the called number (legacy / direct Twilio number)
+      const { data, error } = await supabaseAdmin
+        .from("phone_numbers")
+        .select("id, account_id")
+        .eq("e164_number", calledNumber)
+        .eq("status", "active")
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        log.error("twilio_voice_db", null, error.message);
+      } else if (data) {
+        matched = data;
+      }
+    }
+
+    if (matched) {
+      accountId = matched.account_id;
+      phoneNumberId = matched.id;
       log.server("twilio_voice_resolved", `accountId: ${accountId}, phoneNumberId: ${phoneNumberId}`);
 
       // Resolve active mode
@@ -81,7 +103,7 @@ async function handleTwilioVoice(req, res) {
         log.server("twilio_voice_mode_missing", "No active assistant_mode for account");
       }
     } else {
-      log.server("twilio_voice_no_number", `No phone_number found for ${calledNumber}`);
+      log.server("twilio_voice_no_number", `No phone_number found for routing=${routingNumber || calledNumber}`);
     }
   } catch (e) {
     log.error("twilio_voice_resolve", null, e.message);
