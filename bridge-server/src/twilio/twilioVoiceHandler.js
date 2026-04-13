@@ -58,9 +58,14 @@ async function handleTwilioVoice(req, res) {
   try {
     let matchedProfileId = null;
 
-    if (routingNumber) {
-      // Suffix-based matching against profiles.phone_e164
-      matchedProfileId = await resolveProfileByDigitSuffix(routingNumber);
+    // Try ForwardedFrom / CalledVia first, then fall back to To
+    const numbersToTry = [routingNumber, calledNumber].filter(Boolean);
+    for (const candidate of numbersToTry) {
+      matchedProfileId = await resolveProfileByDigitSuffix(candidate);
+      if (matchedProfileId) {
+        log.server("twilio_voice_matched_on", `candidate=${candidate}`);
+        break;
+      }
     }
 
     if (matchedProfileId) {
@@ -90,7 +95,7 @@ async function handleTwilioVoice(req, res) {
 
       log.server("twilio_voice_resolved", `profileId: ${matchedProfileId}, accountId: ${accountId}`);
     } else {
-      log.server("twilio_voice_no_profile", `No profile matched for routing=${routingNumber || calledNumber}`);
+      log.server("twilio_voice_no_profile", `No profile matched for any candidate: ${numbersToTry.join(", ")}`);
     }
 
     if (accountId) {
