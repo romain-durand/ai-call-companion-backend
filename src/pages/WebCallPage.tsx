@@ -35,8 +35,7 @@ export default function WebCallPage() {
       .then(({ data }) => {
         setDisplayName(data?.display_name || data?.first_name || "Assistant");
         setLoading(false);
-      })
-      .catch(() => setLoading(false));
+      });
   }, [profileId]);
 
   const startCall = useCallback(async () => {
