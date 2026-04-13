@@ -23,6 +23,11 @@ const server = http.createServer((req, res) => {
     return res.end();
   }
 
+  // Twilio voice webhook (replaces the Edge Function)
+  if (pathname === "/twilio-voice" && req.method === "POST") {
+    return handleTwilioVoice(req, res);
+  }
+
   // OAuth routes
   if (pathname === "/auth/google/start" && req.method === "GET") {
     return handleGoogleStart(req, res);
