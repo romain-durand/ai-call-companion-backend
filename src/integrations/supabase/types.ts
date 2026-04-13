@@ -1816,17 +1816,14 @@ export type Database = {
       public_profiles: {
         Row: {
           display_name: string | null
-          first_name: string | null
           id: string | null
         }
         Insert: {
           display_name?: string | null
-          first_name?: string | null
           id?: string | null
         }
         Update: {
           display_name?: string | null
-          first_name?: string | null
           id?: string | null
         }
         Relationships: []

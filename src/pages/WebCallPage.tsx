@@ -94,11 +94,11 @@ export default function WebCallPage() {
     if (!profileId) return;
     supabase
       .from("public_profiles" as any)
-      .select("display_name, first_name")
+      .select("display_name")
       .eq("id", profileId)
       .maybeSingle()
       .then(({ data }: any) => {
-        setDisplayName(data?.display_name || data?.first_name || "Assistant");
+        setDisplayName(data?.display_name || "Assistant");
         setLoading(false);
       });
   }, [profileId]);
