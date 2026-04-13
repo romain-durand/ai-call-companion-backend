@@ -54,9 +54,9 @@ async function handleTwilioVoice(req, res) {
   let accountId = "";
   let phoneNumberId = "";
   let activeModeId = "";
+  let matchedProfileId = null;
 
   try {
-    let matchedProfileId = null;
 
     // Try ForwardedFrom / CalledVia first, then fall back to To
     const numbersToTry = [routingNumber, calledNumber].filter(Boolean);
