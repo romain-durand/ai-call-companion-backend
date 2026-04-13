@@ -132,6 +132,71 @@ async function handleTwilioVoice(req, res) {
 }
 
 /**
+ * Extract only digits from a phone number string.
+ */
+function extractDigits(phone) {
+  return phone.replace(/\D/g, "");
+}
+
+/**
+ * Resolve a phone_number row by right-to-left digit suffix matching.
+ * Requires at least 8 matching trailing digits.
+ * Loads all active phone_numbers and compares suffixes in JS
+ * (the table is small — one row per user).
+ */
+async function resolveByDigitSuffix(routingNumber) {
+  const routingDigits = extractDigits(routingNumber);
+  if (routingDigits.length < 8) {
+    log.server("twilio_voice_suffix_skip", `routingNumber too short: ${routingNumber}`);
+    return null;
+  }
+
+  const routingSuffix = routingDigits.slice(-Math.max(8, routingDigits.length));
+
+  const { data: numbers, error } = await supabaseAdmin
+    .from("phone_numbers")
+    .select("id, account_id, e164_number")
+    .eq("status", "active");
+
+  if (error) {
+    log.error("twilio_voice_suffix_db", null, error.message);
+    return null;
+  }
+
+  if (!numbers || numbers.length === 0) return null;
+
+  // Find the best match: most trailing digits in common (min 8)
+  let bestMatch = null;
+  let bestLen = 0;
+
+  for (const num of numbers) {
+    const numDigits = extractDigits(num.e164_number);
+    // Compare right-to-left
+    let matchLen = 0;
+    const maxCompare = Math.min(routingSuffix.length, numDigits.length);
+    for (let i = 1; i <= maxCompare; i++) {
+      if (routingSuffix[routingSuffix.length - i] === numDigits[numDigits.length - i]) {
+        matchLen++;
+      } else {
+        break;
+      }
+    }
+    if (matchLen >= 8 && matchLen > bestLen) {
+      bestLen = matchLen;
+      bestMatch = num;
+    }
+  }
+
+  if (bestMatch) {
+    log.server("twilio_voice_suffix_matched", `routing=${routingNumber} matched=${bestMatch.e164_number} digits=${bestLen}`);
+    return { id: bestMatch.id, account_id: bestMatch.account_id };
+  }
+
+  log.server("twilio_voice_suffix_nomatch", `No suffix match for ${routingNumber}`);
+  return null;
+}
+
+/**
  * Parse URL-encoded form body from an http.IncomingMessage.
  */
 function parseFormBody(req) {
