@@ -94,6 +94,37 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
+      {/* Lien d'appel web */}
+      <Card className="bg-card/30">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Mon lien d'appel</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-xs text-muted-foreground">
+            Partagez ce lien ou ce QR code pour permettre à vos contacts de vous joindre via le web.
+          </p>
+          <div className="flex items-center gap-2">
+            <Input value={callUrl} readOnly className="text-xs font-mono" />
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => {
+                navigator.clipboard.writeText(callUrl);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+              }}
+            >
+              {copied ? <Check className="w-4 h-4 text-primary" /> : <Copy className="w-4 h-4" />}
+            </Button>
+          </div>
+          {callUrl && (
+            <div className="flex justify-center py-2">
+              <QRCodeSVG value={callUrl} size={160} bgColor="transparent" fgColor="hsl(var(--foreground))" />
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* General */}
       <Card className="bg-card/30">
         <CardHeader className="pb-3">
