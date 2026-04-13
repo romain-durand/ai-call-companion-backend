@@ -112,15 +112,18 @@ async function handleTwilioVoice(req, res) {
         log.server("twilio_voice_mode_missing", "No active assistant_mode for account");
       }
 
-      // Resolve phone_number for this account (optional, for metadata)
-      const { data: pn } = await supabaseAdmin
+      // Resolve phone_number for this account — try dedicated number first, then collection number
+      const { data: pnList } = await supabaseAdmin
         .from("phone_numbers")
-        .select("id")
+        .select("id, e164_number")
         .eq("account_id", accountId)
-        .eq("status", "active")
-        .limit(1)
-        .maybeSingle();
-      if (pn) phoneNumberId = pn.id;
+        .eq("status", "active");
+
+      if (pnList && pnList.length > 0) {
+        // Prefer a dedicated number (not the collection number), fallback to collection
+        const dedicated = pnList.find(p => p.e164_number !== calledNumber);
+        phoneNumberId = dedicated ? dedicated.id : pnList[0].id;
+      }
     }
   } catch (e) {
     log.error("twilio_voice_resolve", null, e.message);
