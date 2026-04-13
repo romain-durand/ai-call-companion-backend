@@ -218,10 +218,7 @@ export default function WebCallPage() {
           <Phone className="w-8 h-8 text-primary" />
         </div>
 
-        <div>
-          <h1 className="text-xl font-semibold">{displayName}</h1>
-          <p className="text-sm text-muted-foreground mt-1">Assistant vocal</p>
-        </div>
+        <h1 className="text-xl font-semibold">Assistant vocal de {displayName}</h1>
 
         {callState === "idle" && (
           <div className="space-y-4">
