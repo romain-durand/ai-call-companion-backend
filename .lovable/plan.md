@@ -1,53 +1,24 @@
 
 
-# Plan : Pré-connexion Gemini pendant la sonnerie
+## Bug: `matchedProfileId is not defined`
 
-## Probleme actuel
+### Cause
+`matchedProfileId` is declared with `let` at line 59, **inside** the `try` block. The TwiML template at line 148 references it **outside** the `try` block, where it doesn't exist.
 
-Gemini se connecte seulement quand l'interlocuteur décroche (event `start` dans `outboundStreamHandler`). La séquence est :
+### Fix
+Move the declaration of `matchedProfileId` to line 54-56, alongside `accountId`, `phoneNumberId`, and `activeModeId`:
 
-```text
-Twilio REST call → sonnerie → décrochage → WS Twilio "start"
-  → connectOutboundGemini() → WS open → setup → setupComplete
-  → attente parole → réponse
+```
+let accountId = "";
+let phoneNumberId = "";
+let activeModeId = "";
+let matchedProfileId = null;   // ← move here
 ```
 
-Le setup Gemini (connexion WS + envoi config + setupComplete) prend 1-3s, qui s'ajoutent après le décrochage.
+Then change line 59 from `let matchedProfileId = null;` to just remove the declaration (keep the assignment inside the loop at line 64 as-is since it already uses `=` not `let`).
 
-## Solution
+### Files modified
+- `bridge-server/src/twilio/twilioVoiceHandler.js` — one line moved, one line deleted.
 
-Lancer la connexion Gemini dès que l'appel Twilio est initié (pendant que ça sonne), puis la réutiliser quand le stream Twilio se connecte.
-
-```text
-Twilio REST call → sonnerie ──────────────────→ décrochage → WS "start"
-                 ↘ connectOutboundGemini()                    → réutilise geminiWs (déjà prêt)
-                    → WS open → setup → setupComplete (pendant la sonnerie)
-```
-
-## Modifications
-
-### 1. `outboundCallExecutor.js`
-- Après l'appel Twilio REST réussi, appeler `connectOutboundGemini` immédiatement avec un callCtx temporaire contenant les params de la mission
-- Stocker le Gemini WS pré-connecté dans `callStateStore` avec la clé `mission:<missionId>`
-- Le callCtx temporaire n'a pas de `onAudio` ni de `streamSid` — l'audio sera routé plus tard
-
-### 2. `outboundGeminiConnection.js`
-- Modifier `connectOutboundGemini` pour accepter un callback `onAudio` optionnel (peut être `null` au départ)
-- Ajouter une méthode `setAudioCallback(fn)` sur le WS retourné pour brancher l'audio après coup
-- Tant que `onAudio` est `null`, les paquets audio sont ignorés (pas de crash)
-
-### 3. `outboundStreamHandler.js`
-- Dans l'event `start`, au lieu de `connectOutboundGemini()`, chercher d'abord un WS pré-connecté via `callStore.get("mission:<missionId>")`
-- Si trouvé et `geminiReady === true` : réutiliser le WS, brancher le callback audio, fusionner les params dans le callCtx existant → gain de 1-3s
-- Si pas trouvé ou pas prêt : fallback à la connexion normale (aucune régression)
-- Nettoyer l'entrée `mission:` du store
-
-### 4. `callStateStore.js`
-- Aucune modification nécessaire, le store accepte déjà des clés arbitraires
-
-## Résultat attendu
-
-- Gemini est déjà en état `setupComplete` quand l'interlocuteur décroche
-- La réponse de l'assistant arrive dès la détection de parole, sans attente de connexion
-- Fallback transparent si la pré-connexion échoue
+No other changes needed.
 
