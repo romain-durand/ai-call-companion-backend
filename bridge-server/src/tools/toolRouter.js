@@ -613,23 +613,30 @@ async function isBookingAllowedByPolicy(callCtx, traceId) {
         .from("caller_groups")
         .select("id")
         .eq("account_id", callCtx.accountId)
-        .eq("slug", "unknown")
+        .in("slug", ["unknown", "default_group"])
+        .limit(1)
         .maybeSingle();
       if (unknownGroup) callerGroupId = unknownGroup.id;
     }
 
     if (!callerGroupId) return false;
 
-    const { data: rule } = await supabaseAdmin
+    let ruleQuery = supabaseAdmin
       .from("call_handling_rules")
       .select("booking_allowed")
       .eq("account_id", callCtx.accountId)
-      .eq("caller_group_id", callerGroupId)
+      .eq("caller_group_id", callerGroupId);
+
+    if (callCtx.activeModeId) {
+      ruleQuery = ruleQuery.eq("assistant_mode_id", callCtx.activeModeId);
+    }
+
+    const { data: rule } = await ruleQuery
       .limit(1)
       .maybeSingle();
 
     log.tool("booking_policy_checked", traceId,
-      `groupId=${callerGroupId}, booking_allowed=${rule?.booking_allowed}`);
+      `mode=${callCtx.activeModeId || "none"}, groupId=${callerGroupId}, booking_allowed=${rule?.booking_allowed}`);
     return rule?.booking_allowed === true;
   } catch (e) {
     log.error("booking_policy_check_error", traceId, e.message);

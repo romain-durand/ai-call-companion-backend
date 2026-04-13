@@ -23,6 +23,8 @@ async function buildRuntimeContext(callCtx) {
   let userPreferences = "No specific preferences configured.";
   let activeMode = "standard";
   let assistantControlMode = "strict_policy";
+  let activeModeCapabilities = "Booking: use caller-group policy.";
+  let activeModeAllowBooking = null;
   let callerGroupRules = "No specific caller group rules configured.";
   let smartScenarios = "No smart scenarios active.";
   let escalationRules = "Default: escalate only for high-priority or urgent callers.";
@@ -83,7 +85,7 @@ async function buildRuntimeContext(callCtx) {
         `modeId=${resolvedModeId}, accountId=${resolvedAccountId}`);
       const { data: mode, error: modeErr } = await supabaseAdmin
         .from("assistant_modes")
-        .select("name, description, urgency_sensitivity, control_mode")
+        .select("name, description, urgency_sensitivity, control_mode, allow_booking")
         .eq("id", resolvedModeId)
         .eq("account_id", resolvedAccountId)
         .maybeSingle();
@@ -96,15 +98,19 @@ async function buildRuntimeContext(callCtx) {
       } else {
         activeMode = `${mode.name}${mode.description ? " — " + mode.description : ""} (urgency sensitivity: ${mode.urgency_sensitivity})`;
         assistantControlMode = mode.control_mode || "strict_policy";
+        activeModeAllowBooking = mode.allow_booking === true;
+        activeModeCapabilities = activeModeAllowBooking
+          ? "Booking: allowed for all caller groups in this active mode."
+          : "Booking: use caller-group policy only.";
         log.call("runtime_context_active_mode_resolved", traceId,
-          `modeId=${resolvedModeId}, name=${mode.name}, control_mode=${assistantControlMode}`);
+          `modeId=${resolvedModeId}, name=${mode.name}, control_mode=${assistantControlMode}, allow_booking=${activeModeAllowBooking}`);
       }
     }
 
     // 4. Resolve caller group rules
     log.call("runtime_context_group_rules_lookup_started", traceId,
       `accountId=${resolvedAccountId}`);
-    const { data: rules, error: rulesErr } = await supabaseAdmin
+    let rulesQuery = supabaseAdmin
       .from("call_handling_rules")
       .select(`
         priority_rank,
@@ -115,7 +121,13 @@ async function buildRuntimeContext(callCtx) {
         booking_allowed,
         caller_groups(name, slug, priority_rank)
       `)
-      .eq("account_id", resolvedAccountId)
+      .eq("account_id", resolvedAccountId);
+
+    if (resolvedModeId) {
+      rulesQuery = rulesQuery.eq("assistant_mode_id", resolvedModeId);
+    }
+
+    const { data: rules, error: rulesErr } = await rulesQuery
       .order("priority_rank", { ascending: true })
       .limit(20);
 
@@ -178,7 +190,9 @@ async function buildRuntimeContext(callCtx) {
           directives.push("ALWAYS escalate immediately");
         }
 
-        if (r.booking_allowed) {
+        if (activeModeAllowBooking === true) {
+          directives.push("booking allowed by active mode");
+        } else if (r.booking_allowed) {
           directives.push("booking allowed");
         } else {
           directives.push("do NOT offer booking");
@@ -278,6 +292,8 @@ Active mode:
 ${activeMode}
 Assistant control mode:
 ${assistantControlMode}
+Active mode capabilities:
+${activeModeCapabilities}
 Caller group rules:
 ${callerGroupRules}
 Smart scenarios:
@@ -290,7 +306,7 @@ Current timezone:
 ${currentTimezone}
 
 Instruction:
-Apply this context using the assistant control mode. Start from caller-group policies, but adapt based on the control mode and real situation.`;
+Apply this context using the assistant control mode. For appointments, active mode booking permission takes precedence: if the active mode says booking is allowed, you may check availability and book; otherwise follow the caller-group booking rule. For everything else, follow the caller-group policies unless the runtime context explicitly says otherwise.`;
 
   log.call("runtime_context_built", traceId, `user=${userName}, mode=${activeMode}, controlMode=${assistantControlMode}, tz=${currentTimezone}, fallback=${usingFallback}`);
   return contextBlock;
