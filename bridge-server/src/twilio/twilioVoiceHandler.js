@@ -50,41 +50,50 @@ async function handleTwilioVoice(req, res) {
 
   log.server("twilio_voice_incoming", `From: ${callerNumber}, To: ${calledNumber}, ForwardedFrom: ${forwardedFrom}, CalledVia: ${calledVia}, CallSid: ${callSid}`);
 
-  // Resolve accountId, phoneNumberId, activeModeId
+  // Resolve accountId, activeModeId
   let accountId = "";
   let phoneNumberId = "";
   let activeModeId = "";
 
   try {
-    let matched = null;
+    let matchedProfileId = null;
 
     if (routingNumber) {
-      // Suffix-based matching: extract digits, compare right-to-left (min 8 digits)
-      matched = await resolveByDigitSuffix(routingNumber);
+      // Suffix-based matching against profiles.phone_e164
+      matchedProfileId = await resolveProfileByDigitSuffix(routingNumber);
     }
 
-    if (!matched) {
-      // Fallback: exact match on the called number (legacy / direct Twilio number)
-      const { data, error } = await supabaseAdmin
-        .from("phone_numbers")
-        .select("id, account_id")
-        .eq("e164_number", calledNumber)
-        .eq("status", "active")
+    if (matchedProfileId) {
+      // Find the account this profile belongs to
+      const { data: membership, error: memErr } = await supabaseAdmin
+        .from("account_members")
+        .select("account_id")
+        .eq("profile_id", matchedProfileId)
+        .eq("is_default_account", true)
         .limit(1)
         .maybeSingle();
 
-      if (error) {
-        log.error("twilio_voice_db", null, error.message);
-      } else if (data) {
-        matched = data;
+      if (memErr) {
+        log.error("twilio_voice_membership", null, memErr.message);
+      } else if (membership) {
+        accountId = membership.account_id;
+      } else {
+        // Fallback: any account for this profile
+        const { data: anyMem, error: anyErr } = await supabaseAdmin
+          .from("account_members")
+          .select("account_id")
+          .eq("profile_id", matchedProfileId)
+          .limit(1)
+          .maybeSingle();
+        if (!anyErr && anyMem) accountId = anyMem.account_id;
       }
+
+      log.server("twilio_voice_resolved", `profileId: ${matchedProfileId}, accountId: ${accountId}`);
+    } else {
+      log.server("twilio_voice_no_profile", `No profile matched for routing=${routingNumber || calledNumber}`);
     }
 
-    if (matched) {
-      accountId = matched.account_id;
-      phoneNumberId = matched.id;
-      log.server("twilio_voice_resolved", `accountId: ${accountId}, phoneNumberId: ${phoneNumberId}`);
-
+    if (accountId) {
       // Resolve active mode
       const { data: mode, error: modeErr } = await supabaseAdmin
         .from("assistant_modes")
@@ -102,8 +111,16 @@ async function handleTwilioVoice(req, res) {
       } else {
         log.server("twilio_voice_mode_missing", "No active assistant_mode for account");
       }
-    } else {
-      log.server("twilio_voice_no_number", `No phone_number found for routing=${routingNumber || calledNumber}`);
+
+      // Resolve phone_number for this account (optional, for metadata)
+      const { data: pn } = await supabaseAdmin
+        .from("phone_numbers")
+        .select("id")
+        .eq("account_id", accountId)
+        .eq("status", "active")
+        .limit(1)
+        .maybeSingle();
+      if (pn) phoneNumberId = pn.id;
     }
   } catch (e) {
     log.error("twilio_voice_resolve", null, e.message);
@@ -144,7 +161,7 @@ function extractDigits(phone) {
  * Loads all active phone_numbers and compares suffixes in JS
  * (the table is small — one row per user).
  */
-async function resolveByDigitSuffix(routingNumber) {
+async function resolveProfileByDigitSuffix(routingNumber) {
   const routingDigits = extractDigits(routingNumber);
   if (routingDigits.length < 8) {
     log.server("twilio_voice_suffix_skip", `routingNumber too short: ${routingNumber}`);
@@ -153,25 +170,23 @@ async function resolveByDigitSuffix(routingNumber) {
 
   const routingSuffix = routingDigits.slice(-Math.max(8, routingDigits.length));
 
-  const { data: numbers, error } = await supabaseAdmin
-    .from("phone_numbers")
-    .select("id, account_id, e164_number")
-    .eq("status", "active");
+  const { data: profiles, error } = await supabaseAdmin
+    .from("profiles")
+    .select("id, phone_e164")
+    .not("phone_e164", "is", null);
 
   if (error) {
     log.error("twilio_voice_suffix_db", null, error.message);
     return null;
   }
 
-  if (!numbers || numbers.length === 0) return null;
+  if (!profiles || profiles.length === 0) return null;
 
-  // Find the best match: most trailing digits in common (min 8)
   let bestMatch = null;
   let bestLen = 0;
 
-  for (const num of numbers) {
-    const numDigits = extractDigits(num.e164_number);
-    // Compare right-to-left
+  for (const profile of profiles) {
+    const numDigits = extractDigits(profile.phone_e164);
     let matchLen = 0;
     const maxCompare = Math.min(routingSuffix.length, numDigits.length);
     for (let i = 1; i <= maxCompare; i++) {
@@ -183,16 +198,16 @@ async function resolveByDigitSuffix(routingNumber) {
     }
     if (matchLen >= 8 && matchLen > bestLen) {
       bestLen = matchLen;
-      bestMatch = num;
+      bestMatch = profile;
     }
   }
 
   if (bestMatch) {
-    log.server("twilio_voice_suffix_matched", `routing=${routingNumber} matched=${bestMatch.e164_number} digits=${bestLen}`);
-    return { id: bestMatch.id, account_id: bestMatch.account_id };
+    log.server("twilio_voice_suffix_matched", `routing=${routingNumber} matched=${bestMatch.phone_e164} profileId=${bestMatch.id} digits=${bestLen}`);
+    return bestMatch.id;
   }
 
-  log.server("twilio_voice_suffix_nomatch", `No suffix match for ${routingNumber}`);
+  log.server("twilio_voice_suffix_nomatch", `No profile suffix match for ${routingNumber}`);
   return null;
 }
 
