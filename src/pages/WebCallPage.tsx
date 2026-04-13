@@ -93,11 +93,11 @@ export default function WebCallPage() {
   useEffect(() => {
     if (!profileId) return;
     supabase
-      .from("profiles")
+      .from("public_profiles" as any)
       .select("display_name, first_name")
       .eq("id", profileId)
       .maybeSingle()
-      .then(({ data }) => {
+      .then(({ data }: any) => {
         setDisplayName(data?.display_name || data?.first_name || "Assistant");
         setLoading(false);
       });
