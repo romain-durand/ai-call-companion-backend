@@ -7,6 +7,7 @@ const { handleTransferAudioConnection } = require("./transfer/transferAudioHandl
 const { handleOutboundStreamConnection } = require("./outbound/outboundStreamHandler");
 const { startOutboundPoller } = require("./outbound/outboundPoller");
 const { handleGoogleStart, handleGoogleCallback } = require("./auth/googleOAuth");
+const { handleTwilioVoice } = require("./twilio/twilioVoiceHandler");
 const log = require("./observability/logger");
 
 const server = http.createServer((req, res) => {
