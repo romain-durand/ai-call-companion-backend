@@ -7,6 +7,7 @@ const { handleTransferAudioConnection } = require("./transfer/transferAudioHandl
 const { handleOutboundStreamConnection } = require("./outbound/outboundStreamHandler");
 const { startOutboundPoller } = require("./outbound/outboundPoller");
 const { handleGoogleStart, handleGoogleCallback } = require("./auth/googleOAuth");
+const { handleTwilioVoice } = require("./twilio/twilioVoiceHandler");
 const log = require("./observability/logger");
 
 const server = http.createServer((req, res) => {
@@ -20,6 +21,11 @@ const server = http.createServer((req, res) => {
       "Access-Control-Allow-Headers": "Authorization",
     });
     return res.end();
+  }
+
+  // Twilio voice webhook (replaces the Edge Function)
+  if (pathname === "/twilio-voice" && req.method === "POST") {
+    return handleTwilioVoice(req, res);
   }
 
   // OAuth routes
