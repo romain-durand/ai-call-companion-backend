@@ -18,6 +18,7 @@ import HowToHandle from "./pages/HowToHandle";
 import WhenToAlert from "./pages/WhenToAlert";
 import MissionsPage from "./pages/MissionsPage";
 import Login from "./pages/Login";
+import WebCallPage from "./pages/WebCallPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -31,6 +32,7 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/call/:profileId" element={<WebCallPage />} />
             <Route
               path="/*"
               element={
