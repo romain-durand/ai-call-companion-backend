@@ -84,6 +84,7 @@ export default function ActiveModeSelector() {
         {modes.map((mode) => {
           const isActive = mode.id === activeMode?.id;
           const icon = MODE_ICONS[mode.slug] || "⚙️";
+          const isAutopilot = mode.slug === "autopilot";
 
           return (
             <motion.div key={mode.id} whileTap={{ scale: 0.97 }}>
