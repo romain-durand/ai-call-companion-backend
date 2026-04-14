@@ -27,7 +27,7 @@ async function buildRuntimeContext(callCtx) {
   let activeModeAllowBooking = null;
   let callerGroupRules = "No specific caller group rules configured.";
   let smartScenarios = "No smart scenarios active.";
-  let escalationRules = "Default: escalate only for high-priority or urgent callers.";
+  
   let callerContext = "No prior caller context available.";
   let currentTimezone = "Europe/Paris";
 
@@ -298,8 +298,6 @@ Caller group rules:
 ${callerGroupRules}
 Smart scenarios:
 ${smartScenarios}
-Escalation rules:
-${escalationRules}
 Known caller context:
 ${callerContext}
 Current timezone:
