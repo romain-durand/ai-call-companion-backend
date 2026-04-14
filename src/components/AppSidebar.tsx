@@ -60,7 +60,7 @@ export function AppSidebar() {
   const { data: accountId } = useUserAccountId();
 
   const modeIcons: Record<string, string> = {
-    work: "💼", personal: "🏠", night: "🌙", focus: "🎯",
+    work: "💼", personal: "🏠", autopilot: "🤖", focus: "🎯",
   };
 
   const { data: activeMode } = useQuery({
@@ -144,8 +144,14 @@ export function AppSidebar() {
 
       <SidebarFooter className="p-4 space-y-2">
         {!collapsed && (
-          <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-primary/5 border border-primary/10">
-            <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+          <div className={`flex items-center gap-2.5 px-3 py-2 rounded-lg border ${
+            activeMode?.slug === "autopilot"
+              ? "bg-emerald-500/10 border-emerald-500/20"
+              : "bg-primary/5 border-primary/10"
+          }`}>
+            <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${
+              activeMode?.slug === "autopilot" ? "bg-emerald-500" : "bg-primary"
+            }`} />
             <span className="text-[11px] text-muted-foreground">
               Mode {activeMode?.name || "…"} actif {activeMode?.slug ? (modeIcons[activeMode.slug] || "") : ""}
             </span>

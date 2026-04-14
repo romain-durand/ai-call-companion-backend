@@ -13,8 +13,8 @@ type AssistantMode = Tables<"assistant_modes">;
 const MODE_ICONS: Record<string, string> = {
   work: "💼",
   personal: "🏠",
-  night: "🌙",
   focus: "🎯",
+  autopilot: "🤖",
 };
 
 export default function ActiveModeSelector() {
@@ -84,14 +84,19 @@ export default function ActiveModeSelector() {
         {modes.map((mode) => {
           const isActive = mode.id === activeMode?.id;
           const icon = MODE_ICONS[mode.slug] || "⚙️";
+          const isAutopilot = mode.slug === "autopilot";
 
           return (
             <motion.div key={mode.id} whileTap={{ scale: 0.97 }}>
               <Card
                 className={`cursor-pointer transition-all ${
                   isActive
-                    ? "border-primary/50 bg-card/60"
-                    : "bg-card/20 hover:bg-card/40 border-border/30"
+                    ? isAutopilot
+                      ? "border-emerald-500/60 bg-emerald-950/30 ring-1 ring-emerald-500/30"
+                      : "border-primary/50 bg-card/60"
+                    : isAutopilot
+                      ? "bg-emerald-950/10 hover:bg-emerald-950/20 border-emerald-500/20"
+                      : "bg-card/20 hover:bg-card/40 border-border/30"
                 }`}
                 onClick={() => {
                   if (!isActive && !switchMode.isPending) {
@@ -101,12 +106,14 @@ export default function ActiveModeSelector() {
               >
                 <CardContent className="p-3 text-center relative">
                   {isActive && (
-                    <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
+                    <div className={`absolute top-1.5 right-1.5 w-4 h-4 rounded-full flex items-center justify-center ${
+                      isAutopilot ? "bg-emerald-500" : "bg-primary"
+                    }`}>
                       <Check className="w-2.5 h-2.5 text-primary-foreground" />
                     </div>
                   )}
                   <div className="text-2xl mb-1">{icon}</div>
-                  <h3 className="text-xs font-semibold">{mode.name}</h3>
+                  <h3 className={`text-xs font-semibold ${isAutopilot ? "text-emerald-400" : ""}`}>{mode.name}</h3>
                   {mode.description && (
                     <p className="text-[10px] text-muted-foreground mt-0.5 leading-snug line-clamp-2">
                       {mode.description}
