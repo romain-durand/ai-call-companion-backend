@@ -105,31 +105,8 @@ async function handleGetCallerProfile(args, callCtx, traceId) {
 // ─── create_callback ─────────────────────────────────────────
 
 async function handleCreateCallback(args, callCtx, traceId) {
-  // In full_autonomy mode, skip policy guardrail — the AI decides
-  if (callCtx.controlMode !== "full_autonomy") {
-    // Backend guardrail: check caller-group policy before allowing callback (fail-closed)
-    const policyResult = await isCallbackAllowedByPolicy(callCtx, traceId);
-    if (policyResult === "blocked") {
-      log.tool("callback_blocked_by_policy", traceId,
-        `accountId=${callCtx.accountId}, callerGroupId=${callCtx.callerGroupId || "unknown"}`);
-      return {
-        success: false,
-        callback_request_id: null,
-        message: "Callback not allowed for this caller group. Take a message instead.",
-      };
-    }
-    if (policyResult === "unverifiable") {
-      log.tool("callback_blocked_policy_verification_failed", traceId,
-        `accountId=${callCtx.accountId}, callerNumber=${callCtx.callerNumber || "unknown"}`);
-      return {
-        success: false,
-        callback_request_id: null,
-        message: "Callback could not be created because callback policy could not be verified. Take a message instead.",
-      };
-    }
-  } else {
-    log.tool("callback_policy_bypassed_full_autonomy", traceId, `accountId=${callCtx.accountId}`);
-  }
+  // Callback is always allowed — it's part of take_message flow
+  // No policy guardrail needed since callback_allowed column was removed
 
   const cbId = await createCallbackRequest(callCtx, args);
   if (cbId) {
@@ -146,19 +123,14 @@ async function handleCreateCallback(args, callCtx, traceId) {
   };
 }
 
-// ─── Policy check: is callback allowed for the caller's group? ───
+// ─── Policy check helpers (behavior-based) ──────────────────
 
-async function isCallbackAllowedByPolicy(callCtx, traceId) {
-  if (!callCtx.accountId) {
-    log.tool("callback_policy_no_account", traceId, "no accountId — fail-closed");
-    return "unverifiable";
-  }
+async function resolveCallerGroupBehavior(callCtx, traceId) {
+  if (!callCtx.accountId) return null;
 
   try {
-    // Resolve the caller's group ID from callCtx or from contact lookup
     let callerGroupId = callCtx.callerGroupId || null;
 
-    // If no group ID on context, try to resolve from contact's group membership
     if (!callerGroupId && callCtx.callerNumber && callCtx.callerNumber !== "unknown") {
       const { data: contact } = await supabaseAdmin
         .from("contacts")
@@ -175,52 +147,38 @@ async function isCallbackAllowedByPolicy(callCtx, traceId) {
           .eq("account_id", callCtx.accountId)
           .limit(1)
           .maybeSingle();
-
-        if (membership) {
-          callerGroupId = membership.caller_group_id;
-        }
+        if (membership) callerGroupId = membership.caller_group_id;
       }
     }
 
-    // If still no group, try to find the "unknown" / default group
     if (!callerGroupId) {
-      const { data: unknownGroup } = await supabaseAdmin
+      const { data: defaultGroup } = await supabaseAdmin
         .from("caller_groups")
         .select("id")
         .eq("account_id", callCtx.accountId)
-        .eq("slug", "unknown")
+        .in("slug", ["unknown", "default_group"])
+        .limit(1)
         .maybeSingle();
-
-      if (unknownGroup) {
-        callerGroupId = unknownGroup.id;
-      }
+      if (defaultGroup) callerGroupId = defaultGroup.id;
     }
 
-    if (!callerGroupId) {
-      log.tool("callback_policy_no_group", traceId, "no caller group resolved — fail-closed");
-      return "unverifiable";
-    }
+    if (!callerGroupId) return null;
 
-    // Look up the call_handling_rule for this group
-    const { data: rule } = await supabaseAdmin
+    let ruleQuery = supabaseAdmin
       .from("call_handling_rules")
-      .select("callback_allowed")
+      .select("behavior")
       .eq("account_id", callCtx.accountId)
-      .eq("caller_group_id", callerGroupId)
-      .limit(1)
-      .maybeSingle();
+      .eq("caller_group_id", callerGroupId);
 
-    if (!rule) {
-      log.tool("callback_policy_no_rule", traceId, `no rule for groupId=${callerGroupId} — fail-closed`);
-      return "unverifiable";
+    if (callCtx.activeModeId) {
+      ruleQuery = ruleQuery.eq("assistant_mode_id", callCtx.activeModeId);
     }
 
-    log.tool("callback_policy_checked", traceId,
-      `groupId=${callerGroupId}, callback_allowed=${rule.callback_allowed}`);
-    return rule.callback_allowed === true ? "allowed" : "blocked";
+    const { data: rule } = await ruleQuery.limit(1).maybeSingle();
+    return rule?.behavior || null;
   } catch (e) {
-    log.error("callback_policy_check_error", traceId, e.message);
-    return "unverifiable"; // fail-closed
+    log.error("resolve_caller_group_behavior_error", traceId, e.message);
+    return null;
   }
 }
 
@@ -572,7 +530,7 @@ async function isBookingAllowedByPolicy(callCtx, traceId) {
   if (!callCtx.accountId) return false;
 
   try {
-    // 1. Check mode-level allow_booking flag first
+    // Check mode-level allow_booking flag first
     if (callCtx.activeModeId) {
       const { data: mode } = await supabaseAdmin
         .from("assistant_modes")
@@ -587,62 +545,15 @@ async function isBookingAllowedByPolicy(callCtx, traceId) {
       }
     }
 
-    // 2. Fall back to per-group rule
-    let callerGroupId = callCtx.callerGroupId || null;
-
-    if (!callerGroupId && callCtx.callerNumber && callCtx.callerNumber !== "unknown") {
-      const { data: contact } = await supabaseAdmin
-        .from("contacts")
-        .select("id")
-        .eq("account_id", callCtx.accountId)
-        .or(`primary_phone_e164.eq.${callCtx.callerNumber},secondary_phone_e164.eq.${callCtx.callerNumber}`)
-        .maybeSingle();
-
-      if (contact) {
-        const { data: membership } = await supabaseAdmin
-          .from("contact_group_memberships")
-          .select("caller_group_id")
-          .eq("contact_id", contact.id)
-          .eq("account_id", callCtx.accountId)
-          .limit(1)
-          .maybeSingle();
-        if (membership) callerGroupId = membership.caller_group_id;
-      }
-    }
-
-    if (!callerGroupId) {
-      const { data: unknownGroup } = await supabaseAdmin
-        .from("caller_groups")
-        .select("id")
-        .eq("account_id", callCtx.accountId)
-        .in("slug", ["unknown", "default_group"])
-        .limit(1)
-        .maybeSingle();
-      if (unknownGroup) callerGroupId = unknownGroup.id;
-    }
-
-    if (!callerGroupId) return false;
-
-    let ruleQuery = supabaseAdmin
-      .from("call_handling_rules")
-      .select("booking_allowed")
-      .eq("account_id", callCtx.accountId)
-      .eq("caller_group_id", callerGroupId);
-
-    if (callCtx.activeModeId) {
-      ruleQuery = ruleQuery.eq("assistant_mode_id", callCtx.activeModeId);
-    }
-
-    const { data: rule } = await ruleQuery
-      .limit(1)
-      .maybeSingle();
-
+    // Check behavior-based policy
+    const behavior = await resolveCallerGroupBehavior(callCtx, traceId);
+    const allowed = behavior === "book_appointment";
     log.tool("booking_policy_checked", traceId,
-      `mode=${callCtx.activeModeId || "none"}, groupId=${callerGroupId}, booking_allowed=${rule?.booking_allowed}`);
-    return rule?.booking_allowed === true;
+      `behavior=${behavior}, allowed=${allowed}`);
+    return allowed;
   } catch (e) {
     log.error("booking_policy_check_error", traceId, e.message);
-    return false; // fail-closed
+    return false;
   }
 }
 

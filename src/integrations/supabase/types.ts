@@ -598,12 +598,8 @@ export type Database = {
           account_id: string
           assistant_mode_id: string
           behavior: Database["public"]["Enums"]["call_behavior"]
-          booking_allowed: boolean
-          callback_allowed: boolean
           caller_group_id: string
           created_at: string
-          escalation_allowed: boolean
-          force_escalation: boolean
           id: string
           priority_rank: number
           summary_required: boolean
@@ -613,12 +609,8 @@ export type Database = {
           account_id: string
           assistant_mode_id: string
           behavior?: Database["public"]["Enums"]["call_behavior"]
-          booking_allowed?: boolean
-          callback_allowed?: boolean
           caller_group_id: string
           created_at?: string
-          escalation_allowed?: boolean
-          force_escalation?: boolean
           id?: string
           priority_rank?: number
           summary_required?: boolean
@@ -628,12 +620,8 @@ export type Database = {
           account_id?: string
           assistant_mode_id?: string
           behavior?: Database["public"]["Enums"]["call_behavior"]
-          booking_allowed?: boolean
-          callback_allowed?: boolean
           caller_group_id?: string
           created_at?: string
-          escalation_allowed?: boolean
-          force_escalation?: boolean
           id?: string
           priority_rank?: number
           summary_required?: boolean
@@ -1857,13 +1845,11 @@ export type Database = {
       calendar_connection_status: "active" | "expired" | "revoked" | "error"
       calendar_provider: "google" | "outlook" | "apple" | "other"
       call_behavior:
-        | "answer_and_take_message"
-        | "answer_and_transfer"
-        | "answer_and_book"
-        | "answer_and_escalate"
-        | "answer_only"
+        | "take_message"
+        | "transfer"
+        | "ask_user"
+        | "book_appointment"
         | "block"
-        | "voicemail"
       call_direction: "inbound" | "outbound"
       call_outcome:
         | "completed"
@@ -2091,13 +2077,11 @@ export const Constants = {
       calendar_connection_status: ["active", "expired", "revoked", "error"],
       calendar_provider: ["google", "outlook", "apple", "other"],
       call_behavior: [
-        "answer_and_take_message",
-        "answer_and_transfer",
-        "answer_and_book",
-        "answer_and_escalate",
-        "answer_only",
+        "take_message",
+        "transfer",
+        "ask_user",
+        "book_appointment",
         "block",
-        "voicemail",
       ],
       call_direction: ["inbound", "outbound"],
       call_outcome: [

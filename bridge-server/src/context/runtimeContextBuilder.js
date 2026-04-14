@@ -119,10 +119,6 @@ async function buildRuntimeContext(callCtx) {
       .select(`
         priority_rank,
         behavior,
-        escalation_allowed,
-        force_escalation,
-        callback_allowed,
-        booking_allowed,
         caller_groups(name, slug, priority_rank)
       `)
       .eq("account_id", resolvedAccountId);
@@ -150,52 +146,16 @@ async function buildRuntimeContext(callCtx) {
         }
         const gName = r.caller_groups?.name || "unknown group";
 
-        // Build directive description from behavior + booleans
-        const directives = [];
+        // Map behavior to directive
+        const behaviorDirective = {
+          take_message: "take a message and end the call",
+          transfer: "transfer the call to the user",
+          ask_user: "consult the user in real-time before deciding (use consult_user tool)",
+          book_appointment: "offer to book an appointment",
+          block: "politely decline and end the call",
+        }[r.behavior] || `behavior=${r.behavior}`;
 
-        // Primary behavior directive
-        switch (r.behavior) {
-          case "answer_and_take_message":
-            directives.push("take message only");
-            break;
-          case "answer_and_escalate":
-            directives.push("take details then escalate");
-            break;
-          case "answer_and_transfer":
-            directives.push("transfer the call");
-            break;
-          case "answer_and_book":
-            directives.push("offer booking");
-            break;
-          case "block":
-            directives.push("decline and end call");
-            break;
-          case "voicemail":
-            directives.push("send to voicemail");
-            break;
-          default:
-            directives.push(`behavior=${r.behavior}`);
-        }
-
-        // Explicit allow/deny directives
-        if (r.callback_allowed) {
-          directives.push("callback allowed");
-        } else {
-          directives.push("do NOT offer callback");
-        }
-
-
-
-
-        if (activeModeAllowBooking === true) {
-          directives.push("booking allowed by active mode");
-        } else if (r.booking_allowed) {
-          directives.push("booking allowed");
-        } else {
-          directives.push("do NOT offer booking");
-        }
-
-        return `Group "${gName}": ${directives.join("; ")}`;
+        return `Group "${gName}": ${behaviorDirective}`;
       }).join("\n");
       log.call("runtime_context_group_rules_resolved", traceId,
         `count=${rules.length}, incomplete=${incompleteCount}`);
