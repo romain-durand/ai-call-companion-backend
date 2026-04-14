@@ -1847,7 +1847,10 @@ export type Database = {
         | "cancelled"
         | "completed"
         | "no_show"
-      assistant_control_mode: "strict_policy" | "model_discretion"
+      assistant_control_mode:
+        | "strict_policy"
+        | "model_discretion"
+        | "full_autonomy"
       billing_interval: "monthly" | "yearly"
       billing_provider: "stripe" | "manual"
       booked_by_type: "assistant" | "user" | "external"
@@ -2077,7 +2080,11 @@ export const Constants = {
         "completed",
         "no_show",
       ],
-      assistant_control_mode: ["strict_policy", "model_discretion"],
+      assistant_control_mode: [
+        "strict_policy",
+        "model_discretion",
+        "full_autonomy",
+      ],
       billing_interval: ["monthly", "yearly"],
       billing_provider: ["stripe", "manual"],
       booked_by_type: ["assistant", "user", "external"],
