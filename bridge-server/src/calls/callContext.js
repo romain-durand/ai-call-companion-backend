@@ -16,6 +16,7 @@ function createCallContext() {
     phoneNumberId: null,
     profileId: null,
     activeModeId: null,
+    controlMode: "strict_policy",
     startedAt: null,
     finalized: false,
     _txBuffer: null,

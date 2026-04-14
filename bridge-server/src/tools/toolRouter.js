@@ -105,25 +105,30 @@ async function handleGetCallerProfile(args, callCtx, traceId) {
 // ─── create_callback ─────────────────────────────────────────
 
 async function handleCreateCallback(args, callCtx, traceId) {
-  // Backend guardrail: check caller-group policy before allowing callback (fail-closed)
-  const policyResult = await isCallbackAllowedByPolicy(callCtx, traceId);
-  if (policyResult === "blocked") {
-    log.tool("callback_blocked_by_policy", traceId,
-      `accountId=${callCtx.accountId}, callerGroupId=${callCtx.callerGroupId || "unknown"}`);
-    return {
-      success: false,
-      callback_request_id: null,
-      message: "Callback not allowed for this caller group. Take a message instead.",
-    };
-  }
-  if (policyResult === "unverifiable") {
-    log.tool("callback_blocked_policy_verification_failed", traceId,
-      `accountId=${callCtx.accountId}, callerNumber=${callCtx.callerNumber || "unknown"}`);
-    return {
-      success: false,
-      callback_request_id: null,
-      message: "Callback could not be created because callback policy could not be verified. Take a message instead.",
-    };
+  // In full_autonomy mode, skip policy guardrail — the AI decides
+  if (callCtx.controlMode !== "full_autonomy") {
+    // Backend guardrail: check caller-group policy before allowing callback (fail-closed)
+    const policyResult = await isCallbackAllowedByPolicy(callCtx, traceId);
+    if (policyResult === "blocked") {
+      log.tool("callback_blocked_by_policy", traceId,
+        `accountId=${callCtx.accountId}, callerGroupId=${callCtx.callerGroupId || "unknown"}`);
+      return {
+        success: false,
+        callback_request_id: null,
+        message: "Callback not allowed for this caller group. Take a message instead.",
+      };
+    }
+    if (policyResult === "unverifiable") {
+      log.tool("callback_blocked_policy_verification_failed", traceId,
+        `accountId=${callCtx.accountId}, callerNumber=${callCtx.callerNumber || "unknown"}`);
+      return {
+        success: false,
+        callback_request_id: null,
+        message: "Callback could not be created because callback policy could not be verified. Take a message instead.",
+      };
+    }
+  } else {
+    log.tool("callback_policy_bypassed_full_autonomy", traceId, `accountId=${callCtx.accountId}`);
   }
 
   const cbId = await createCallbackRequest(callCtx, args);
@@ -525,10 +530,15 @@ async function handleBookAppointment(args, callCtx, traceId) {
     return { success: false, message: "No account context — cannot book appointment." };
   }
 
-  // Backend guardrail: check booking_allowed policy
-  const policyOk = await isBookingAllowedByPolicy(callCtx, traceId);
-  if (!policyOk) {
-    return { success: false, message: "Booking is not allowed for this caller group. Take a message instead." };
+  // In full_autonomy mode, skip policy guardrail — the AI decides
+  if (callCtx.controlMode !== "full_autonomy") {
+    // Backend guardrail: check booking_allowed policy
+    const policyOk = await isBookingAllowedByPolicy(callCtx, traceId);
+    if (!policyOk) {
+      return { success: false, message: "Booking is not allowed for this caller group. Take a message instead." };
+    }
+  } else {
+    log.tool("booking_policy_bypassed_full_autonomy", traceId, `accountId=${callCtx.accountId}`);
   }
 
   try {

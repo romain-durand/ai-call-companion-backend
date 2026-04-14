@@ -102,6 +102,10 @@ async function buildRuntimeContext(callCtx) {
         activeModeCapabilities = activeModeAllowBooking
           ? "Booking: allowed for all caller groups in this active mode."
           : "Booking: use caller-group policy only.";
+
+        // Store control_mode on callCtx for downstream guardrails
+        callCtx.controlMode = assistantControlMode;
+
         log.call("runtime_context_active_mode_resolved", traceId,
           `modeId=${resolvedModeId}, name=${mode.name}, control_mode=${assistantControlMode}, allow_booking=${activeModeAllowBooking}`);
       }
@@ -277,6 +281,12 @@ async function buildRuntimeContext(callCtx) {
     log.error("runtime_context_build_error", traceId, e.message);
   }
 
+  const instructionText = assistantControlMode === "full_autonomy"
+    ? `Instruction:
+You are in FULL AUTONOMY mode. You have complete freedom to decide how to handle this call. Use get_caller_profile to identify the caller and adapt your approach. All tools are available — use your best judgment. Custom instructions (contact-level and group-level) listed above MUST still be respected. Caller group rules are provided for reference only — you may follow or override them as you see fit.`
+    : `Instruction:
+Apply this context using the assistant control mode. For appointments, active mode booking permission takes precedence: if the active mode says booking is allowed, you may check availability and book; otherwise follow the caller-group booking rule. For everything else, follow the caller-group policies unless the runtime context explicitly says otherwise.`;
+
   const contextBlock = `RUNTIME CONTEXT
 User name: ${userName}
 User preferences:
@@ -296,8 +306,7 @@ ${callerContext}
 Current timezone:
 ${currentTimezone}
 
-Instruction:
-Apply this context using the assistant control mode. For appointments, active mode booking permission takes precedence: if the active mode says booking is allowed, you may check availability and book; otherwise follow the caller-group booking rule. For everything else, follow the caller-group policies unless the runtime context explicitly says otherwise.`;
+${instructionText}`;
 
   log.call("runtime_context_built", traceId, `user=${userName}, mode=${activeMode}, controlMode=${assistantControlMode}, tz=${currentTimezone}, fallback=${usingFallback}`);
   return contextBlock;
