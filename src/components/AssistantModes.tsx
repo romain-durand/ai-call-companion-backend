@@ -1,37 +1,45 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Check, Info } from "lucide-react";
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserAccountId } from "@/hooks/useUserAccountId";
+import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 
 type AssistantMode = Tables<"assistant_modes">;
 type CallerGroup = Tables<"caller_groups">;
 type CallHandlingRule = Tables<"call_handling_rules">;
 
-const BEHAVIOR_LABELS: Record<string, { label: string; color: string }> = {
-  answer_and_take_message: { label: "Messagerie", color: "bg-muted text-muted-foreground" },
-  answer_and_transfer: { label: "Transférer", color: "bg-blue-500/20 text-blue-400" },
-  answer_and_book: { label: "Réserver", color: "bg-purple-500/20 text-purple-400" },
-  answer_and_escalate: { label: "Escalader", color: "bg-amber-500/20 text-amber-400" },
-  answer_only: { label: "Répondre", color: "bg-emerald-500/20 text-emerald-400" },
-  block: { label: "Bloquer", color: "bg-red-500/20 text-red-400" },
-  voicemail: { label: "Messagerie vocale", color: "bg-muted text-muted-foreground" },
-};
+const BEHAVIOR_OPTIONS: { value: string; label: string; icon: string }[] = [
+  { value: "take_message", label: "Prendre un message", icon: "📝" },
+  { value: "transfer", label: "Transférer", icon: "📲" },
+  { value: "ask_user", label: "Demander mon avis", icon: "💬" },
+  { value: "book_appointment", label: "Proposer un RDV", icon: "📅" },
+  { value: "block", label: "Bloquer", icon: "🚫" },
+];
 
 const MODE_ICONS: Record<string, string> = {
   work: "💼",
   personal: "🏠",
   focus: "🎯",
+  night: "🌙",
   autopilot: "🤖",
 };
 
 export default function AssistantModes() {
   const { data: accountId } = useUserAccountId();
+  const queryClient = useQueryClient();
 
   const { data: modes, isLoading: modesLoading } = useQuery({
     queryKey: ["assistant-modes", accountId],
@@ -66,6 +74,23 @@ export default function AssistantModes() {
     enabled: !!accountId && !!currentModeId,
   });
 
+  const updateBehavior = useMutation({
+    mutationFn: async ({ ruleId, behavior }: { ruleId: string; behavior: string }) => {
+      const { error } = await supabase
+        .from("call_handling_rules")
+        .update({ behavior: behavior as any })
+        .eq("id", ruleId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["call-handling-rules", accountId, currentModeId] });
+      toast.success("Règle mise à jour");
+    },
+    onError: () => {
+      toast.error("Erreur lors de la mise à jour");
+    },
+  });
+
   if (modesLoading) {
     return (
       <div className="space-y-6 max-w-4xl">
@@ -87,13 +112,12 @@ export default function AssistantModes() {
     );
   }
 
-  // Separate autopilot from regular modes
   const autopilotMode = modes.find((m) => m.slug === "autopilot");
   const regularModes = modes.filter((m) => m.slug !== "autopilot");
 
   return (
     <div className="space-y-8 max-w-4xl">
-      {/* Autopilot card - featured above */}
+      {/* Autopilot card */}
       {autopilotMode && (() => {
         const isSelected = autopilotMode.id === currentModeId;
         return (
@@ -135,7 +159,7 @@ export default function AssistantModes() {
       })()}
 
       {/* Regular mode selector cards */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
         {regularModes.map((mode) => {
           const isSelected = mode.id === currentModeId;
           const icon = MODE_ICONS[mode.slug] || "⚙️";
@@ -181,14 +205,12 @@ export default function AssistantModes() {
           Règles pour « {modes.find((m) => m.id === currentModeId)?.name} »
         </h2>
 
-        {/* Show autonomy info for autopilot */}
         {currentModeId === autopilotMode?.id ? (
           <div className="flex items-start gap-2 px-4 py-3 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
             <Info className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" />
             <p className="text-xs text-muted-foreground">
-              En mode Pilote automatique, l'assistant décide librement comment traiter chaque appel. 
-              Il utilise tous les outils à sa disposition et adapte son comportement en fonction de l'appelant. 
-              Les traitements spéciaux restent appliqués.
+              En mode Pilote automatique, l'assistant décide librement comment traiter chaque appel.
+              Il utilise tous les outils à sa disposition et adapte son comportement en fonction de l'appelant.
             </p>
           </div>
         ) : rulesLoading ? (
@@ -208,10 +230,6 @@ export default function AssistantModes() {
           <div className="space-y-2">
             {rules.map((rule) => {
               const group = rule.caller_groups;
-              const behavior = BEHAVIOR_LABELS[rule.behavior] || {
-                label: rule.behavior,
-                color: "bg-muted text-muted-foreground",
-              };
 
               return (
                 <Card key={rule.id} className="bg-card/30">
@@ -222,9 +240,24 @@ export default function AssistantModes() {
                     <div className="flex-1 min-w-0">
                       <h3 className="text-sm font-medium">{group?.name || "Groupe inconnu"}</h3>
                     </div>
-                    <Badge className={`${behavior.color} border-0 text-xs font-medium`}>
-                      {behavior.label}
-                    </Badge>
+                    <Select
+                      value={rule.behavior}
+                      onValueChange={(value) =>
+                        updateBehavior.mutate({ ruleId: rule.id, behavior: value })
+                      }
+                    >
+                      <SelectTrigger className="w-[200px] h-9 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {BEHAVIOR_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                            <span className="mr-1.5">{opt.icon}</span>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </CardContent>
                 </Card>
               );
