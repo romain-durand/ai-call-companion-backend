@@ -26,8 +26,8 @@ const BEHAVIOR_LABELS: Record<string, { label: string; color: string }> = {
 const MODE_ICONS: Record<string, string> = {
   work: "💼",
   personal: "🏠",
-  night: "🌙",
   focus: "🎯",
+  autopilot: "🤖",
 };
 
 export default function AssistantModes() {
@@ -69,14 +69,10 @@ export default function AssistantModes() {
   if (modesLoading) {
     return (
       <div className="space-y-6 max-w-4xl">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-28 rounded-xl" />
-          ))}
-        </div>
-        <div className="space-y-3">
+        <Skeleton className="h-24 rounded-xl" />
+        <div className="grid grid-cols-3 gap-3">
           {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-16 rounded-xl" />
+            <Skeleton key={i} className="h-28 rounded-xl" />
           ))}
         </div>
       </div>
@@ -91,11 +87,56 @@ export default function AssistantModes() {
     );
   }
 
+  // Separate autopilot from regular modes
+  const autopilotMode = modes.find((m) => m.slug === "autopilot");
+  const regularModes = modes.filter((m) => m.slug !== "autopilot");
+
   return (
     <div className="space-y-8 max-w-4xl">
-      {/* Mode selector cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {modes.map((mode) => {
+      {/* Autopilot card - featured above */}
+      {autopilotMode && (() => {
+        const isSelected = autopilotMode.id === currentModeId;
+        return (
+          <motion.div whileTap={{ scale: 0.98 }}>
+            <Card
+              className={`cursor-pointer transition-all ${
+                isSelected
+                  ? "border-emerald-500/60 bg-emerald-950/30 ring-1 ring-emerald-500/30"
+                  : "bg-emerald-950/10 hover:bg-emerald-950/20 border-emerald-500/20"
+              }`}
+              onClick={() => setSelectedModeId(autopilotMode.id)}
+            >
+              <CardContent className="p-5 flex items-center gap-4 relative">
+                {isSelected && (
+                  <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center">
+                    <Check className="w-3 h-3 text-primary-foreground" />
+                  </div>
+                )}
+                <div className="text-3xl">🤖</div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-semibold text-emerald-400">{autopilotMode.name}</h3>
+                    {autopilotMode.is_active && (
+                      <Badge variant="secondary" className="text-[10px] h-4 px-1.5 bg-emerald-500/20 text-emerald-400 border-0">
+                        Actif
+                      </Badge>
+                    )}
+                  </div>
+                  {autopilotMode.description && (
+                    <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+                      {autopilotMode.description}
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        );
+      })()}
+
+      {/* Regular mode selector cards */}
+      <div className="grid grid-cols-3 gap-3">
+        {regularModes.map((mode) => {
           const isSelected = mode.id === currentModeId;
           const icon = MODE_ICONS[mode.slug] || "⚙️";
 
@@ -140,7 +181,17 @@ export default function AssistantModes() {
           Règles pour « {modes.find((m) => m.id === currentModeId)?.name} »
         </h2>
 
-        {rulesLoading ? (
+        {/* Show autonomy info for autopilot */}
+        {currentModeId === autopilotMode?.id ? (
+          <div className="flex items-start gap-2 px-4 py-3 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
+            <Info className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" />
+            <p className="text-xs text-muted-foreground">
+              En mode Pilote automatique, l'assistant décide librement comment traiter chaque appel. 
+              Il utilise tous les outils à sa disposition et adapte son comportement en fonction de l'appelant. 
+              Les traitements spéciaux restent appliqués.
+            </p>
+          </div>
+        ) : rulesLoading ? (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
               <Skeleton key={i} className="h-16 rounded-xl" />

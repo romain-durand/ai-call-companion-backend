@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { motion } from "framer-motion";
-import { Check } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Check, ChevronDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,6 +21,7 @@ const MODE_ICONS: Record<string, string> = {
 export default function ActiveModeSelector() {
   const { data: accountId } = useUserAccountId();
   const queryClient = useQueryClient();
+  const [expanded, setExpanded] = useState(false);
 
   const { data: modes, isLoading } = useQuery({
     queryKey: ["assistant-modes", accountId],
@@ -37,14 +39,12 @@ export default function ActiveModeSelector() {
 
   const switchMode = useMutation({
     mutationFn: async (newModeId: string) => {
-      // Deactivate all modes for this account
       const { error: deactivateErr } = await supabase
         .from("assistant_modes")
         .update({ is_active: false })
         .eq("account_id", accountId!);
       if (deactivateErr) throw deactivateErr;
 
-      // Activate the selected mode
       const { error: activateErr } = await supabase
         .from("assistant_modes")
         .update({ is_active: true })
@@ -55,6 +55,7 @@ export default function ActiveModeSelector() {
       queryClient.invalidateQueries({ queryKey: ["assistant-modes"] });
       queryClient.invalidateQueries({ queryKey: ["active-mode-sidebar"] });
       toast.success("Mode activé");
+      setExpanded(false);
     },
     onError: () => {
       toast.error("Impossible de changer de mode");
@@ -62,69 +63,97 @@ export default function ActiveModeSelector() {
   });
 
   if (isLoading) {
-    return (
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {[1, 2, 3, 4].map((i) => (
-          <Skeleton key={i} className="h-20 rounded-xl" />
-        ))}
-      </div>
-    );
+    return <Skeleton className="h-16 rounded-xl" />;
   }
 
   if (!modes?.length) return null;
 
   const activeMode = modes.find((m) => m.is_active);
+  if (!activeMode) return null;
+
+  const isAutopilot = activeMode.slug === "autopilot";
+  const activeIcon = MODE_ICONS[activeMode.slug] || "⚙️";
+  const otherModes = modes.filter((m) => m.id !== activeMode.id);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-medium text-muted-foreground">Mode actif</h2>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {modes.map((mode) => {
-          const isActive = mode.id === activeMode?.id;
-          const icon = MODE_ICONS[mode.slug] || "⚙️";
-          const isAutopilot = mode.slug === "autopilot";
 
-          return (
-            <motion.div key={mode.id} whileTap={{ scale: 0.97 }}>
-              <Card
-                className={`cursor-pointer transition-all ${
-                  isActive
-                    ? isAutopilot
-                      ? "border-emerald-500/60 bg-emerald-950/30 ring-1 ring-emerald-500/30"
-                      : "border-primary/50 bg-card/60"
-                    : isAutopilot
-                      ? "bg-emerald-950/10 hover:bg-emerald-950/20 border-emerald-500/20"
-                      : "bg-card/20 hover:bg-card/40 border-border/30"
-                }`}
-                onClick={() => {
-                  if (!isActive && !switchMode.isPending) {
-                    switchMode.mutate(mode.id);
-                  }
-                }}
-              >
-                <CardContent className="p-3 text-center relative">
-                  {isActive && (
-                    <div className={`absolute top-1.5 right-1.5 w-4 h-4 rounded-full flex items-center justify-center ${
-                      isAutopilot ? "bg-emerald-500" : "bg-primary"
-                    }`}>
-                      <Check className="w-2.5 h-2.5 text-primary-foreground" />
-                    </div>
-                  )}
-                  <div className="text-2xl mb-1">{icon}</div>
-                  <h3 className={`text-xs font-semibold ${isAutopilot ? "text-emerald-400" : ""}`}>{mode.name}</h3>
-                  {mode.description && (
-                    <p className="text-[10px] text-muted-foreground mt-0.5 leading-snug line-clamp-2">
-                      {mode.description}
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            </motion.div>
-          );
-        })}
-      </div>
+      {/* Active mode - always visible */}
+      <Card
+        className={`cursor-pointer transition-all ${
+          isAutopilot
+            ? "border-emerald-500/60 bg-emerald-950/30 ring-1 ring-emerald-500/30"
+            : "border-primary/50 bg-card/60"
+        }`}
+        onClick={() => setExpanded(!expanded)}
+      >
+        <CardContent className="p-3 flex items-center gap-3">
+          <div className="text-2xl">{activeIcon}</div>
+          <div className="flex-1 min-w-0">
+            <h3 className={`text-sm font-semibold ${isAutopilot ? "text-emerald-400" : ""}`}>
+              {activeMode.name}
+            </h3>
+            {activeMode.description && (
+              <p className="text-[10px] text-muted-foreground leading-snug line-clamp-1">
+                {activeMode.description}
+              </p>
+            )}
+          </div>
+          <div className={`w-5 h-5 rounded-full flex items-center justify-center ${
+            isAutopilot ? "bg-emerald-500" : "bg-primary"
+          }`}>
+            <Check className="w-3 h-3 text-primary-foreground" />
+          </div>
+          <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${expanded ? "rotate-180" : ""}`} />
+        </CardContent>
+      </Card>
+
+      {/* Other modes - shown on expand */}
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden space-y-1.5"
+          >
+            {otherModes.map((mode) => {
+              const icon = MODE_ICONS[mode.slug] || "⚙️";
+              const modeIsAutopilot = mode.slug === "autopilot";
+
+              return (
+                <motion.div key={mode.id} whileTap={{ scale: 0.98 }}>
+                  <Card
+                    className={`cursor-pointer transition-all ${
+                      modeIsAutopilot
+                        ? "bg-emerald-950/10 hover:bg-emerald-950/20 border-emerald-500/20"
+                        : "bg-card/20 hover:bg-card/40 border-border/30"
+                    }`}
+                    onClick={() => {
+                      if (!switchMode.isPending) {
+                        switchMode.mutate(mode.id);
+                      }
+                    }}
+                  >
+                    <CardContent className="p-3 flex items-center gap-3">
+                      <div className="text-xl">{icon}</div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className={`text-xs font-semibold ${modeIsAutopilot ? "text-emerald-400" : ""}`}>
+                          {mode.name}
+                        </h3>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              );
+            })}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
