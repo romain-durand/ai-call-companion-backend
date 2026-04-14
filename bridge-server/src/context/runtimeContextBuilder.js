@@ -102,6 +102,10 @@ async function buildRuntimeContext(callCtx) {
         activeModeCapabilities = activeModeAllowBooking
           ? "Booking: allowed for all caller groups in this active mode."
           : "Booking: use caller-group policy only.";
+
+        // Store control_mode on callCtx for downstream guardrails
+        callCtx.controlMode = assistantControlMode;
+
         log.call("runtime_context_active_mode_resolved", traceId,
           `modeId=${resolvedModeId}, name=${mode.name}, control_mode=${assistantControlMode}, allow_booking=${activeModeAllowBooking}`);
       }
