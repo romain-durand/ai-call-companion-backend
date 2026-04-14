@@ -60,7 +60,7 @@ export function AppSidebar() {
   const { data: accountId } = useUserAccountId();
 
   const modeIcons: Record<string, string> = {
-    work: "💼", personal: "🏠", night: "🌙", focus: "🎯",
+    work: "💼", personal: "🏠", autopilot: "🤖", focus: "🎯",
   };
 
   const { data: activeMode } = useQuery({
