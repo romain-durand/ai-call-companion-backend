@@ -3,7 +3,7 @@ const { startToolInvocation, completeToolInvocation, failToolInvocation } = requ
 const { createCallbackRequest } = require("../db/callbackRequestsRepo");
 const { getCallerProfile } = require("../db/callerProfileRepo");
 const { createDirectNotification } = require("../db/notifyUserRepo");
-const { createEscalation } = require("../db/escalationRepo");
+
 const { consultUser } = require("../db/liveChatRepo");
 const { supabaseAdmin } = require("../db/supabaseAdmin");
 const { createTransferRequest, waitForTransferResponse, completeTransferRequest } = require("../db/transferRequestsRepo");
@@ -44,9 +44,6 @@ async function handleToolCall(call, traceId, callCtx) {
         break;
       case "notify_user":
         resultPayload = await handleNotifyUser(call.args, callCtx, traceId);
-        break;
-      case "escalate_call":
-        resultPayload = await handleEscalateCall(call.args, callCtx, traceId);
         break;
       case "generate_call_summary":
         resultPayload = await handleGenerateCallSummary(call.args, callCtx, traceId);
@@ -228,11 +225,6 @@ async function handleNotifyUser(args, callCtx, traceId) {
   return await createDirectNotification(callCtx, args);
 }
 
-// ─── escalate_call ───────────────────────────────────────────
-
-async function handleEscalateCall(args, callCtx, traceId) {
-  return await createEscalation(callCtx, args);
-}
 
 // ─── generate_call_summary ───────────────────────────────────
 
