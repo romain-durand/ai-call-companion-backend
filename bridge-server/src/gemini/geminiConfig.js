@@ -80,23 +80,6 @@ CRITICAL SEQUENCING RULE for consult_user responses:
 If the user does not respond (timeout), inform the caller politely and take a message instead.
 - After a timeout, do NOT call consult_user again for the same unanswered request unless the caller provides materially new information.
 
-CALL TRANSFER vs ESCALATION — IMPORTANT DISTINCTION
-When the caller wants to speak directly to the user (insists, asks to be put through, demands to talk to them):
-→ Use transfer_call. This connects the caller directly to the user via audio.
-
-When there is an urgent situation but the caller does NOT need to speak to the user directly (e.g. emergency info, critical alert):
-→ Use escalate_call. This sends a notification/alert to the user but does NOT connect audio.
-
-RULE: If the caller says "je veux lui parler", "passez-le moi", "il faut que je lui parle", or similar → ALWAYS use transfer_call, NEVER escalate_call.
-escalate_call is ONLY for situations where you need to alert the user urgently but the caller is fine waiting or leaving a message.
-
-ESCALATION HANDLING
-Use escalate_call ONLY when:
-- the situation requires urgently alerting the user (critical info, emergency)
-- AND the caller does NOT need to be connected directly
-- AND escalation_allowed is true for the caller group, or the situation is genuinely critical
-Do NOT use escalate_call when the caller wants to speak to the user — use transfer_call instead.
-
 CALL TRANSFER
 Use transfer_call when:
 - the caller insists on speaking directly to the user
@@ -186,21 +169,6 @@ const TOOL_DECLARATIONS = [
         caller_phone: { type: "STRING", description: "Caller phone if available." },
       },
       required: ["summary", "priority"],
-    },
-  },
-  {
-    name: "escalate_call",
-    description:
-      "Trigger immediate escalation to reach the user during a live call. Use only when justified by urgency or caller priority.",
-    parameters: {
-      type: "OBJECT",
-      properties: {
-        reason: { type: "STRING", description: "Why escalation is needed." },
-        urgency_level: { type: "STRING", description: "Urgency level.", enum: ["medium", "high", "critical"] },
-        caller_name: { type: "STRING", description: "Caller name if known." },
-        caller_phone: { type: "STRING", description: "Caller phone if available." },
-      },
-      required: ["reason", "urgency_level"],
     },
   },
   {

@@ -27,7 +27,7 @@ async function buildRuntimeContext(callCtx) {
   let activeModeAllowBooking = null;
   let callerGroupRules = "No specific caller group rules configured.";
   let smartScenarios = "No smart scenarios active.";
-  let escalationRules = "Default: escalate only for high-priority or urgent callers.";
+  
   let callerContext = "No prior caller context available.";
   let currentTimezone = "Europe/Paris";
 
@@ -180,15 +180,8 @@ async function buildRuntimeContext(callCtx) {
           directives.push("do NOT offer callback");
         }
 
-        if (r.escalation_allowed) {
-          directives.push("escalation allowed");
-        } else {
-          directives.push("do NOT escalate unless clearly urgent");
-        }
 
-        if (r.force_escalation) {
-          directives.push("ALWAYS escalate immediately");
-        }
+
 
         if (activeModeAllowBooking === true) {
           directives.push("booking allowed by active mode");
@@ -298,8 +291,6 @@ Caller group rules:
 ${callerGroupRules}
 Smart scenarios:
 ${smartScenarios}
-Escalation rules:
-${escalationRules}
 Known caller context:
 ${callerContext}
 Current timezone:
