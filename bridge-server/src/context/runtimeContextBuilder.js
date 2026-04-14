@@ -180,15 +180,8 @@ async function buildRuntimeContext(callCtx) {
           directives.push("do NOT offer callback");
         }
 
-        if (r.escalation_allowed) {
-          directives.push("escalation allowed");
-        } else {
-          directives.push("do NOT escalate unless clearly urgent");
-        }
 
-        if (r.force_escalation) {
-          directives.push("ALWAYS escalate immediately");
-        }
+
 
         if (activeModeAllowBooking === true) {
           directives.push("booking allowed by active mode");
