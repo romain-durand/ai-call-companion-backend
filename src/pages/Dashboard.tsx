@@ -48,11 +48,11 @@ export default function Dashboard() {
     : [];
 
   return (
-    <div className="space-y-8 max-w-5xl">
+    <div className="space-y-6 sm:space-y-8 max-w-5xl">
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
         <div className="flex items-center gap-3">
-          <h1 className="text-3xl font-semibold tracking-tight">Bonjour{profile?.display_name ? `, ${profile.display_name}` : ""}</h1>
+          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">Bonjour{profile?.display_name ? `, ${profile.display_name}` : ""}</h1>
           {mode?.isDemo && <DemoModeBadge />}
         </div>
         <p className="text-muted-foreground text-sm mt-2">
@@ -94,7 +94,7 @@ export default function Dashboard() {
                       <stat.icon className="w-4 h-4" />
                     </div>
                   </div>
-                  <p className="text-3xl font-semibold tracking-tight">{stat.value}</p>
+                  <p className="text-2xl sm:text-3xl font-semibold tracking-tight">{stat.value}</p>
                   <p className="text-xs text-muted-foreground mt-1">{stat.label}</p>
                   <p className="text-[10px] text-muted-foreground/60 mt-0.5">{stat.sub}</p>
                 </CardContent>

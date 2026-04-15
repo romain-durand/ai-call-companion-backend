@@ -53,16 +53,16 @@ export default function ActivityTimeline({ items, isLoading }: Props) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: i * 0.03 }}
-              className="flex items-center gap-3 p-3.5 rounded-xl border border-border/40 bg-card/30 hover:bg-card/60 transition-all cursor-pointer group"
+              className="flex items-start sm:items-center gap-2.5 sm:gap-3 p-3 sm:p-3.5 rounded-xl border border-border/40 bg-card/30 hover:bg-card/60 transition-all cursor-pointer group"
               onClick={() => navigate("/history")}
             >
               <span className="text-base shrink-0">{call.groupEmoji}</span>
               <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium truncate">{call.callerName}</span>
-                    {call.callerPhone && (
-                      <span className="text-[10px] text-muted-foreground/60 font-mono">{call.callerPhone}</span>
-                    )}
+                <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                  <span className="text-sm font-medium truncate">{call.callerName}</span>
+                  {call.callerPhone && (
+                    <span className="text-[10px] text-muted-foreground/60 font-mono hidden sm:inline">{call.callerPhone}</span>
+                  )}
                   {call.urgent && (
                     <Badge variant="destructive" className="text-[10px] h-4 px-1.5 rounded-full">Urgent</Badge>
                   )}
@@ -76,7 +76,7 @@ export default function ActivityTimeline({ items, isLoading }: Props) {
                 </p>
               </div>
               <div className="text-right shrink-0">
-                <p className="text-xs text-muted-foreground">{call.timeLabel}</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground">{call.timeLabel}</p>
               </div>
             </motion.div>
           ))}

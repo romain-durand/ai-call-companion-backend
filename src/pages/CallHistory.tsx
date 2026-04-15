@@ -55,7 +55,7 @@ function CallRow({ call, onDelete }: { call: CallHistoryItem; onDelete: (id: str
     <Card className="bg-card/40 border-border/40 hover:border-border/70 transition-all">
       <CardContent className="p-0">
         <div
-          className="flex items-center gap-3 p-4 cursor-pointer group"
+          className="flex items-start sm:items-center gap-2.5 sm:gap-3 p-3 sm:p-4 cursor-pointer group"
           onClick={() => setOpen(!open)}
         >
           {/* Action icon */}
@@ -64,10 +64,10 @@ function CallRow({ call, onDelete }: { call: CallHistoryItem; onDelete: (id: str
           {/* Main content */}
           <div className="flex-1 min-w-0">
             {/* Row 1: Identity + badges */}
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
               <span className="text-sm font-medium">{call.callerName}</span>
               {call.callerNumber && call.callerName !== call.callerNumber && (
-                <span className="text-[10px] text-muted-foreground/60 font-mono">{call.callerNumber}</span>
+                <span className="text-[10px] text-muted-foreground/60 font-mono hidden sm:inline">{call.callerNumber}</span>
               )}
               {/* Identity mismatch */}
               {call.contactName && (
@@ -108,9 +108,9 @@ function CallRow({ call, onDelete }: { call: CallHistoryItem; onDelete: (id: str
           </div>
 
           {/* Right side: time + actions */}
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <div className="text-right">
-              <p className="text-xs text-muted-foreground">{call.timeLabel}</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground">{call.timeLabel}</p>
               <p className="text-[10px] text-muted-foreground/60 flex items-center gap-1 justify-end mt-0.5">
                 <Clock className="w-3 h-3" /> {call.durationLabel}
               </p>
@@ -118,7 +118,7 @@ function CallRow({ call, onDelete }: { call: CallHistoryItem; onDelete: (id: str
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+              className="h-7 w-7 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity hidden sm:flex"
               onClick={(e) => {
                 e.stopPropagation();
                 onDelete(call.id);
@@ -216,7 +216,7 @@ export default function CallHistory() {
   }
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-5 sm:space-y-6 max-w-3xl">
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
         <h1 className="text-2xl font-semibold tracking-tight">Historique des appels</h1>
         <p className="text-sm text-muted-foreground mt-2">
