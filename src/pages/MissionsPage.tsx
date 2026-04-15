@@ -150,10 +150,17 @@ export default function MissionsPage() {
       ) : (
         <div className="space-y-3">
           {missions.map((mission, i) => {
-            // For display: if mission has ended but status is still in_progress, show as completed/failed
+            // For display: if mission is in_progress but stale (started > 5 min ago without completion), treat as failed
             const displayStatus = ((): MissionStatus => {
-              if (mission.status === "in_progress" && mission.completed_at) {
-                return mission.result_status === "failure" || mission.result_status === "no_answer" ? "failed" : "completed";
+              if (mission.status === "in_progress") {
+                if (mission.completed_at) {
+                  return mission.result_status === "failure" || mission.result_status === "no_answer" ? "failed" : "completed";
+                }
+                // Stale mission: started more than 5 minutes ago, never completed
+                const startedAt = mission.started_at ? new Date(mission.started_at).getTime() : 0;
+                if (startedAt && Date.now() - startedAt > 5 * 60 * 1000) {
+                  return "failed";
+                }
               }
               return mission.status;
             })();
