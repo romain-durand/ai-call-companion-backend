@@ -40,6 +40,7 @@ interface Mission {
   created_at: string;
   context_flexible: string | null;
   context_secret: string | null;
+  allow_consult_user: boolean;
 }
 
 const statusConfig: Record<MissionStatus, { label: string; color: string; icon: typeof Clock }> = {
@@ -487,6 +488,7 @@ function CreateMissionDialog({ accountId, onClose, onCreated }: CreateMissionDia
   const [objective, setObjective] = useState("");
   const [contextFlexible, setContextFlexible] = useState("");
   const [contextSecret, setContextSecret] = useState("");
+  const [allowConsultUser, setAllowConsultUser] = useState(false);
   const [targetPhone, setTargetPhone] = useState("");
   const [targetName, setTargetName] = useState("");
   const [isScheduled, setIsScheduled] = useState(false);
@@ -547,6 +549,7 @@ function CreateMissionDialog({ accountId, onClose, onCreated }: CreateMissionDia
         scheduled_at: scheduledAt,
         context_flexible: contextFlexible.trim() || null,
         context_secret: contextSecret.trim() || null,
+        allow_consult_user: allowConsultUser,
       } as any);
       if (error) throw error;
       toast.success("Mission créée");
@@ -701,6 +704,11 @@ function CreateMissionDialog({ accountId, onClose, onCreated }: CreateMissionDia
             </div>
           </div>
         )}
+
+        <div className="flex items-center gap-3">
+          <Switch checked={allowConsultUser} onCheckedChange={setAllowConsultUser} />
+          <Label className="text-sm">Autoriser l'assistant à me consulter pendant l'appel</Label>
+        </div>
 
         <div className="flex items-center gap-3">
           <Switch checked={isScheduled} onCheckedChange={setIsScheduled} />
