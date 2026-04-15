@@ -112,7 +112,7 @@ async function executeOutboundMission(mission) {
 
   // 4. Initiate Twilio call
   const bridgeWsUrl = TWILIO_BRIDGE_WS_URL || "wss://bridgeserver.ted.paris";
-  const twiml = `<Response><Connect><Stream url="${bridgeWsUrl}/outbound-stream"><Parameter name="missionId" value="${mission.id}"/><Parameter name="accountId" value="${mission.account_id}"/><Parameter name="callSessionId" value="${callSessionId}"/><Parameter name="userName" value="${userName}"/><Parameter name="objective" value="${encodeURIComponent(mission.objective)}"/><Parameter name="targetName" value="${mission.target_name || ""}"/><Parameter name="constraintsJson" value="${encodeURIComponent(JSON.stringify(mission.constraints_json || {}))}"/></Stream></Connect></Response>`;
+  const twiml = `<Response><Connect><Stream url="${bridgeWsUrl}/outbound-stream"><Parameter name="missionId" value="${mission.id}"/><Parameter name="accountId" value="${mission.account_id}"/><Parameter name="callSessionId" value="${callSessionId}"/><Parameter name="userName" value="${userName}"/><Parameter name="objective" value="${encodeURIComponent(mission.objective)}"/><Parameter name="targetName" value="${mission.target_name || ""}"/><Parameter name="constraintsJson" value="${encodeURIComponent(JSON.stringify(mission.constraints_json || {}))}"/><Parameter name="contextFlexible" value="${encodeURIComponent(mission.context_flexible || "")}"/><Parameter name="contextSecret" value="${encodeURIComponent(mission.context_secret || "")}"/></Stream></Connect></Response>`;
 
   try {
     const twilioAccountSid = TWILIO_ACCOUNT_SID;
