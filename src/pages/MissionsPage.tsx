@@ -38,6 +38,8 @@ interface Mission {
   max_attempts: number;
   call_session_id: string | null;
   created_at: string;
+  context_flexible: string | null;
+  context_secret: string | null;
 }
 
 const statusConfig: Record<MissionStatus, { label: string; color: string; icon: typeof Clock }> = {
@@ -279,6 +281,18 @@ function MissionDetail({ mission }: { mission: Mission }) {
           <Label className="text-xs text-muted-foreground">Objectif</Label>
           <p className="text-sm mt-1">{mission.objective}</p>
         </div>
+        {mission.context_flexible && (
+          <div>
+            <Label className="text-xs text-muted-foreground">Contexte flexible</Label>
+            <p className="text-sm mt-1 text-muted-foreground">{mission.context_flexible}</p>
+          </div>
+        )}
+        {mission.context_secret && (
+          <div>
+            <Label className="text-xs text-muted-foreground">Contexte confidentiel</Label>
+            <p className="text-sm mt-1 text-muted-foreground">{mission.context_secret}</p>
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <Label className="text-xs text-muted-foreground">Destinataire</Label>
@@ -471,6 +485,8 @@ interface CreateMissionDialogProps {
 
 function CreateMissionDialog({ accountId, onClose, onCreated }: CreateMissionDialogProps) {
   const [objective, setObjective] = useState("");
+  const [contextFlexible, setContextFlexible] = useState("");
+  const [contextSecret, setContextSecret] = useState("");
   const [targetPhone, setTargetPhone] = useState("");
   const [targetName, setTargetName] = useState("");
   const [isScheduled, setIsScheduled] = useState(false);
@@ -529,6 +545,8 @@ function CreateMissionDialog({ accountId, onClose, onCreated }: CreateMissionDia
         target_name: targetName.trim() || null,
         status: "queued" as unknown as string,
         scheduled_at: scheduledAt,
+        context_flexible: contextFlexible.trim() || null,
+        context_secret: contextSecret.trim() || null,
       } as any);
       if (error) throw error;
       toast.success("Mission créée");
@@ -552,6 +570,30 @@ function CreateMissionDialog({ accountId, onClose, onCreated }: CreateMissionDia
             placeholder="Ex : Réserver une table pour 2 personnes ce soir à 20h au Restaurant Le Petit Bistrot"
             value={objective}
             onChange={(e) => setObjective(e.target.value)}
+            className="mt-1"
+            rows={3}
+          />
+        </div>
+
+        <div>
+          <Label>Contexte flexible <span className="text-muted-foreground font-normal">(optionnel)</span></Label>
+          <p className="text-[10px] text-muted-foreground mt-0.5 mb-1">L'assistant connaît cette info mais ne la communique pas spontanément</p>
+          <Textarea
+            placeholder="Ex : J'accepterais un créneau plus tôt ou plus tard si 20h n'est pas disponible"
+            value={contextFlexible}
+            onChange={(e) => setContextFlexible(e.target.value)}
+            className="mt-1"
+            rows={2}
+          />
+        </div>
+
+        <div>
+          <Label>Contexte confidentiel <span className="text-muted-foreground font-normal">(optionnel)</span></Label>
+          <p className="text-[10px] text-muted-foreground mt-0.5 mb-1">L'assistant le sait mais ne doit JAMAIS le révéler</p>
+          <Textarea
+            placeholder="Ex : Je déteste la petite salle à l'étage, refuser si proposée"
+            value={contextSecret}
+            onChange={(e) => setContextSecret(e.target.value)}
             className="mt-1"
             rows={3}
           />
