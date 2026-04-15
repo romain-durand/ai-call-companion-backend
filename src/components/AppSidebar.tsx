@@ -14,8 +14,6 @@ import {
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
-import { useUserAccountId } from "@/hooks/useUserAccountId";
 import {
   Sidebar,
   SidebarContent,
@@ -54,19 +52,8 @@ export function AppSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const { data: activeMode } = useQuery({
-    queryKey: ["active-mode-sidebar", accountId],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("assistant_modes")
-        .select("name, slug, is_active")
-        .eq("account_id", accountId!)
-        .eq("is_active", true)
-        .maybeSingle();
-      return data;
-    },
-    enabled: !!accountId,
-  });
+
+
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
