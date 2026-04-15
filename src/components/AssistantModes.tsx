@@ -233,7 +233,7 @@ export default function AssistantModes() {
 
               return (
                 <Card key={rule.id} className="bg-card/30">
-                  <CardContent className="p-4 flex items-center gap-4">
+                  <CardContent className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
                     <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center text-xl shrink-0">
                       {group?.icon || "❓"}
                     </div>
@@ -246,7 +246,7 @@ export default function AssistantModes() {
                         updateBehavior.mutate({ ruleId: rule.id, behavior: value })
                       }
                     >
-                      <SelectTrigger className="w-[200px] h-9 text-xs">
+                      <SelectTrigger className="w-full sm:w-[200px] h-9 text-xs">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>

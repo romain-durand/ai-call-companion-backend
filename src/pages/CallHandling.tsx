@@ -17,24 +17,24 @@ export default function CallHandling() {
           const behavior = behaviorOptions.find((b) => b.id === group.defaultBehavior)!;
           return (
             <Card key={group.id} className="bg-card/30">
-              <CardContent className="p-4 flex items-center gap-4">
-                <div className="flex items-center gap-2.5 w-32 shrink-0">
+                <CardContent className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                <div className="flex items-center gap-2.5 sm:w-32 shrink-0">
                   <span className="text-xl">{group.emoji}</span>
                   <span className="text-sm font-medium">{group.label}</span>
                 </div>
 
-                <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0" />
+                <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0 hidden sm:block" />
 
-                <div className="flex items-center gap-2 flex-1">
-                  <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border bg-secondary/20 text-xs text-muted-foreground">
-                    📞 Appel entrant
+                <div className="flex items-center gap-2 flex-1 flex-wrap">
+                  <div className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-md border border-border bg-secondary/20 text-[11px] sm:text-xs text-muted-foreground">
+                    📞 Appel
                   </div>
                   <ArrowRight className="w-3 h-3 text-muted-foreground/50" />
-                  <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border bg-secondary/20 text-xs text-muted-foreground">
-                    🤖 Aria analyse
+                  <div className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-md border border-border bg-secondary/20 text-[11px] sm:text-xs text-muted-foreground">
+                    🤖 Analyse
                   </div>
                   <ArrowRight className="w-3 h-3 text-muted-foreground/50" />
-                  <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-primary/20 bg-primary/5 text-xs font-medium text-primary">
+                  <div className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-md border border-primary/20 bg-primary/5 text-[11px] sm:text-xs font-medium text-primary">
                     {behavior.emoji} {behavior.label}
                   </div>
                 </div>

@@ -113,14 +113,14 @@ export default function MissionsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Missions</h1>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Missions</h1>
           <p className="text-muted-foreground text-sm">Appels sortants effectués par votre assistant</p>
         </div>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
-            <Button><Plus className="h-4 w-4 mr-2" />Nouvelle mission</Button>
+            <Button size="sm" className="w-full sm:w-auto"><Plus className="h-4 w-4 mr-2" />Nouvelle mission</Button>
           </DialogTrigger>
           <CreateMissionDialog
             accountId={accountId}
@@ -224,7 +224,7 @@ export default function MissionsPage() {
       )}
 
       <Dialog open={!!detailMissionId} onOpenChange={(open) => !open && setDetailMissionId(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           {detailMission ? (
             <MissionDetail mission={detailMission} />
           ) : (
