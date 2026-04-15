@@ -294,6 +294,12 @@ function MissionDetail({ mission }: { mission: Mission }) {
             <p className="text-sm mt-1 text-muted-foreground">{mission.context_secret}</p>
           </div>
         )}
+        {mission.allow_consult_user && (
+          <div>
+            <Label className="text-xs text-muted-foreground">Consultation utilisateur</Label>
+            <p className="text-sm mt-1 text-muted-foreground">L'assistant peut vous consulter pendant l'appel</p>
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <Label className="text-xs text-muted-foreground">Destinataire</Label>
