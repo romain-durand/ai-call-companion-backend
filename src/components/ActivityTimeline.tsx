@@ -53,7 +53,7 @@ export default function ActivityTimeline({ items, isLoading }: Props) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: i * 0.03 }}
-              className="flex items-center gap-3 p-3.5 rounded-xl border border-border/40 bg-card/30 hover:bg-card/60 transition-all cursor-pointer group"
+              className="flex items-start sm:items-center gap-2.5 sm:gap-3 p-3 sm:p-3.5 rounded-xl border border-border/40 bg-card/30 hover:bg-card/60 transition-all cursor-pointer group"
               onClick={() => navigate("/history")}
             >
               <span className="text-base shrink-0">{call.groupEmoji}</span>
