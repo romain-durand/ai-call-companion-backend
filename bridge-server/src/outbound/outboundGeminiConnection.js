@@ -133,6 +133,18 @@ function buildOutboundContext(callCtx) {
     parts.push(`Constraints: ${JSON.stringify(callCtx.missionConstraints)}`);
   }
 
+  if (callCtx.contextFlexible) {
+    parts.push("");
+    parts.push("FLEXIBLE CONTEXT (you know this but do NOT volunteer it — only use if the situation requires it):");
+    parts.push(callCtx.contextFlexible);
+  }
+
+  if (callCtx.contextSecret) {
+    parts.push("");
+    parts.push("CONFIDENTIAL CONTEXT (you know this but must NEVER reveal it to the other party under any circumstance):");
+    parts.push(callCtx.contextSecret);
+  }
+
   parts.push("", "Instruction: Accomplish the mission objective. Be natural and polite.");
 
   return parts.join("\n");
