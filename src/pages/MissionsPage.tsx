@@ -150,8 +150,16 @@ export default function MissionsPage() {
       ) : (
         <div className="space-y-3">
           {missions.map((mission, i) => {
-            const cfg = statusConfig[mission.status];
+            // For display: if mission has ended but status is still in_progress, show as completed/failed
+            const displayStatus = ((): MissionStatus => {
+              if (mission.status === "in_progress" && mission.completed_at) {
+                return mission.result_status === "failure" || mission.result_status === "no_answer" ? "failed" : "completed";
+              }
+              return mission.status;
+            })();
+            const cfg = statusConfig[displayStatus];
             const StatusIcon = cfg.icon;
+            const missionDate = mission.started_at || mission.created_at;
             return (
               <motion.div
                 key={mission.id}
@@ -166,24 +174,22 @@ export default function MissionsPage() {
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <Badge variant="outline" className={`text-[10px] ${cfg.color}`}>
-                            <StatusIcon className={`h-3 w-3 mr-1 ${mission.status === "in_progress" ? "animate-spin" : ""}`} />
+                            <StatusIcon className={`h-3 w-3 mr-1 ${displayStatus === "in_progress" ? "animate-spin" : ""}`} />
                             {cfg.label}
                           </Badge>
-                          {mission.scheduled_at && mission.status === "queued" && (
-                            <span className="text-[10px] text-muted-foreground">
-                              Planifié : {format(new Date(mission.scheduled_at), "dd MMM HH:mm", { locale: fr })}
-                            </span>
-                          )}
+                          <span className="text-[10px] text-muted-foreground">
+                            {format(new Date(missionDate), "dd MMM yyyy · HH:mm", { locale: fr })}
+                          </span>
                         </div>
-                        <p className="text-sm font-medium truncate">{mission.objective}</p>
+                        <p className="text-sm font-medium">{mission.objective}</p>
                         <p className="text-xs text-muted-foreground mt-0.5">
                           {mission.target_name ? `${mission.target_name} · ` : ""}
                           {mission.target_phone_e164}
                         </p>
                         {mission.result_summary && (
-                          <p className="text-xs text-muted-foreground/80 mt-1 line-clamp-2">
+                          <p className="text-xs text-muted-foreground/80 mt-1">
                             {mission.result_summary}
                           </p>
                         )}
