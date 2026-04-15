@@ -1364,6 +1364,8 @@ export type Database = {
           call_session_id: string | null
           completed_at: string | null
           constraints_json: Json | null
+          context_flexible: string | null
+          context_secret: string | null
           created_at: string
           hangup_by: string | null
           id: string
@@ -1384,6 +1386,8 @@ export type Database = {
           call_session_id?: string | null
           completed_at?: string | null
           constraints_json?: Json | null
+          context_flexible?: string | null
+          context_secret?: string | null
           created_at?: string
           hangup_by?: string | null
           id?: string
@@ -1404,6 +1408,8 @@ export type Database = {
           call_session_id?: string | null
           completed_at?: string | null
           constraints_json?: Json | null
+          context_flexible?: string | null
+          context_secret?: string | null
           created_at?: string
           hangup_by?: string | null
           id?: string
