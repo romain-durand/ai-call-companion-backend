@@ -29,11 +29,7 @@ function connectOutboundGemini(callCtx, onAudio) {
    * Preserves geminiReady and other connection-level state.
    */
   ws.setCallCtx = function (newCtx) {
-    // Copy connection-level state to the new context
     newCtx.geminiReady = callCtx.geminiReady;
-    newCtx.awaitingOutboundFirstTurn = callCtx.awaitingOutboundFirstTurn;
-    newCtx.outboundFirstTurnTriggered = callCtx.outboundFirstTurnTriggered;
-    newCtx.pendingCallerTurnText = callCtx.pendingCallerTurnText || "";
     newCtx.lastAssistantActivityAt = callCtx.lastAssistantActivityAt || 0;
     callCtx = newCtx;
   };
