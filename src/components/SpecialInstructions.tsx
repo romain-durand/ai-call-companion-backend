@@ -257,7 +257,7 @@ export default function SpecialInstructions() {
 
       {/* Edit dialog */}
       <Dialog open={!!editEntry} onOpenChange={(o) => !o && setEditEntry(null)}>
-        <DialogContent>
+        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Modifier les instructions — {editEntry?.name}</DialogTitle>
           </DialogHeader>
@@ -278,7 +278,7 @@ export default function SpecialInstructions() {
 
       {/* Add dialog */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Ajouter des instructions</DialogTitle>
           </DialogHeader>
