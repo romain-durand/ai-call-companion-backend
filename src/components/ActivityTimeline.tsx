@@ -33,12 +33,29 @@ export default function ActivityTimeline({ items, isLoading }: Props) {
   async function handleDelete(item: RecentCallItem) {
     const isMission = item.id.startsWith("mission-");
     const realId = isMission ? item.id.replace("mission-", "") : item.id;
-    const table = isMission ? "outbound_missions" : "call_sessions";
 
-    const { error } = await supabase.from(table).delete().eq("id", realId);
-    if (error) {
-      toast.error("Impossible de supprimer cet élément");
-      return;
+    if (isMission) {
+      // Fetch the mission to get its linked call_session_id
+      const { data: mission } = await supabase
+        .from("outbound_missions")
+        .select("call_session_id")
+        .eq("id", realId)
+        .single();
+      const { error } = await supabase.from("outbound_missions").delete().eq("id", realId);
+      if (error) {
+        toast.error("Impossible de supprimer cet élément");
+        return;
+      }
+      // Also delete the linked call session
+      if (mission?.call_session_id) {
+        await supabase.from("call_sessions").delete().eq("id", mission.call_session_id);
+      }
+    } else {
+      const { error } = await supabase.from("call_sessions").delete().eq("id", realId);
+      if (error) {
+        toast.error("Impossible de supprimer cet élément");
+        return;
+      }
     }
     queryClient.invalidateQueries({ queryKey: ["recent-calls"] });
     toast.success("Élément supprimé");

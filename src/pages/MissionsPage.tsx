@@ -91,11 +91,22 @@ export default function MissionsPage() {
 
   const deleteMission = useMutation({
     mutationFn: async (id: string) => {
+      // First fetch the mission to get its linked call_session_id
+      const { data: mission } = await supabase
+        .from("outbound_missions")
+        .select("call_session_id")
+        .eq("id", id)
+        .single();
       const { error } = await supabase.from("outbound_missions").delete().eq("id", id);
       if (error) throw error;
+      // Also delete the linked call session if it exists
+      if (mission?.call_session_id) {
+        await supabase.from("call_sessions").delete().eq("id", mission.call_session_id);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["outbound-missions"] });
+      queryClient.invalidateQueries({ queryKey: ["recent-calls"] });
       toast.success("Mission supprimée");
     },
   });
