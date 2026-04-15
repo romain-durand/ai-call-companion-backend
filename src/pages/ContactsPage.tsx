@@ -86,7 +86,7 @@ function ContactCard({
             )}
           </div>
 
-          <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 mt-0.5 text-xs text-muted-foreground">
             {contact.primaryPhone && (
               <span className="flex items-center gap-1">
                 <Phone className="w-3 h-3" />
@@ -94,13 +94,13 @@ function ContactCard({
               </span>
             )}
             {contact.email && (
-              <span className="flex items-center gap-1 truncate">
+              <span className="flex items-center gap-1 truncate hidden sm:flex">
                 <Mail className="w-3 h-3" />
                 {contact.email}
               </span>
             )}
             {contact.companyName && (
-              <span className="flex items-center gap-1 truncate">
+              <span className="flex items-center gap-1 truncate hidden sm:flex">
                 <Building2 className="w-3 h-3" />
                 {contact.companyName}
               </span>
