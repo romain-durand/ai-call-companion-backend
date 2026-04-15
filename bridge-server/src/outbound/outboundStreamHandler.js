@@ -177,6 +177,8 @@ function handleOutboundStreamConnection(twilioWs) {
           callCtx.missionObjective = params.objective ? decodeURIComponent(params.objective) : "";
           callCtx.missionTargetName = params.targetName || null;
           callCtx.missionTargetPhone = params.targetPhone || null;
+          callCtx.contextFlexible = params.contextFlexible ? decodeURIComponent(params.contextFlexible) : "";
+          callCtx.contextSecret = params.contextSecret ? decodeURIComponent(params.contextSecret) : "";
 
           try {
             callCtx.missionConstraints = params.constraintsJson
