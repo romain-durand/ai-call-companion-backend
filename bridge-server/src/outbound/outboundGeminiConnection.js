@@ -29,11 +29,7 @@ function connectOutboundGemini(callCtx, onAudio) {
    * Preserves geminiReady and other connection-level state.
    */
   ws.setCallCtx = function (newCtx) {
-    // Copy connection-level state to the new context
     newCtx.geminiReady = callCtx.geminiReady;
-    newCtx.awaitingOutboundFirstTurn = callCtx.awaitingOutboundFirstTurn;
-    newCtx.outboundFirstTurnTriggered = callCtx.outboundFirstTurnTriggered;
-    newCtx.pendingCallerTurnText = callCtx.pendingCallerTurnText || "";
     newCtx.lastAssistantActivityAt = callCtx.lastAssistantActivityAt || 0;
     callCtx = newCtx;
   };
@@ -54,11 +50,8 @@ function connectOutboundGemini(callCtx, onAudio) {
         log.gemini("outbound_setup_complete", traceId);
 
         callCtx.geminiReady = true;
-        callCtx.awaitingOutboundFirstTurn = true;
-        callCtx.outboundFirstTurnTriggered = false;
-        callCtx.pendingCallerTurnText = "";
         callCtx.lastAssistantActivityAt = 0;
-        log.gemini("outbound_waiting_for_callee", traceId, "awaiting first caller utterance");
+        log.gemini("outbound_waiting_for_callee", traceId, "Gemini will respond naturally to audio");
 
         return;
       }
@@ -84,9 +77,6 @@ function connectOutboundGemini(callCtx, onAudio) {
         log.transcript("🎤", "caller", traceId, text);
         if (callCtx._txBuffer) {
           callCtx._txBuffer.push("caller", text);
-        }
-        if (callCtx.awaitingOutboundFirstTurn && hasMeaningfulCallerSpeech(text)) {
-          scheduleOutboundFirstReply(ws, callCtx, traceId, text);
         }
       }
       if (msg.serverContent?.outputTranscription?.text) {
@@ -115,9 +105,7 @@ function connectOutboundGemini(callCtx, onAudio) {
   });
 
   ws.on("close", (code, reason) => {
-    clearFirstCallerTurnTimer(callCtx);
     callCtx.geminiReady = false;
-    callCtx.awaitingOutboundFirstTurn = false;
     log.gemini("outbound_disconnected", traceId, `${code} ${reason}`);
   });
 
@@ -128,60 +116,6 @@ function connectOutboundGemini(callCtx, onAudio) {
   return ws;
 }
 
-function hasMeaningfulCallerSpeech(text) {
-  if (typeof text !== "string") return false;
-  const normalized = text.replace(/\s+/g, " ").trim();
-  return normalized.length >= 2 && /[\p{L}\p{N}]/u.test(normalized);
-}
-
-function clearFirstCallerTurnTimer(callCtx) {
-  if (callCtx._firstCallerTurnTimer) {
-    clearTimeout(callCtx._firstCallerTurnTimer);
-    callCtx._firstCallerTurnTimer = null;
-  }
-}
-
-function scheduleOutboundFirstReply(ws, callCtx, traceId, callerText) {
-  if (callCtx.outboundFirstTurnTriggered || !callCtx.awaitingOutboundFirstTurn) {
-    return;
-  }
-
-  callCtx.pendingCallerTurnText = callerText.replace(/\s+/g, " ").trim();
-  clearFirstCallerTurnTimer(callCtx);
-
-  callCtx._firstCallerTurnTimer = setTimeout(() => {
-    callCtx._firstCallerTurnTimer = null;
-
-    if (callCtx.outboundFirstTurnTriggered || !callCtx.awaitingOutboundFirstTurn) {
-      return;
-    }
-
-    if (ws.readyState !== WebSocket.OPEN) {
-      return;
-    }
-
-    callCtx.awaitingOutboundFirstTurn = false;
-    callCtx.outboundFirstTurnTriggered = true;
-    callCtx.firstCallerTurnObservedAt = new Date().toISOString();
-
-    const kickoff = buildOutboundFirstReplyPrompt(callCtx.pendingCallerTurnText);
-    ws.send(JSON.stringify({
-      realtimeInput: { text: kickoff },
-    }));
-    log.gemini("outbound_first_turn_detected", traceId, callCtx.pendingCallerTurnText);
-    log.gemini("outbound_first_reply_triggered", traceId, kickoff);
-  }, 6);
-}
-
-function buildOutboundFirstReplyPrompt(callerText) {
-  const parts = [
-    "La personne appelée vient de répondre.",
-    callerText ? `Elle a dit: \"${callerText.slice(0, 160)}\".` : null,
-    "Réponds maintenant selon tes instructions (ne répète pas deux fois ta présentation).",
-  ];
-
-  return parts.filter(Boolean).join(" ");
-}
 
 /**
  * Build the outbound mission context block.
