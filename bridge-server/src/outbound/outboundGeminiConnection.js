@@ -175,10 +175,9 @@ function scheduleOutboundFirstReply(ws, callCtx, traceId, callerText) {
 
 function buildOutboundFirstReplyPrompt(callerText) {
   const parts = [
-    "La personne appelée vient de parler.",
-    callerText ? `Dernière prise de parole entendue: \"${callerText.slice(0, 160)}\".` : null,
-    "Attends la fin naturelle de sa phrase, puis réponds maintenant.",
-    "Présente-toi brièvement, précise pour qui tu appelles, puis explique la raison de l'appel.",
+    "La personne appelée vient de répondre.",
+    callerText ? `Elle a dit: \"${callerText.slice(0, 160)}\".` : null,
+    "Réponds maintenant selon tes instructions (ne répète pas deux fois ta présentation).",
   ];
 
   return parts.filter(Boolean).join(" ");
