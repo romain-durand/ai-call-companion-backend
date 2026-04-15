@@ -32,6 +32,15 @@ const eventTypeMap: Record<string, { label: string; icon: string }> = {
   failed: { label: "Échoué", icon: "📞" },
 };
 
+const missionStatusLabels: Record<string, string> = {
+  completed: "Terminée",
+  failed: "Échouée",
+  cancelled: "Annulée",
+  queued: "En attente",
+  draft: "Brouillon",
+  in_progress: "En cours",
+};
+
 export async function getLiveStats(accountIds: string[]): Promise<DashboardStats> {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -75,17 +84,28 @@ export async function getLiveStats(accountIds: string[]): Promise<DashboardStats
 }
 
 export async function getLiveRecentCalls(accountIds: string[]): Promise<RecentCallItem[]> {
-  const { data } = await supabase
-    .from("call_sessions")
-    .select("id, caller_name_raw, caller_phone_e164, final_outcome, summary_short, summary_llm, urgency_level, started_at, caller_group_id, contact_id")
-    .in("account_id", accountIds)
-    .order("started_at", { ascending: false })
-    .limit(8);
+  // Fetch both call sessions and outbound missions in parallel
+  const [sessionsRes, missionsRes] = await Promise.all([
+    supabase
+      .from("call_sessions")
+      .select("id, caller_name_raw, caller_phone_e164, final_outcome, summary_short, summary_llm, urgency_level, started_at, caller_group_id, contact_id")
+      .in("account_id", accountIds)
+      .order("started_at", { ascending: false })
+      .limit(8),
+    supabase
+      .from("outbound_missions")
+      .select("id, target_name, target_phone_e164, objective, status, result_status, result_summary, started_at, completed_at, created_at, hangup_by")
+      .in("account_id", accountIds)
+      .order("created_at", { ascending: false })
+      .limit(8),
+  ]);
 
-  const sessions = data || [];
+  const sessions = sessionsRes.data || [];
+  const missions = missionsRes.data || [];
+
   const contactNames = await resolveContactNames(sessions, accountIds);
 
-  return sessions.map((s) => {
+  const callItems: RecentCallItem[] = sessions.map((s) => {
     const evt = eventTypeMap[s.final_outcome] || { label: s.final_outcome, icon: "📞" };
     const contact = contactNames.get(s.caller_phone_e164 || "");
     return {
@@ -100,8 +120,50 @@ export async function getLiveRecentCalls(accountIds: string[]): Promise<RecentCa
       actionsCount: 0,
       timeLabel: formatTime(s.started_at),
       eventType: evt.label,
+      _sortDate: s.started_at,
     };
   });
+
+  const missionItems: RecentCallItem[] = missions.map((m) => {
+    // Determine display status
+    let displayStatus = m.status;
+    if (m.status === "in_progress") {
+      if (m.completed_at) {
+        displayStatus = m.result_status === "failure" || m.result_status === "no_answer" ? "failed" : "completed";
+      } else {
+        const startedAt = m.started_at ? new Date(m.started_at).getTime() : 0;
+        if (startedAt && Date.now() - startedAt > 5 * 60 * 1000) {
+          displayStatus = "failed";
+        }
+      }
+    }
+
+    const statusLabel = missionStatusLabels[displayStatus] || displayStatus;
+    const statusKey = displayStatus === "completed" ? "completed" : displayStatus === "failed" || displayStatus === "cancelled" ? "failed" : "missed";
+
+    return {
+      id: `mission-${m.id}`,
+      callerName: m.target_name || m.target_phone_e164 || "Inconnu",
+      callerPhone: m.target_phone_e164 || undefined,
+      groupEmoji: "🚀",
+      status: statusKey,
+      statusLabel,
+      summary: m.result_summary || m.objective || "",
+      urgent: false,
+      actionsCount: 0,
+      timeLabel: formatTime(m.started_at || m.created_at),
+      eventType: "Mission sortante",
+      _sortDate: m.started_at || m.created_at,
+    };
+  });
+
+  // Merge and sort by date descending, take 8
+  const merged = [...callItems, ...missionItems]
+    .sort((a, b) => new Date((b as any)._sortDate).getTime() - new Date((a as any)._sortDate).getTime())
+    .slice(0, 8);
+
+  // Remove internal _sortDate
+  return merged.map(({ _sortDate, ...rest }: any) => rest);
 }
 
 export async function getLivePriorityItems(accountIds: string[]): Promise<PriorityItem[]> {
@@ -122,46 +184,43 @@ export async function getLivePriorityItems(accountIds: string[]): Promise<Priori
       .limit(10),
   ]);
 
-  const items: PriorityItem[] = [];
+  const callbacks = callbacksRes.data || [];
+  const escalations = escalationsRes.data || [];
 
-  // Resolve contact names for callbacks
-  const cbPhones = (callbacksRes.data || []).map((cb) => ({ caller_phone_e164: cb.caller_phone_e164 }));
-  const cbContactNames = await resolveContactNames(cbPhones, accountIds);
+  const priorityMap: Record<string, string> = {
+    urgent: "high",
+    high: "high",
+    normal: "normal",
+    low: "low",
+  };
 
-  for (const cb of callbacksRes.data || []) {
-    const contact = cbContactNames.get(cb.caller_phone_e164 || "");
-    items.push({
+  const items: PriorityItem[] = [
+    ...callbacks.map((cb) => ({
       id: cb.id,
-      type: "callback",
-      callerLabel: contact?.displayName || cb.caller_name || cb.caller_phone_e164 || "Inconnu",
-      callerPhone: contact ? cb.caller_phone_e164 || undefined : undefined,
+      type: "callback" as const,
+      callerLabel: cb.caller_name || cb.caller_phone_e164 || "Inconnu",
+      callerPhone: cb.caller_phone_e164 || undefined,
       summary: cb.reason || "Demande de rappel",
-      priority: cb.priority === "urgent" ? "high" : cb.priority,
+      priority: priorityMap[cb.priority] || "normal",
       timeLabel: formatTime(cb.created_at),
       icon: "🔁",
       createdAt: cb.created_at,
-    });
-  }
-
-  for (const esc of escalationsRes.data || []) {
-    const priority = esc.urgency_level === "critical" || esc.urgency_level === "high" ? "high" : "normal";
-    items.push({
+    })),
+    ...escalations.map((esc) => ({
       id: esc.id,
-      type: "escalation",
+      type: "escalation" as const,
       callerLabel: "Escalade",
       summary: esc.trigger_reason,
-      priority,
+      priority: esc.urgency_level === "critical" || esc.urgency_level === "high" ? "high" : "normal",
       timeLabel: formatTime(esc.created_at),
       icon: "⚠️",
       createdAt: esc.created_at,
-    });
-  }
+    })),
+  ];
 
-  // Sort: most recent first
   items.sort((a, b) => {
-    const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-    const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-    return dateB - dateA;
+    const pOrder: Record<string, number> = { high: 0, normal: 1, low: 2 };
+    return (pOrder[a.priority] ?? 1) - (pOrder[b.priority] ?? 1);
   });
 
   return items;
@@ -170,35 +229,23 @@ export async function getLivePriorityItems(accountIds: string[]): Promise<Priori
 export async function getLivePerformanceStats(accountIds: string[]): Promise<PerformanceStats> {
   const weekAgo = new Date(Date.now() - 7 * 86400000);
 
-  const { data: sessions } = await supabase
+  const { data } = await supabase
     .from("call_sessions")
-    .select("id, final_outcome, escalated_to_user, duration_seconds")
+    .select("id, escalated_to_user, duration_seconds, final_outcome")
     .in("account_id", accountIds)
     .gte("started_at", weekAgo.toISOString());
 
-  const all = sessions || [];
-  const total = all.length;
-
-  if (total === 0) {
-    return { resolvedWithoutEscalation: 0, escalationRate: 0, callbackRate: 0, averageDuration: 0, totalCalls: 0 };
-  }
+  const all = data || [];
+  if (all.length === 0) return { resolvedWithoutEscalation: 0, escalationRate: 0, callbackRate: 0, averageDuration: 0, totalCalls: 0 };
 
   const escalated = all.filter((s) => s.escalated_to_user).length;
-  const resolved = all.filter((s) => !s.escalated_to_user && s.final_outcome === "completed").length;
-  const avgDur = Math.round(all.reduce((sum, s) => sum + (s.duration_seconds || 0), 0) / total);
-
-  // Get callbacks count for the same period
-  const { data: cbs } = await supabase
-    .from("callback_requests")
-    .select("id")
-    .in("account_id", accountIds)
-    .gte("created_at", weekAgo.toISOString());
+  const callbacks = all.filter((s) => s.final_outcome === "voicemail").length;
 
   return {
-    resolvedWithoutEscalation: total > 0 ? Math.round((resolved / total) * 100) : 0,
-    escalationRate: total > 0 ? Math.round((escalated / total) * 100) : 0,
-    callbackRate: total > 0 ? Math.round(((cbs?.length || 0) / total) * 100) : 0,
-    averageDuration: avgDur,
-    totalCalls: total,
+    resolvedWithoutEscalation: Math.round(((all.length - escalated) / all.length) * 100),
+    escalationRate: Math.round((escalated / all.length) * 100),
+    callbackRate: Math.round((callbacks / all.length) * 100),
+    averageDuration: Math.round(all.reduce((sum, s) => sum + (s.duration_seconds || 0), 0) / all.length),
+    totalCalls: all.length,
   };
 }
