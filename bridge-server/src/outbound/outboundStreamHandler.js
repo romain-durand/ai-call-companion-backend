@@ -38,6 +38,10 @@ function handleOutboundStreamConnection(twilioWs) {
       await callCtx._txBuffer.flushAll();
     }
     await finalizeCallSession(callCtx);
+
+    // Always finalize the outbound mission if not already completed
+    await finalizeOutboundMission(callCtx);
+
     if (callCtx.callSessionId) {
       generateAndSaveSummary(callCtx.callSessionId, callCtx.traceId).catch(() => {});
     }
