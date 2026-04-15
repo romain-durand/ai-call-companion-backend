@@ -203,6 +203,7 @@ async function executeOutboundMission(mission) {
         pendingCallerTurnText: "",
         lastAssistantActivityAt: 0,
         isOutbound: true,
+        allowConsultUser: !!mission.allow_consult_user,
       };
 
       const geminiWs = connectOutboundGemini(tempCtx, null);
