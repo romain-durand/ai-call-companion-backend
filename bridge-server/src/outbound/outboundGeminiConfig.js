@@ -104,11 +104,18 @@ const OUTBOUND_TOOL_DECLARATIONS = [
   },
 ];
 
-function buildOutboundSetupPayload(missionContext) {
+function buildOutboundSetupPayload(missionContext, options = {}) {
+  const { allowConsultUser = false } = options;
   const systemParts = [{ text: OUTBOUND_SYSTEM_INSTRUCTION }];
   if (missionContext) {
     systemParts.push({ text: missionContext });
   }
+
+  // Conditionally include consult_user tool
+  const toolDeclarations = allowConsultUser
+    ? OUTBOUND_TOOL_DECLARATIONS
+    : OUTBOUND_TOOL_DECLARATIONS.filter((t) => t.name !== "consult_user");
+
   return {
     setup: {
       model: MODEL,
@@ -123,7 +130,7 @@ function buildOutboundSetupPayload(missionContext) {
       systemInstruction: {
         parts: systemParts,
       },
-      tools: [{ functionDeclarations: OUTBOUND_TOOL_DECLARATIONS }],
+      tools: [{ functionDeclarations: toolDeclarations }],
     },
   };
 }

@@ -37,7 +37,9 @@ function connectOutboundGemini(callCtx, onAudio) {
   ws.on("open", () => {
     log.gemini("outbound_connected", traceId);
     const contextBlock = buildOutboundContext(callCtx);
-    const setupPayload = buildOutboundSetupPayload(contextBlock);
+    const setupPayload = buildOutboundSetupPayload(contextBlock, {
+      allowConsultUser: !!callCtx.allowConsultUser,
+    });
     ws.send(JSON.stringify(setupPayload));
     log.gemini("outbound_context_injected", traceId, contextBlock);
   });

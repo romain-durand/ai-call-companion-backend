@@ -179,6 +179,7 @@ function handleOutboundStreamConnection(twilioWs) {
           callCtx.missionTargetPhone = params.targetPhone || null;
           callCtx.contextFlexible = params.contextFlexible ? decodeURIComponent(params.contextFlexible) : "";
           callCtx.contextSecret = params.contextSecret ? decodeURIComponent(params.contextSecret) : "";
+          callCtx.allowConsultUser = params.allowConsultUser === "true";
 
           try {
             callCtx.missionConstraints = params.constraintsJson

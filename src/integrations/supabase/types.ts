@@ -1360,6 +1360,7 @@ export type Database = {
       outbound_missions: {
         Row: {
           account_id: string
+          allow_consult_user: boolean
           attempt_count: number
           call_session_id: string | null
           completed_at: string | null
@@ -1382,6 +1383,7 @@ export type Database = {
         }
         Insert: {
           account_id: string
+          allow_consult_user?: boolean
           attempt_count?: number
           call_session_id?: string | null
           completed_at?: string | null
@@ -1404,6 +1406,7 @@ export type Database = {
         }
         Update: {
           account_id?: string
+          allow_consult_user?: boolean
           attempt_count?: number
           call_session_id?: string | null
           completed_at?: string | null
