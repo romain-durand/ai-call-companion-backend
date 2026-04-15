@@ -6,7 +6,48 @@ const callStore = require("../calls/callStateStore");
 const { createTranscriptBuffer } = require("../db/transcriptBuffer");
 const { finalizeCallSession } = require("../db/callSessionsRepo");
 const { generateAndSaveSummary } = require("../db/callSummaryRepo");
+const { supabaseAdmin } = require("../db/supabaseAdmin");
 const log = require("../observability/logger");
+
+/**
+ * Finalize the outbound mission row if it hasn't been finalized by report_result.
+ * Determines hangup_by based on who initiated the disconnect.
+ */
+async function finalizeOutboundMission(callCtx) {
+  if (!callCtx.missionId) return;
+
+  try {
+    // Check current state — skip if already completed/failed by report_result
+    const { data: mission } = await supabaseAdmin
+      .from("outbound_missions")
+      .select("status, completed_at")
+      .eq("id", callCtx.missionId)
+      .single();
+
+    if (!mission || mission.completed_at) return; // Already finalized
+
+    const hangupBy = callCtx._hangupRequested ? "assistant" : "callee";
+
+    const { error } = await supabaseAdmin
+      .from("outbound_missions")
+      .update({
+        status: "failed",
+        result_status: "failure",
+        completed_at: new Date().toISOString(),
+        hangup_by: hangupBy,
+        result_summary: mission.status === "in_progress" && !callCtx._hangupRequested
+          ? "L'interlocuteur a raccroché avant la fin de la mission."
+          : null,
+      })
+      .eq("id", callCtx.missionId)
+      .is("completed_at", null); // Optimistic lock
+
+    if (error) throw error;
+    log.call("outbound_mission_finalized_fallback", callCtx.traceId, `mission=${callCtx.missionId} hangup_by=${hangupBy}`);
+  } catch (e) {
+    log.error("outbound_mission_finalize_error", callCtx.traceId, e.message);
+  }
+}
 
 /**
  * Handle a Twilio Media Stream WebSocket for an outbound call.
