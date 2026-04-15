@@ -5,8 +5,6 @@ import {
   History,
   CalendarDays,
   Settings,
-  Bot,
-  UserCircle,
   PhoneCall,
   Bell,
   PlayCircle,
@@ -16,8 +14,6 @@ import {
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
-import { useUserAccountId } from "@/hooks/useUserAccountId";
 import {
   Sidebar,
   SidebarContent,
@@ -36,7 +32,6 @@ const mainNav = [
   { title: "Tableau de bord", url: "/", icon: LayoutDashboard },
   { title: "Missions", url: "/missions", icon: PhoneOutgoing },
   { title: "Historique", url: "/history", icon: History },
-  { title: "Tester", url: "/test", icon: PlayCircle },
 ];
 
 const configNav = [
@@ -46,9 +41,8 @@ const configNav = [
 ];
 
 const secondaryNav = [
-  { title: "Profils", url: "/profiles", icon: UserCircle },
+  { title: "Tester", url: "/test", icon: PlayCircle },
   { title: "Calendrier", url: "/calendar", icon: CalendarDays },
-  { title: "Assistant IA", url: "/assistant", icon: Bot },
   { title: "Réglages", url: "/settings", icon: Settings },
 ];
 
@@ -57,25 +51,9 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const location = useLocation();
   const navigate = useNavigate();
-  const { data: accountId } = useUserAccountId();
 
-  const modeIcons: Record<string, string> = {
-    work: "💼", personal: "🏠", autopilot: "🤖", focus: "🎯",
-  };
 
-  const { data: activeMode } = useQuery({
-    queryKey: ["active-mode-sidebar", accountId],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("assistant_modes")
-        .select("name, slug, is_active")
-        .eq("account_id", accountId!)
-        .eq("is_active", true)
-        .maybeSingle();
-      return data;
-    },
-    enabled: !!accountId,
-  });
+
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -142,21 +120,7 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-4 space-y-2">
-        {!collapsed && (
-          <div className={`flex items-center gap-2.5 px-3 py-2 rounded-lg border ${
-            activeMode?.slug === "autopilot"
-              ? "bg-emerald-500/10 border-emerald-500/20"
-              : "bg-primary/5 border-primary/10"
-          }`}>
-            <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${
-              activeMode?.slug === "autopilot" ? "bg-emerald-500" : "bg-primary"
-            }`} />
-            <span className="text-[11px] text-muted-foreground">
-              Mode {activeMode?.name || "…"} actif {activeMode?.slug ? (modeIcons[activeMode.slug] || "") : ""}
-            </span>
-          </div>
-        )}
+      <SidebarFooter className="p-4">
         <button
           onClick={handleLogout}
           className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors text-sm"
