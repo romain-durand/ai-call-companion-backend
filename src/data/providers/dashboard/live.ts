@@ -100,8 +100,11 @@ export async function getLiveRecentCalls(accountIds: string[]): Promise<RecentCa
       .limit(8),
   ]);
 
-  const sessions = sessionsRes.data || [];
   const missions = missionsRes.data || [];
+
+  // Exclude call_sessions that are linked to an outbound mission to avoid duplicates
+  const missionSessionIds = new Set(missions.map((m) => m.call_session_id).filter(Boolean));
+  const sessions = (sessionsRes.data || []).filter((s) => !missionSessionIds.has(s.id));
 
   const contactNames = await resolveContactNames(sessions, accountIds);
 
