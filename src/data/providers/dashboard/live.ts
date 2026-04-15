@@ -94,7 +94,7 @@ export async function getLiveRecentCalls(accountIds: string[]): Promise<RecentCa
       .limit(8),
     supabase
       .from("outbound_missions")
-      .select("id, target_name, target_phone_e164, objective, status, result_status, result_summary, started_at, completed_at, created_at, hangup_by")
+      .select("id, target_name, target_phone_e164, objective, status, result_status, result_summary, started_at, completed_at, created_at, hangup_by, call_session_id")
       .in("account_id", accountIds)
       .order("created_at", { ascending: false })
       .limit(8),
