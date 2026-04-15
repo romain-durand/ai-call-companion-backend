@@ -80,7 +80,7 @@ export async function getLiveRecentCalls(accountIds: string[]): Promise<RecentCa
     .select("id, caller_name_raw, caller_phone_e164, final_outcome, summary_short, summary_llm, urgency_level, started_at, caller_group_id, contact_id")
     .in("account_id", accountIds)
     .order("started_at", { ascending: false })
-    .limit(10);
+    .limit(8);
 
   const sessions = data || [];
   const contactNames = await resolveContactNames(sessions, accountIds);
