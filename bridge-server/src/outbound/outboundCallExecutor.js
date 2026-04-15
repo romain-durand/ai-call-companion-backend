@@ -197,6 +197,8 @@ async function executeOutboundMission(mission) {
         missionTargetName: mission.target_name || null,
         missionTargetPhone: mission.target_phone_e164,
         missionConstraints: mission.constraints_json || {},
+        contextFlexible: mission.context_flexible || "",
+        contextSecret: mission.context_secret || "",
         geminiReady: false,
         awaitingOutboundFirstTurn: false,
         outboundFirstTurnTriggered: false,
