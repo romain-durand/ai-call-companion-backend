@@ -5,8 +5,6 @@ import {
   History,
   CalendarDays,
   Settings,
-  Bot,
-  UserCircle,
   PhoneCall,
   Bell,
   PlayCircle,
@@ -55,11 +53,6 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const location = useLocation();
   const navigate = useNavigate();
-  const { data: accountId } = useUserAccountId();
-
-  const modeIcons: Record<string, string> = {
-    work: "💼", personal: "🏠", autopilot: "🤖", focus: "🎯",
-  };
 
   const { data: activeMode } = useQuery({
     queryKey: ["active-mode-sidebar", accountId],
