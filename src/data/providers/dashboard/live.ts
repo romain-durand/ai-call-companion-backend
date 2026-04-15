@@ -94,14 +94,17 @@ export async function getLiveRecentCalls(accountIds: string[]): Promise<RecentCa
       .limit(8),
     supabase
       .from("outbound_missions")
-      .select("id, target_name, target_phone_e164, objective, status, result_status, result_summary, started_at, completed_at, created_at, hangup_by")
+      .select("id, target_name, target_phone_e164, objective, status, result_status, result_summary, started_at, completed_at, created_at, hangup_by, call_session_id")
       .in("account_id", accountIds)
       .order("created_at", { ascending: false })
       .limit(8),
   ]);
 
-  const sessions = sessionsRes.data || [];
   const missions = missionsRes.data || [];
+
+  // Exclude call_sessions that are linked to an outbound mission to avoid duplicates
+  const missionSessionIds = new Set(missions.map((m) => m.call_session_id).filter(Boolean));
+  const sessions = (sessionsRes.data || []).filter((s) => !missionSessionIds.has(s.id));
 
   const contactNames = await resolveContactNames(sessions, accountIds);
 
