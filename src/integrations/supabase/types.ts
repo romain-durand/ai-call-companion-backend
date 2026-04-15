@@ -1365,6 +1365,7 @@ export type Database = {
           completed_at: string | null
           constraints_json: Json | null
           created_at: string
+          hangup_by: string | null
           id: string
           max_attempts: number
           objective: string
@@ -1384,6 +1385,7 @@ export type Database = {
           completed_at?: string | null
           constraints_json?: Json | null
           created_at?: string
+          hangup_by?: string | null
           id?: string
           max_attempts?: number
           objective: string
@@ -1403,6 +1405,7 @@ export type Database = {
           completed_at?: string | null
           constraints_json?: Json | null
           created_at?: string
+          hangup_by?: string | null
           id?: string
           max_attempts?: number
           objective?: string

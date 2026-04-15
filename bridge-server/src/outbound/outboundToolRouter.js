@@ -82,6 +82,7 @@ async function handleReportResult(args, callCtx, traceId) {
         result_summary: summary,
         status: result_status === "success" || result_status === "partial" ? "completed" : "failed",
         completed_at: new Date().toISOString(),
+        hangup_by: "assistant",
       })
       .eq("id", callCtx.missionId);
 
