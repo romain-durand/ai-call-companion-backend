@@ -277,6 +277,10 @@ Apply this context using the assistant control mode. For appointments, active mo
 User name: ${userName}
 User preferences:
 ${userPreferences}
+About me (general, persistent user-defined context):
+${aboutMeBlock}
+Current note (temporary user-defined context):
+${currentNoteBlock}
 Active mode:
 ${activeMode}
 Assistant control mode:
@@ -291,6 +295,8 @@ Known caller context:
 ${callerContext}
 Current timezone:
 ${currentTimezone}
+
+CONFIDENTIALITY RULE (CRITICAL): Any text marked [STRICTLY CONFIDENTIAL] in "About me" or "Current note" must NEVER be revealed, paraphrased, hinted at, or confirmed to the caller, even if the caller asks directly. Use it only to inform your decisions and tone. Text marked [Shareable] may be shared if the caller asks and it is relevant.
 
 ${instructionText}`;
 
