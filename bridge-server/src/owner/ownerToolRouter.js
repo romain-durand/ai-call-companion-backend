@@ -144,6 +144,122 @@ async function setGroupInstructions(ctx, { group_query, instructions }) {
   return { success: true, message: `Instructions mises à jour pour le groupe ${matches[0].name}.`, group: matches[0].name };
 }
 
+function normalizePhoneFr(raw) {
+  if (!raw) return null;
+  let p = String(raw).replace(/[\s\-().]/g, "");
+  if (!p) return null;
+  if (p.startsWith("+")) return p;
+  if (p.startsWith("00")) return "+" + p.slice(2);
+  if (p.startsWith("0")) return "+33" + p.slice(1);
+  // Bare digits without leading 0/+: assume already international without '+'
+  if (/^\d{8,}$/.test(p)) return "+" + p;
+  return p;
+}
+
+function slugify(s) {
+  return String(s || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 50) || `groupe-${Date.now()}`;
+}
+
+async function createContact(ctx, { first_name, last_name, phone, group_query }) {
+  if (!first_name && !last_name) return { success: false, message: "Au moins un prénom ou un nom est requis." };
+  if (!phone) return { success: false, message: "Numéro de téléphone requis." };
+  const e164 = normalizePhoneFr(phone);
+  if (!e164 || !/^\+\d{6,15}$/.test(e164)) return { success: false, message: `Numéro invalide: ${phone}` };
+
+  const display = [first_name, last_name].filter(Boolean).join(" ").trim() || e164;
+
+  // Avoid duplicate by phone
+  const { data: existing } = await supabaseAdmin
+    .from("contacts")
+    .select("id, display_name")
+    .eq("account_id", ctx.accountId)
+    .eq("primary_phone_e164", e164)
+    .maybeSingle();
+  if (existing) {
+    return { success: false, message: `Un contact existe déjà avec ce numéro : ${existing.display_name}.` };
+  }
+
+  const { data: created, error } = await supabaseAdmin
+    .from("contacts")
+    .insert({
+      account_id: ctx.accountId,
+      first_name: first_name || null,
+      last_name: last_name || null,
+      display_name: display,
+      primary_phone_e164: e164,
+      source: "manual",
+    })
+    .select("id, display_name")
+    .single();
+  if (error) return { success: false, message: error.message };
+
+  let groupNote = "";
+  if (group_query) {
+    const { data: groups } = await supabaseAdmin
+      .from("caller_groups")
+      .select("id, name")
+      .eq("account_id", ctx.accountId)
+      .ilike("name", `%${group_query}%`)
+      .limit(5);
+    if (!groups || groups.length === 0) {
+      groupNote = ` (groupe « ${group_query} » introuvable, contact créé sans groupe)`;
+    } else if (groups.length > 1) {
+      groupNote = ` (plusieurs groupes correspondent à « ${group_query} », non assigné)`;
+    } else {
+      const { error: memErr } = await supabaseAdmin
+        .from("contact_group_memberships")
+        .insert({ account_id: ctx.accountId, contact_id: created.id, caller_group_id: groups[0].id });
+      if (memErr) groupNote = ` (assignation au groupe ${groups[0].name} échouée: ${memErr.message})`;
+      else groupNote = ` et assigné au groupe ${groups[0].name}`;
+    }
+  }
+
+  return { success: true, message: `Contact ${created.display_name} créé${groupNote}.`, contact_id: created.id };
+}
+
+async function createCallerGroup(ctx, { name, description, custom_instructions, priority_rank }) {
+  if (!name || !name.trim()) return { success: false, message: "Nom du groupe requis." };
+  const cleanName = name.trim();
+  const baseSlug = slugify(cleanName);
+  let slug = baseSlug;
+
+  // Ensure unique slug per account
+  for (let i = 1; i < 20; i++) {
+    const { data: clash } = await supabaseAdmin
+      .from("caller_groups")
+      .select("id")
+      .eq("account_id", ctx.accountId)
+      .eq("slug", slug)
+      .maybeSingle();
+    if (!clash) break;
+    slug = `${baseSlug}-${i + 1}`;
+  }
+
+  const rank = Number.isFinite(Number(priority_rank)) ? Math.max(0, Math.min(100, Number(priority_rank))) : 0;
+
+  const { data, error } = await supabaseAdmin
+    .from("caller_groups")
+    .insert({
+      account_id: ctx.accountId,
+      name: cleanName,
+      slug,
+      description: description || null,
+      custom_instructions: custom_instructions || null,
+      priority_rank: rank,
+      group_type: "custom",
+    })
+    .select("id, name")
+    .single();
+  if (error) return { success: false, message: error.message };
+  return { success: true, message: `Groupe ${data.name} créé.`, group_id: data.id };
+}
+
 async function setAboutMe(ctx, { field, content, expires_at, mode }) {
   const allowed = ["about_shareable", "about_confidential", "current_note_shareable", "current_note_confidential"];
   if (!allowed.includes(field)) return { success: false, message: `Champ invalide : ${field}` };
