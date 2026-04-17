@@ -159,7 +159,9 @@ async function createOutboundMission(ctx, args) {
     context_secret: context_secret || null,
     allow_consult_user: !!allow_consult_user,
     scheduled_at: scheduled_at || null,
-    status: scheduled_at ? "scheduled" : "draft",
+    // Immediate missions go straight to "scheduled" so the outbound poller picks them up.
+    // Only explicitly-deferred missions without a schedule stay as drafts.
+    status: "scheduled",
   };
   const { data, error } = await supabaseAdmin.from("outbound_missions").insert(row).select("id").single();
   if (error) return { success: false, message: error.message };
