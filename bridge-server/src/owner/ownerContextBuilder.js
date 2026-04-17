@@ -59,6 +59,7 @@ async function buildOwnerRuntimeContext(callCtx) {
 Tu parles à : ${fmt(profile?.display_name)} (téléphone : ${fmt(profile?.phone_e164)})
 Compte : ${fmt(account?.name)} — Fuseau : ${fmt(account?.timezone)}
 Mode actif : ${modeBlock}
+MODE CONFIRMATION ACTIONS : ${account?.owner_confirm_actions === false ? "DÉSACTIVÉ — n'exige PAS de confirmation, exécute directement les actions demandées" : "ACTIVÉ — reformule et demande confirmation explicite AVANT chaque action"}
 
 À PROPOS DE MOI (pour rappel à l'utilisateur si demandé) :
   - Général partageable : ${fmt(account?.about_shareable)}
