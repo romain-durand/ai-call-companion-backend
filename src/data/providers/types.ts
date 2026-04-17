@@ -24,6 +24,8 @@ export interface RecentCallItem {
   actionsCount: number;
   timeLabel: string;
   eventType?: string;
+  /** When this item is a mission, the linked call_session id (used to deep-link into history). */
+  callSessionId?: string;
 }
 
 export interface PriorityItem {
