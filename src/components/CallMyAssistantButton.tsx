@@ -12,7 +12,7 @@ import { toast } from "sonner";
 
 export function CallMyAssistantButton() {
   const [open, setOpen] = useState(false);
-  const { accountId } = useUserAccountId();
+  const { data: accountId } = useUserAccountId();
   const [confirmActions, setConfirmActions] = useState<boolean>(true);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
