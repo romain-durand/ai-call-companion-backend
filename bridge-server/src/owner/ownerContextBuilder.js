@@ -47,6 +47,14 @@ async function buildOwnerRuntimeContext(callCtx) {
     const groupsBlock = (groups || []).map((g) => `  - ${g.name}${g.custom_instructions ? ` (instructions: « ${g.custom_instructions} »)` : ""}`).join("\n") || "  (aucun)";
     const modeBlock = (modes || []).filter((m) => m.is_active).map((m) => m.name).join(", ") || "(aucun)";
 
+    const contactsBlock = (contacts || []).length
+      ? contacts.map((c) => {
+          const phones = [c.primary_phone_e164, c.secondary_phone_e164].filter(Boolean).join(" / ");
+          const instr = c.custom_instructions ? ` — instructions: « ${c.custom_instructions} »` : "";
+          return `  - ${c.display_name || "(sans nom)"}${phones ? ` : ${phones}` : " : (sans numéro)"}${instr}`;
+        }).join("\n")
+      : "  (aucun contact)";
+
     return `RUNTIME CONTEXT — OWNER SESSION
 Tu parles à : ${fmt(profile?.display_name)} (téléphone : ${fmt(profile?.phone_e164)})
 Compte : ${fmt(account?.name)} — Fuseau : ${fmt(account?.timezone)}
@@ -70,6 +78,9 @@ ${missionsBlock}
 
 GROUPES D'APPELANTS :
 ${groupsBlock}
+
+CONTACTS DU COMPTE (utilise cette liste pour résoudre noms→numéros) :
+${contactsBlock}
 
 Utilise ces données pour répondre. Pour toute modification, utilise les outils dédiés et confirme AVANT.`;
   } catch (e) {
