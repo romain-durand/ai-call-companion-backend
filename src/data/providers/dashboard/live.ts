@@ -49,7 +49,7 @@ export async function getLiveStats(accountIds: string[]): Promise<DashboardStats
   const [sessionsRes, callbacksRes, appointmentsRes] = await Promise.all([
     supabase
       .from("call_sessions")
-      .select("id, started_at, final_outcome, duration_seconds, escalated_to_user")
+      .select("id, started_at, final_outcome, duration_seconds, escalated_to_user, metadata")
       .in("account_id", accountIds)
       .gte("started_at", weekAgo.toISOString())
       .order("started_at", { ascending: false }),
@@ -65,7 +65,10 @@ export async function getLiveStats(accountIds: string[]): Promise<DashboardStats
       .gte("created_at", weekAgo.toISOString()),
   ]);
 
-  const all = sessionsRes.data || [];
+  // Exclude owner self-calls from all dashboard stats.
+  const all = (sessionsRes.data || []).filter(
+    (s) => (s.metadata as { session_type?: string } | null)?.session_type !== "owner_self_call"
+  );
   const todaySessions = all.filter((s) => new Date(s.started_at) >= today);
 
   return {
@@ -88,10 +91,10 @@ export async function getLiveRecentCalls(accountIds: string[]): Promise<RecentCa
   const [sessionsRes, missionsRes] = await Promise.all([
     supabase
       .from("call_sessions")
-      .select("id, caller_name_raw, caller_phone_e164, final_outcome, summary_short, summary_llm, urgency_level, started_at, caller_group_id, contact_id")
+      .select("id, caller_name_raw, caller_phone_e164, final_outcome, summary_short, summary_llm, urgency_level, started_at, caller_group_id, contact_id, metadata")
       .in("account_id", accountIds)
       .order("started_at", { ascending: false })
-      .limit(8),
+      .limit(20),
     supabase
       .from("outbound_missions")
       .select("id, target_name, target_phone_e164, objective, status, result_status, result_summary, started_at, completed_at, created_at, hangup_by, call_session_id")
@@ -102,9 +105,12 @@ export async function getLiveRecentCalls(accountIds: string[]): Promise<RecentCa
 
   const missions = missionsRes.data || [];
 
-  // Exclude call_sessions that are linked to an outbound mission to avoid duplicates
+  // Exclude call_sessions linked to a mission (avoid duplicates) AND owner self-calls.
   const missionSessionIds = new Set(missions.map((m) => m.call_session_id).filter(Boolean));
-  const sessions = (sessionsRes.data || []).filter((s) => !missionSessionIds.has(s.id));
+  const sessions = (sessionsRes.data || [])
+    .filter((s) => !missionSessionIds.has(s.id))
+    .filter((s) => (s.metadata as { session_type?: string } | null)?.session_type !== "owner_self_call")
+    .slice(0, 8);
 
   const contactNames = await resolveContactNames(sessions, accountIds);
 
@@ -234,11 +240,14 @@ export async function getLivePerformanceStats(accountIds: string[]): Promise<Per
 
   const { data } = await supabase
     .from("call_sessions")
-    .select("id, escalated_to_user, duration_seconds, final_outcome")
+    .select("id, escalated_to_user, duration_seconds, final_outcome, metadata")
     .in("account_id", accountIds)
     .gte("started_at", weekAgo.toISOString());
 
-  const all = data || [];
+  // Exclude owner self-calls from performance stats.
+  const all = (data || []).filter(
+    (s) => (s.metadata as { session_type?: string } | null)?.session_type !== "owner_self_call"
+  );
   if (all.length === 0) return { resolvedWithoutEscalation: 0, escalationRate: 0, callbackRate: 0, averageDuration: 0, totalCalls: 0 };
 
   const escalated = all.filter((s) => s.escalated_to_user).length;
