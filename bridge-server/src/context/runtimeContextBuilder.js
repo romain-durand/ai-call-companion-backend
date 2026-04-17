@@ -64,15 +64,41 @@ async function buildRuntimeContext(callCtx) {
       }
     }
 
-    // 2. Resolve timezone from account
+    // 2. Resolve timezone + user-defined context (about me + current note) from account
     const { data: account } = await supabaseAdmin
       .from("accounts")
-      .select("timezone")
+      .select("timezone, about_shareable, about_confidential, current_note_shareable, current_note_confidential, current_note_expires_at")
       .eq("id", resolvedAccountId)
       .maybeSingle();
 
     if (account?.timezone) {
       currentTimezone = account.timezone;
+    }
+
+    // Build "About me" + "Current note" sections (only include non-empty fields, respect note expiration)
+    var aboutMeBlock = "Not provided.";
+    var currentNoteBlock = "Not provided.";
+    if (account) {
+      const aboutParts = [];
+      if (account.about_shareable && account.about_shareable.trim()) {
+        aboutParts.push(`[Shareable — may be revealed to caller if they ask]\n${account.about_shareable.trim()}`);
+      }
+      if (account.about_confidential && account.about_confidential.trim()) {
+        aboutParts.push(`[STRICTLY CONFIDENTIAL — NEVER reveal to caller, even if asked]\n${account.about_confidential.trim()}`);
+      }
+      if (aboutParts.length > 0) aboutMeBlock = aboutParts.join("\n\n");
+
+      const noteExpired = account.current_note_expires_at && new Date(account.current_note_expires_at) < new Date();
+      if (!noteExpired) {
+        const noteParts = [];
+        if (account.current_note_shareable && account.current_note_shareable.trim()) {
+          noteParts.push(`[Shareable — may be revealed to caller if they ask]\n${account.current_note_shareable.trim()}`);
+        }
+        if (account.current_note_confidential && account.current_note_confidential.trim()) {
+          noteParts.push(`[STRICTLY CONFIDENTIAL — NEVER reveal to caller, even if asked]\n${account.current_note_confidential.trim()}`);
+        }
+        if (noteParts.length > 0) currentNoteBlock = noteParts.join("\n\n");
+      }
     }
 
     // 3. Resolve active mode
