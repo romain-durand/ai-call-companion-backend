@@ -54,7 +54,7 @@ async function getAccountOverview(ctx) {
   const [{ count: callsToday }, { count: callbacks }, { count: missions }] = await Promise.all([
     supabaseAdmin.from("call_sessions").select("id", { count: "exact", head: true }).eq("account_id", ctx.accountId).gte("started_at", todayStart.toISOString()),
     supabaseAdmin.from("callback_requests").select("id", { count: "exact", head: true }).eq("account_id", ctx.accountId).eq("status", "pending"),
-    supabaseAdmin.from("outbound_missions").select("id", { count: "exact", head: true }).eq("account_id", ctx.accountId).in("status", ["draft", "scheduled", "in_progress"]),
+    supabaseAdmin.from("outbound_missions").select("id", { count: "exact", head: true }).eq("account_id", ctx.accountId).in("status", ["draft", "queued", "in_progress"]),
   ]);
   return {
     success: true,
@@ -170,9 +170,9 @@ async function createOutboundMission(ctx, args) {
     context_secret: context_secret || null,
     allow_consult_user: !!allow_consult_user,
     scheduled_at: normalizedScheduledAt,
-    // Immediate or scheduled — both go to "scheduled" so the outbound poller picks them up
-    // (poller fires when scheduled_at IS NULL OR scheduled_at <= now()).
-    status: "scheduled",
+    // Immediate or future-planned missions both enter the queue.
+    // The outbound poller picks queued rows when scheduled_at IS NULL or <= now().
+    status: "queued",
   };
   const { data, error } = await supabaseAdmin.from("outbound_missions").insert(row).select("id").single();
   if (error) {
