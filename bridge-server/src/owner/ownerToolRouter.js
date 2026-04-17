@@ -33,6 +33,9 @@ async function handleOwnerToolCall(call, traceId, callCtx) {
       case "create_outbound_mission":
         response = await createOutboundMission(callCtx, args);
         break;
+      case "set_confirmation_mode":
+        response = await setConfirmationMode(callCtx, args);
+        break;
       case "end_call":
         if (callCtx._hangup) callCtx._hangup(args.reason || "owner_end");
         response = { success: true, message: "Appel terminé." };
@@ -181,6 +184,18 @@ async function createOutboundMission(ctx, args) {
   }
   const when = normalizedScheduledAt ? `programmée pour ${normalizedScheduledAt}` : "lancement immédiat";
   return { success: true, message: `Mission créée (${when}).`, mission_id: data.id };
+}
+
+async function setConfirmationMode(ctx, { enabled }) {
+  if (typeof enabled !== "boolean") return { success: false, message: "Paramètre 'enabled' (boolean) requis." };
+  const { error } = await supabaseAdmin.from("accounts").update({ owner_confirm_actions: enabled }).eq("id", ctx.accountId);
+  if (error) return { success: false, message: error.message };
+  return {
+    success: true,
+    message: enabled
+      ? "OK, je te demanderai confirmation avant chaque action."
+      : "OK, je n'exigerai plus de confirmation avant d'exécuter les actions.",
+  };
 }
 
 module.exports = { handleOwnerToolCall };
