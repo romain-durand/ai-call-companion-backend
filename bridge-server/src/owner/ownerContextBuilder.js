@@ -22,6 +22,7 @@ async function buildOwnerRuntimeContext(callCtx) {
       { data: activeMissions },
       { data: groups },
       { data: modes },
+      { data: contacts },
     ] = await Promise.all([
       supabaseAdmin.from("profiles").select("display_name, phone_e164").eq("id", profileId).maybeSingle(),
       supabaseAdmin.from("accounts").select("name, timezone, about_shareable, about_confidential, current_note_shareable, current_note_confidential, current_note_expires_at").eq("id", accountId).maybeSingle(),
@@ -30,6 +31,7 @@ async function buildOwnerRuntimeContext(callCtx) {
       supabaseAdmin.from("outbound_missions").select("objective, target_name, target_phone_e164, status").eq("account_id", accountId).in("status", ["draft", "scheduled", "in_progress"]).limit(10),
       supabaseAdmin.from("caller_groups").select("name, custom_instructions").eq("account_id", accountId).order("priority_rank"),
       supabaseAdmin.from("assistant_modes").select("name, is_active").eq("account_id", accountId),
+      supabaseAdmin.from("contacts").select("display_name, primary_phone_e164, secondary_phone_e164, custom_instructions").eq("account_id", accountId).order("display_name").limit(200),
     ]);
 
     const fmt = (v) => (v && String(v).trim() ? String(v).trim() : "(vide)");
@@ -44,6 +46,14 @@ async function buildOwnerRuntimeContext(callCtx) {
       : "  (aucune mission active)";
     const groupsBlock = (groups || []).map((g) => `  - ${g.name}${g.custom_instructions ? ` (instructions: « ${g.custom_instructions} »)` : ""}`).join("\n") || "  (aucun)";
     const modeBlock = (modes || []).filter((m) => m.is_active).map((m) => m.name).join(", ") || "(aucun)";
+
+    const contactsBlock = (contacts || []).length
+      ? contacts.map((c) => {
+          const phones = [c.primary_phone_e164, c.secondary_phone_e164].filter(Boolean).join(" / ");
+          const instr = c.custom_instructions ? ` — instructions: « ${c.custom_instructions} »` : "";
+          return `  - ${c.display_name || "(sans nom)"}${phones ? ` : ${phones}` : " : (sans numéro)"}${instr}`;
+        }).join("\n")
+      : "  (aucun contact)";
 
     return `RUNTIME CONTEXT — OWNER SESSION
 Tu parles à : ${fmt(profile?.display_name)} (téléphone : ${fmt(profile?.phone_e164)})
@@ -68,6 +78,9 @@ ${missionsBlock}
 
 GROUPES D'APPELANTS :
 ${groupsBlock}
+
+CONTACTS DU COMPTE (utilise cette liste pour résoudre noms→numéros) :
+${contactsBlock}
 
 Utilise ces données pour répondre. Pour toute modification, utilise les outils dédiés et confirme AVANT.`;
   } catch (e) {
