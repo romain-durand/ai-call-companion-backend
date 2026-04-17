@@ -83,14 +83,25 @@ export default function ActivityTimeline({ items, isLoading }: Props) {
       ) : (
         <div className="space-y-1.5">
           <AnimatePresence>
-            {items.map((call, i) => (
+            {items.map((call, i) => {
+              const isMission = call.id.startsWith("mission-");
+              const targetId = isMission ? call.callSessionId : call.id;
+              const canOpenDetail = !isMission || !!call.callSessionId;
+              return (
               <motion.div
                 key={call.id}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0, x: 20 }}
                 transition={{ delay: i * 0.03 }}
-                className="flex items-start gap-2.5 sm:gap-3 p-3 sm:p-3.5 rounded-xl border border-border/40 bg-card/30 hover:bg-card/60 transition-all group"
+                onClick={() => {
+                  if (canOpenDetail && targetId) {
+                    navigate(`/history#call-${targetId}`);
+                  } else {
+                    navigate("/history");
+                  }
+                }}
+                className="flex items-start gap-2.5 sm:gap-3 p-3 sm:p-3.5 rounded-xl border border-border/40 bg-card/30 hover:bg-card/60 transition-all group cursor-pointer"
               >
                 <span className="text-base shrink-0 mt-0.5">{call.groupEmoji}</span>
                 <div className="flex-1 min-w-0">
@@ -126,7 +137,8 @@ export default function ActivityTimeline({ items, isLoading }: Props) {
                   </Button>
                 </div>
               </motion.div>
-            ))}
+              );
+            })}
           </AnimatePresence>
         </div>
       )}
