@@ -22,6 +22,7 @@ async function buildOwnerRuntimeContext(callCtx) {
       { data: activeMissions },
       { data: groups },
       { data: modes },
+      { data: contacts },
     ] = await Promise.all([
       supabaseAdmin.from("profiles").select("display_name, phone_e164").eq("id", profileId).maybeSingle(),
       supabaseAdmin.from("accounts").select("name, timezone, about_shareable, about_confidential, current_note_shareable, current_note_confidential, current_note_expires_at").eq("id", accountId).maybeSingle(),
@@ -30,6 +31,7 @@ async function buildOwnerRuntimeContext(callCtx) {
       supabaseAdmin.from("outbound_missions").select("objective, target_name, target_phone_e164, status").eq("account_id", accountId).in("status", ["draft", "scheduled", "in_progress"]).limit(10),
       supabaseAdmin.from("caller_groups").select("name, custom_instructions").eq("account_id", accountId).order("priority_rank"),
       supabaseAdmin.from("assistant_modes").select("name, is_active").eq("account_id", accountId),
+      supabaseAdmin.from("contacts").select("display_name, primary_phone_e164, secondary_phone_e164, custom_instructions").eq("account_id", accountId).order("display_name").limit(200),
     ]);
 
     const fmt = (v) => (v && String(v).trim() ? String(v).trim() : "(vide)");
