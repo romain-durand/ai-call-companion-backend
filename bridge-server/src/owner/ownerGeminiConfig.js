@@ -130,6 +130,7 @@ const OWNER_TOOL_DECLARATIONS = [
     },
   },
   {
+    name: "set_group_instructions",
     description: "Met à jour les instructions spéciales pour un groupe d'appelants (recherche par nom).",
     parameters: {
       type: "object",
