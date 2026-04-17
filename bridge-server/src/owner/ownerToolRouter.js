@@ -150,6 +150,17 @@ async function setAboutMe(ctx, { field, content, expires_at }) {
 async function createOutboundMission(ctx, args) {
   const { objective, target_phone, target_name, context_flexible, context_secret, allow_consult_user, scheduled_at } = args;
   if (!objective || !target_phone) return { success: false, message: "objective et target_phone sont requis." };
+
+  // Sanitize scheduled_at: treat past or near-future (<30s) timestamps as "immediate" (null).
+  // This avoids missions stuck in "scheduled" state when the model echoes the current time.
+  let normalizedScheduledAt = null;
+  if (scheduled_at) {
+    const ts = Date.parse(scheduled_at);
+    if (!Number.isNaN(ts) && ts - Date.now() > 30_000) {
+      normalizedScheduledAt = new Date(ts).toISOString();
+    }
+  }
+
   const row = {
     account_id: ctx.accountId,
     objective,
@@ -158,14 +169,18 @@ async function createOutboundMission(ctx, args) {
     context_flexible: context_flexible || null,
     context_secret: context_secret || null,
     allow_consult_user: !!allow_consult_user,
-    scheduled_at: scheduled_at || null,
-    // Immediate missions go straight to "scheduled" so the outbound poller picks them up.
-    // Only explicitly-deferred missions without a schedule stay as drafts.
+    scheduled_at: normalizedScheduledAt,
+    // Immediate or scheduled — both go to "scheduled" so the outbound poller picks them up
+    // (poller fires when scheduled_at IS NULL OR scheduled_at <= now()).
     status: "scheduled",
   };
   const { data, error } = await supabaseAdmin.from("outbound_missions").insert(row).select("id").single();
-  if (error) return { success: false, message: error.message };
-  return { success: true, message: "Mission créée.", mission_id: data.id };
+  if (error) {
+    log.error("owner_create_mission_error", null, error.message);
+    return { success: false, message: error.message };
+  }
+  const when = normalizedScheduledAt ? `programmée pour ${normalizedScheduledAt}` : "lancement immédiat";
+  return { success: true, message: `Mission créée (${when}).`, mission_id: data.id };
 }
 
 module.exports = { handleOwnerToolCall };
