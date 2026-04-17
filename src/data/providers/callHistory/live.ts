@@ -21,7 +21,7 @@ function formatDuration(seconds: number | null) {
 
 const speakerLabels: Record<string, string> = {
   caller: "Appelant",
-  assistant: "Aria",
+  assistant: "Victor",
   system: "Système",
   tool: "Outil",
 };
