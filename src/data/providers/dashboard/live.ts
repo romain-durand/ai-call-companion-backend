@@ -162,6 +162,7 @@ export async function getLiveRecentCalls(accountIds: string[]): Promise<RecentCa
       actionsCount: 0,
       timeLabel: formatTime(m.started_at || m.created_at),
       eventType: "Mission sortante",
+      callSessionId: m.call_session_id || undefined,
       _sortDate: m.started_at || m.created_at,
     };
   });
