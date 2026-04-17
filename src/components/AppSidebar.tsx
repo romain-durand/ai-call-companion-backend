@@ -92,7 +92,7 @@ export function AppSidebar() {
           </div>
           {!collapsed && (
             <div className="flex flex-col">
-              <span className="text-sm font-semibold tracking-tight">Aria</span>
+              <span className="text-sm font-semibold tracking-tight">Victor</span>
               <span className="text-[10px] text-muted-foreground leading-tight">Assistant personnel</span>
             </div>
           )}
