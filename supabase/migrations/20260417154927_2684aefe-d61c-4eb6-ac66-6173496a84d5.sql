@@ -1,0 +1,1 @@
+ALTER TABLE public.accounts ADD COLUMN owner_confirm_actions boolean NOT NULL DEFAULT true;
