@@ -88,8 +88,13 @@ export type Database = {
       }
       accounts: {
         Row: {
+          about_confidential: string | null
+          about_shareable: string | null
           account_type: string
           created_at: string
+          current_note_confidential: string | null
+          current_note_expires_at: string | null
+          current_note_shareable: string | null
           id: string
           is_demo: boolean
           locale: string
@@ -100,8 +105,13 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          about_confidential?: string | null
+          about_shareable?: string | null
           account_type?: string
           created_at?: string
+          current_note_confidential?: string | null
+          current_note_expires_at?: string | null
+          current_note_shareable?: string | null
           id?: string
           is_demo?: boolean
           locale?: string
@@ -112,8 +122,13 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          about_confidential?: string | null
+          about_shareable?: string | null
           account_type?: string
           created_at?: string
+          current_note_confidential?: string | null
+          current_note_expires_at?: string | null
+          current_note_shareable?: string | null
           id?: string
           is_demo?: boolean
           locale?: string
