@@ -10,6 +10,7 @@ import DemoModeBadge from "@/components/DemoModeBadge";
 import ActiveModeSelector from "@/components/ActiveModeSelector";
 import LiveConsultBanner from "@/components/LiveConsultBanner";
 import TransferCallBanner from "@/components/TransferCallBanner";
+import { CallMyAssistantButton } from "@/components/CallMyAssistantButton";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -46,6 +47,9 @@ export default function Dashboard() {
           </p>
         )}
       </motion.div>
+
+      {/* Call my assistant */}
+      <CallMyAssistantButton />
 
       {/* Live consultation banner */}
       <LiveConsultBanner />

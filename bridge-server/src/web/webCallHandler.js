@@ -68,15 +68,45 @@ function handleWebCallConnection(ws) {
 
       if (msg.type === "start" && !started) {
         started = true;
-        const { profileId, callerPhone } = msg;
-        log.call("web_call_start", callCtx.traceId, `profileId=${profileId}, callerPhone=${callerPhone || "anonymous"}`);
+        const { profileId, callerPhone, mode, accountId: requestedAccountId } = msg;
+        const isOwner = mode === "owner";
+        callCtx.ownerMode = isOwner;
+        log.call("web_call_start", callCtx.traceId, `mode=${mode || "caller"}, profileId=${profileId}, callerPhone=${callerPhone || "anonymous"}`);
 
         callCtx.callerNumber = callerPhone || "unknown";
         callCtx.startedAt = new Date().toISOString();
         callCtx.profileId = profileId || null;
 
-        // ── Resolve account from profileId ──
-        if (profileId) {
+        // ── Resolve account ──
+        if (isOwner) {
+          // Owner mode: verify profile is admin/owner of requested account
+          if (!profileId || !requestedAccountId) {
+            log.error("web_call_owner_missing_ids", callCtx.traceId);
+            ws.send(JSON.stringify({ type: "ended", reason: "missing_credentials" }));
+            ws.close(1008, "missing_credentials");
+            return;
+          }
+          try {
+            const { data: membership } = await supabaseAdmin
+              .from("account_members")
+              .select("account_id, role")
+              .eq("profile_id", profileId)
+              .eq("account_id", requestedAccountId)
+              .maybeSingle();
+            if (!membership || !["owner", "admin"].includes(membership.role)) {
+              log.error("web_call_owner_unauthorized", callCtx.traceId, `profile=${profileId} account=${requestedAccountId}`);
+              ws.send(JSON.stringify({ type: "ended", reason: "unauthorized" }));
+              ws.close(1008, "unauthorized");
+              return;
+            }
+            callCtx.accountId = membership.account_id;
+          } catch (e) {
+            log.error("web_call_owner_verify_error", callCtx.traceId, e.message);
+            ws.send(JSON.stringify({ type: "ended", reason: "verify_failed" }));
+            ws.close(1011, "verify_failed");
+            return;
+          }
+        } else if (profileId) {
           try {
             const { data: membership } = await supabaseAdmin
               .from("account_members")
@@ -97,43 +127,40 @@ function handleWebCallConnection(ws) {
                 .maybeSingle();
               if (anyMem) callCtx.accountId = anyMem.account_id;
             }
-
-            if (callCtx.accountId) {
-              // Resolve active mode
-              const { data: mode } = await supabaseAdmin
-                .from("assistant_modes")
-                .select("id")
-                .eq("account_id", callCtx.accountId)
-                .eq("is_active", true)
-                .limit(1)
-                .maybeSingle();
-              if (mode) callCtx.activeModeId = mode.id;
-
-              // Resolve phone_number
-              const { data: pnList } = await supabaseAdmin
-                .from("phone_numbers")
-                .select("id")
-                .eq("account_id", callCtx.accountId)
-                .eq("status", "active")
-                .limit(1);
-              if (pnList && pnList.length > 0) callCtx.phoneNumberId = pnList[0].id;
-            }
           } catch (e) {
             log.error("web_call_resolve_error", callCtx.traceId, e.message);
           }
         }
 
-        log.call("web_call_resolved", callCtx.traceId,
-          `accountId=${callCtx.accountId || "MISSING"}, activeModeId=${callCtx.activeModeId || "MISSING"}`);
+        if (callCtx.accountId && !isOwner) {
+          // Resolve active mode for caller-mode sessions only
+          const { data: mode } = await supabaseAdmin
+            .from("assistant_modes")
+            .select("id")
+            .eq("account_id", callCtx.accountId)
+            .eq("is_active", true)
+            .limit(1)
+            .maybeSingle();
+          if (mode) callCtx.activeModeId = mode.id;
 
-        // Create call session (provider = "web")
+          const { data: pnList } = await supabaseAdmin
+            .from("phone_numbers")
+            .select("id")
+            .eq("account_id", callCtx.accountId)
+            .eq("status", "active")
+            .limit(1);
+          if (pnList && pnList.length > 0) callCtx.phoneNumberId = pnList[0].id;
+        }
+
+        log.call("web_call_resolved", callCtx.traceId,
+          `accountId=${callCtx.accountId || "MISSING"}, owner=${isOwner}`);
+
+        // Create call session (provider = "web", direction = "outbound" for owner self-calls)
         callCtx.providerCallId = `web-${callCtx.traceId}`;
-        const origProvider = "web";
-        // Temporarily override for the insert
-        const sessionId = await createWebCallSession(callCtx, origProvider);
+        const sessionId = await createWebCallSession(callCtx, "web", isOwner);
         if (sessionId) callCtx.callSessionId = sessionId;
 
-        // Connect Gemini — use a custom onAudio that sends raw PCM base64 (no mulaw conversion)
+        // Connect Gemini (owner uses dedicated setup + tool router)
         geminiWs = connectGeminiForWeb(callCtx, sendAudioToBrowser);
         return;
       }
@@ -184,13 +211,22 @@ function connectGeminiForWeb(callCtx, onAudioBase64) {
   } = require("../tools/consultUserFlow");
   const { buildRuntimeContext } = require("../context/runtimeContextBuilder");
 
+  // Owner-mode bindings
+  const isOwner = !!callCtx.ownerMode;
+  let ownerSetup, ownerRouter, ownerContextBuilder;
+  if (isOwner) {
+    ({ buildOwnerSetupPayload: ownerSetup } = require("../owner/ownerGeminiConfig"));
+    ({ handleOwnerToolCall: ownerRouter } = require("../owner/ownerToolRouter"));
+    ({ buildOwnerRuntimeContext: ownerContextBuilder } = require("../owner/ownerContextBuilder"));
+  }
+
   const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${GEMINI_API_KEY}`;
   const ws = new WebSocket(wsUrl);
   const { traceId } = callCtx;
 
   ws.on("open", () => {
-    log.gemini("web_connected", traceId);
-    ws.send(JSON.stringify(buildSetupPayload()));
+    log.gemini("web_connected", traceId, isOwner ? "owner_mode" : "caller_mode");
+    ws.send(JSON.stringify(isOwner ? ownerSetup() : buildSetupPayload()));
   });
 
   ws.on("message", (data) => {
@@ -200,12 +236,15 @@ function connectGeminiForWeb(callCtx, onAudioBase64) {
       if (msg.setupComplete) {
         log.gemini("web_setup_complete", traceId);
 
-        buildRuntimeContext(callCtx)
+        const buildCtx = isOwner ? ownerContextBuilder(callCtx) : buildRuntimeContext(callCtx);
+        Promise.resolve(buildCtx)
           .then((contextBlock) => {
             ws.send(JSON.stringify({ realtimeInput: { text: contextBlock } }));
             log.gemini("web_runtime_context_injected", traceId);
 
-            const kickoff = "L'appel vient de commencer. Présente-toi immédiatement puis attends la réponse de l'appelant.";
+            const kickoff = isOwner
+              ? "L'utilisateur vient d'ouvrir la session. Salue-le brièvement par son prénom puis demande comment tu peux l'aider."
+              : "L'appel vient de commencer. Présente-toi immédiatement puis attends la réponse de l'appelant.";
             ws.send(JSON.stringify({ realtimeInput: { text: kickoff } }));
 
             log.gemini("web_mic_gate_started", traceId, "3000ms");
@@ -216,14 +255,11 @@ function connectGeminiForWeb(callCtx, onAudioBase64) {
           })
           .catch((err) => {
             log.error("web_runtime_context_failed", traceId, err.message);
-            const kickoff = "L'appel vient de commencer. Présente-toi immédiatement puis attends la réponse de l'appelant.";
-            ws.send(JSON.stringify({ realtimeInput: { text: kickoff } }));
             setTimeout(() => { callCtx.geminiReady = true; }, 3000);
           });
         return;
       }
 
-      // Audio from Gemini → send PCM 24kHz base64 directly to browser
       if (msg.serverContent?.modelTurn?.parts) {
         for (const part of msg.serverContent.modelTurn.parts) {
           if (part.inlineData?.data) {
@@ -231,13 +267,11 @@ function connectGeminiForWeb(callCtx, onAudioBase64) {
             if (isConsultAnnouncementPending(consultFlow)) {
               observeConsultAnnouncement(consultFlow);
             }
-            // Send raw PCM 24kHz base64 to browser (no mulaw conversion)
             onAudioBase64(part.inlineData.data);
           }
         }
       }
 
-      // Transcriptions
       if (msg.serverContent?.inputTranscription?.text) {
         const text = msg.serverContent.inputTranscription.text;
         log.transcript("🎤", "caller", traceId, text);
@@ -252,11 +286,11 @@ function connectGeminiForWeb(callCtx, onAudioBase64) {
         if (callCtx._txBuffer) callCtx._txBuffer.push("assistant", text);
       }
 
-      // Tool calls
       if (msg.toolCall?.functionCalls) {
         if (callCtx._txBuffer) callCtx._txBuffer.flush();
+        const handler = isOwner ? ownerRouter : handleToolCall;
         Promise.all(
-          msg.toolCall.functionCalls.map((call) => handleToolCall(call, traceId, callCtx))
+          msg.toolCall.functionCalls.map((call) => handler(call, traceId, callCtx))
         ).then((responses) => {
           ws.send(JSON.stringify({ toolResponse: { functionResponses: responses } }));
         });
@@ -281,7 +315,7 @@ function connectGeminiForWeb(callCtx, onAudioBase64) {
 /**
  * Create a call_session with provider="web".
  */
-async function createWebCallSession(ctx, provider) {
+async function createWebCallSession(ctx, provider, isOwner = false) {
   if (!ctx.accountId) {
     log.error("web_call_session_skipped", ctx.traceId, "no accountId");
     return null;
@@ -294,10 +328,11 @@ async function createWebCallSession(ctx, provider) {
     direction: "inbound",
     started_at: ctx.startedAt || new Date().toISOString(),
     caller_phone_e164: ctx.callerNumber !== "unknown" ? ctx.callerNumber : null,
-    caller_name_raw: null,
+    caller_name_raw: isOwner ? "(propriétaire)" : null,
     phone_number_id: ctx.phoneNumberId || null,
     profile_id: ctx.profileId || null,
     active_mode_id: ctx.activeModeId || null,
+    metadata: isOwner ? { session_type: "owner_self_call" } : {},
   };
 
   try {
