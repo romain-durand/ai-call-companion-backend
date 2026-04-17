@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Phone, Clock, ChevronDown, ChevronUp, Brain, Zap, X, Bell, BellOff } from "lucide-react";
+import { Phone, Clock, ChevronDown, ChevronUp, Brain, Zap, X, Bell, BellOff, Check } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -237,19 +238,34 @@ export default function CallHistory() {
       </motion.div>
 
       {/* Filter chips */}
-      <div className="flex gap-2 flex-wrap">
-        {filterChips.map((chip) => (
-          <Button
-            key={chip.slug}
-            variant={activeFilter === chip.slug ? "default" : "outline"}
-            size="sm"
-            className="rounded-full px-4 h-8 text-xs"
-            onClick={() => setActiveFilter(chip.slug)}
-          >
-            <span className="mr-1">{chip.icon}</span>
-            {chip.label}
-          </Button>
-        ))}
+      <div>
+        {(() => {
+          const active = filterChips.find((c) => c.slug === activeFilter) ?? filterChips[0];
+          return (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="rounded-full px-4 h-8 text-xs gap-1.5">
+                  <span>{active.icon}</span>
+                  {active.label}
+                  <ChevronDown className="w-3.5 h-3.5 ml-0.5 opacity-70" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="min-w-[10rem]">
+                {filterChips.map((chip) => (
+                  <DropdownMenuItem
+                    key={chip.slug}
+                    onSelect={() => setActiveFilter(chip.slug)}
+                    className="text-xs gap-2"
+                  >
+                    <span className="text-sm">{chip.icon}</span>
+                    <span className="flex-1">{chip.label}</span>
+                    {chip.slug === activeFilter && <Check className="w-3.5 h-3.5 text-primary" />}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          );
+        })()}
       </div>
 
       {/* List */}
