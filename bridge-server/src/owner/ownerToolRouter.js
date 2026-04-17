@@ -27,6 +27,12 @@ async function handleOwnerToolCall(call, traceId, callCtx) {
       case "set_group_instructions":
         response = await setGroupInstructions(callCtx, args);
         break;
+      case "create_contact":
+        response = await createContact(callCtx, args);
+        break;
+      case "create_caller_group":
+        response = await createCallerGroup(callCtx, args);
+        break;
       case "set_about_me":
         response = await setAboutMe(callCtx, args);
         break;
