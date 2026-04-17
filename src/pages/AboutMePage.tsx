@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 const MAX = 4000;
 
 export default function AboutMePage() {
-  const { accountId, loading: accountLoading } = useUserAccountId();
+  const { data: accountId, isLoading: accountLoading } = useUserAccountId();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
