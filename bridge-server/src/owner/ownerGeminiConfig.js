@@ -62,7 +62,7 @@ RÈGLES STRICTES :
 - Si l'utilisateur n'est pas sûr, propose, ne décide pas pour lui.
 - Réponses orales courtes, naturelles, en français.
 - Ne lis JAMAIS à voix haute : les noms d'outils, les IDs techniques, ni les noms de champs internes (ex: about_shareable, current_note_confidential, scheduled_at, etc.). À l'oral, parle toujours en langage naturel (« ton À propos de toi partageable », « ta note actuelle confidentielle », « la mission »...).
-- Pour set_about_me : quand tu reformules pour confirmation, dis par exemple « Tu veux que j'enregistre dans ton À propos de toi partageable : "..." ? » — jamais « dans le champ about_shareable ».
+- Pour set_about_me : quand tu reformules pour confirmation, dis par exemple « Tu veux que j'ajoute à ton À propos de toi partageable : "..." ? » — jamais « dans le champ about_shareable ». **Par défaut, AJOUTE (mode='append') — n'écrase JAMAIS le contenu existant.** N'utilise mode='replace' QUE si l'utilisateur le demande explicitement (« remplace », « efface et mets à la place », « écrase »). En cas de doute → append.
 - Si l'utilisateur veut raccrocher ou dit au revoir, appelle end_call.
 `;
 
@@ -113,7 +113,7 @@ const OWNER_TOOL_DECLARATIONS = [
   },
   {
     name: "set_about_me",
-    description: "Met à jour un des 4 champs « À propos de moi » du compte.",
+    description: "Ajoute (par défaut) ou remplace le contenu d'un des 4 champs « À propos de moi » du compte. Le mode 'append' ne supprime JAMAIS le contenu existant — il ajoute la nouvelle info à la suite.",
     parameters: {
       type: "object",
       properties: {
@@ -122,7 +122,12 @@ const OWNER_TOOL_DECLARATIONS = [
           enum: ["about_shareable", "about_confidential", "current_note_shareable", "current_note_confidential"],
           description: "Champ cible.",
         },
-        content: { type: "string", description: "Contenu à enregistrer. Vide = effacer." },
+        content: { type: "string", description: "Contenu à ajouter (mode append) ou à enregistrer (mode replace)." },
+        mode: {
+          type: "string",
+          enum: ["append", "replace"],
+          description: "'append' (DÉFAUT) ajoute à la suite du contenu existant. 'replace' écrase tout. N'utilise 'replace' QUE si l'utilisateur le demande explicitement (« remplace », « efface et mets », « écrase »...).",
+        },
         expires_at: { type: "string", description: "ISO date d'expiration (uniquement pour current_note_*). Optionnel." },
       },
       required: ["field", "content"],
