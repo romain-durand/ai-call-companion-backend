@@ -211,13 +211,22 @@ function connectGeminiForWeb(callCtx, onAudioBase64) {
   } = require("../tools/consultUserFlow");
   const { buildRuntimeContext } = require("../context/runtimeContextBuilder");
 
+  // Owner-mode bindings
+  const isOwner = !!callCtx.ownerMode;
+  let ownerSetup, ownerRouter, ownerContextBuilder;
+  if (isOwner) {
+    ({ buildOwnerSetupPayload: ownerSetup } = require("../owner/ownerGeminiConfig"));
+    ({ handleOwnerToolCall: ownerRouter } = require("../owner/ownerToolRouter"));
+    ({ buildOwnerRuntimeContext: ownerContextBuilder } = require("../owner/ownerContextBuilder"));
+  }
+
   const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${GEMINI_API_KEY}`;
   const ws = new WebSocket(wsUrl);
   const { traceId } = callCtx;
 
   ws.on("open", () => {
-    log.gemini("web_connected", traceId);
-    ws.send(JSON.stringify(buildSetupPayload()));
+    log.gemini("web_connected", traceId, isOwner ? "owner_mode" : "caller_mode");
+    ws.send(JSON.stringify(isOwner ? ownerSetup() : buildSetupPayload()));
   });
 
   ws.on("message", (data) => {
@@ -227,12 +236,15 @@ function connectGeminiForWeb(callCtx, onAudioBase64) {
       if (msg.setupComplete) {
         log.gemini("web_setup_complete", traceId);
 
-        buildRuntimeContext(callCtx)
+        const buildCtx = isOwner ? ownerContextBuilder(callCtx) : buildRuntimeContext(callCtx);
+        Promise.resolve(buildCtx)
           .then((contextBlock) => {
             ws.send(JSON.stringify({ realtimeInput: { text: contextBlock } }));
             log.gemini("web_runtime_context_injected", traceId);
 
-            const kickoff = "L'appel vient de commencer. Présente-toi immédiatement puis attends la réponse de l'appelant.";
+            const kickoff = isOwner
+              ? "L'utilisateur vient d'ouvrir la session. Salue-le brièvement par son prénom puis demande comment tu peux l'aider."
+              : "L'appel vient de commencer. Présente-toi immédiatement puis attends la réponse de l'appelant.";
             ws.send(JSON.stringify({ realtimeInput: { text: kickoff } }));
 
             log.gemini("web_mic_gate_started", traceId, "3000ms");
@@ -243,14 +255,11 @@ function connectGeminiForWeb(callCtx, onAudioBase64) {
           })
           .catch((err) => {
             log.error("web_runtime_context_failed", traceId, err.message);
-            const kickoff = "L'appel vient de commencer. Présente-toi immédiatement puis attends la réponse de l'appelant.";
-            ws.send(JSON.stringify({ realtimeInput: { text: kickoff } }));
             setTimeout(() => { callCtx.geminiReady = true; }, 3000);
           });
         return;
       }
 
-      // Audio from Gemini → send PCM 24kHz base64 directly to browser
       if (msg.serverContent?.modelTurn?.parts) {
         for (const part of msg.serverContent.modelTurn.parts) {
           if (part.inlineData?.data) {
@@ -258,13 +267,11 @@ function connectGeminiForWeb(callCtx, onAudioBase64) {
             if (isConsultAnnouncementPending(consultFlow)) {
               observeConsultAnnouncement(consultFlow);
             }
-            // Send raw PCM 24kHz base64 to browser (no mulaw conversion)
             onAudioBase64(part.inlineData.data);
           }
         }
       }
 
-      // Transcriptions
       if (msg.serverContent?.inputTranscription?.text) {
         const text = msg.serverContent.inputTranscription.text;
         log.transcript("🎤", "caller", traceId, text);
@@ -279,11 +286,11 @@ function connectGeminiForWeb(callCtx, onAudioBase64) {
         if (callCtx._txBuffer) callCtx._txBuffer.push("assistant", text);
       }
 
-      // Tool calls
       if (msg.toolCall?.functionCalls) {
         if (callCtx._txBuffer) callCtx._txBuffer.flush();
+        const handler = isOwner ? ownerRouter : handleToolCall;
         Promise.all(
-          msg.toolCall.functionCalls.map((call) => handleToolCall(call, traceId, callCtx))
+          msg.toolCall.functionCalls.map((call) => handler(call, traceId, callCtx))
         ).then((responses) => {
           ws.send(JSON.stringify({ toolResponse: { functionResponses: responses } }));
         });
@@ -308,7 +315,7 @@ function connectGeminiForWeb(callCtx, onAudioBase64) {
 /**
  * Create a call_session with provider="web".
  */
-async function createWebCallSession(ctx, provider) {
+async function createWebCallSession(ctx, provider, isOwner = false) {
   if (!ctx.accountId) {
     log.error("web_call_session_skipped", ctx.traceId, "no accountId");
     return null;
@@ -321,10 +328,11 @@ async function createWebCallSession(ctx, provider) {
     direction: "inbound",
     started_at: ctx.startedAt || new Date().toISOString(),
     caller_phone_e164: ctx.callerNumber !== "unknown" ? ctx.callerNumber : null,
-    caller_name_raw: null,
+    caller_name_raw: isOwner ? "(propriétaire)" : null,
     phone_number_id: ctx.phoneNumberId || null,
     profile_id: ctx.profileId || null,
     active_mode_id: ctx.activeModeId || null,
+    metadata: isOwner ? { session_type: "owner_self_call" } : {},
   };
 
   try {
