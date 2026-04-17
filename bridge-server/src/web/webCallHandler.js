@@ -68,15 +68,45 @@ function handleWebCallConnection(ws) {
 
       if (msg.type === "start" && !started) {
         started = true;
-        const { profileId, callerPhone } = msg;
-        log.call("web_call_start", callCtx.traceId, `profileId=${profileId}, callerPhone=${callerPhone || "anonymous"}`);
+        const { profileId, callerPhone, mode, accountId: requestedAccountId } = msg;
+        const isOwner = mode === "owner";
+        callCtx.ownerMode = isOwner;
+        log.call("web_call_start", callCtx.traceId, `mode=${mode || "caller"}, profileId=${profileId}, callerPhone=${callerPhone || "anonymous"}`);
 
         callCtx.callerNumber = callerPhone || "unknown";
         callCtx.startedAt = new Date().toISOString();
         callCtx.profileId = profileId || null;
 
-        // ── Resolve account from profileId ──
-        if (profileId) {
+        // ── Resolve account ──
+        if (isOwner) {
+          // Owner mode: verify profile is admin/owner of requested account
+          if (!profileId || !requestedAccountId) {
+            log.error("web_call_owner_missing_ids", callCtx.traceId);
+            ws.send(JSON.stringify({ type: "ended", reason: "missing_credentials" }));
+            ws.close(1008, "missing_credentials");
+            return;
+          }
+          try {
+            const { data: membership } = await supabaseAdmin
+              .from("account_members")
+              .select("account_id, role")
+              .eq("profile_id", profileId)
+              .eq("account_id", requestedAccountId)
+              .maybeSingle();
+            if (!membership || !["owner", "admin"].includes(membership.role)) {
+              log.error("web_call_owner_unauthorized", callCtx.traceId, `profile=${profileId} account=${requestedAccountId}`);
+              ws.send(JSON.stringify({ type: "ended", reason: "unauthorized" }));
+              ws.close(1008, "unauthorized");
+              return;
+            }
+            callCtx.accountId = membership.account_id;
+          } catch (e) {
+            log.error("web_call_owner_verify_error", callCtx.traceId, e.message);
+            ws.send(JSON.stringify({ type: "ended", reason: "verify_failed" }));
+            ws.close(1011, "verify_failed");
+            return;
+          }
+        } else if (profileId) {
           try {
             const { data: membership } = await supabaseAdmin
               .from("account_members")
@@ -97,43 +127,40 @@ function handleWebCallConnection(ws) {
                 .maybeSingle();
               if (anyMem) callCtx.accountId = anyMem.account_id;
             }
-
-            if (callCtx.accountId) {
-              // Resolve active mode
-              const { data: mode } = await supabaseAdmin
-                .from("assistant_modes")
-                .select("id")
-                .eq("account_id", callCtx.accountId)
-                .eq("is_active", true)
-                .limit(1)
-                .maybeSingle();
-              if (mode) callCtx.activeModeId = mode.id;
-
-              // Resolve phone_number
-              const { data: pnList } = await supabaseAdmin
-                .from("phone_numbers")
-                .select("id")
-                .eq("account_id", callCtx.accountId)
-                .eq("status", "active")
-                .limit(1);
-              if (pnList && pnList.length > 0) callCtx.phoneNumberId = pnList[0].id;
-            }
           } catch (e) {
             log.error("web_call_resolve_error", callCtx.traceId, e.message);
           }
         }
 
-        log.call("web_call_resolved", callCtx.traceId,
-          `accountId=${callCtx.accountId || "MISSING"}, activeModeId=${callCtx.activeModeId || "MISSING"}`);
+        if (callCtx.accountId && !isOwner) {
+          // Resolve active mode for caller-mode sessions only
+          const { data: mode } = await supabaseAdmin
+            .from("assistant_modes")
+            .select("id")
+            .eq("account_id", callCtx.accountId)
+            .eq("is_active", true)
+            .limit(1)
+            .maybeSingle();
+          if (mode) callCtx.activeModeId = mode.id;
 
-        // Create call session (provider = "web")
+          const { data: pnList } = await supabaseAdmin
+            .from("phone_numbers")
+            .select("id")
+            .eq("account_id", callCtx.accountId)
+            .eq("status", "active")
+            .limit(1);
+          if (pnList && pnList.length > 0) callCtx.phoneNumberId = pnList[0].id;
+        }
+
+        log.call("web_call_resolved", callCtx.traceId,
+          `accountId=${callCtx.accountId || "MISSING"}, owner=${isOwner}`);
+
+        // Create call session (provider = "web", direction = "outbound" for owner self-calls)
         callCtx.providerCallId = `web-${callCtx.traceId}`;
-        const origProvider = "web";
-        // Temporarily override for the insert
-        const sessionId = await createWebCallSession(callCtx, origProvider);
+        const sessionId = await createWebCallSession(callCtx, "web", isOwner);
         if (sessionId) callCtx.callSessionId = sessionId;
 
-        // Connect Gemini — use a custom onAudio that sends raw PCM base64 (no mulaw conversion)
+        // Connect Gemini (owner uses dedicated setup + tool router)
         geminiWs = connectGeminiForWeb(callCtx, sendAudioToBrowser);
         return;
       }
