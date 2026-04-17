@@ -16,6 +16,7 @@ import TestAssistant from "./pages/TestAssistant";
 import WhoCanReachMe from "./pages/WhoCanReachMe";
 import HowToHandle from "./pages/HowToHandle";
 import WhenToAlert from "./pages/WhenToAlert";
+import AboutMePage from "./pages/AboutMePage";
 import MissionsPage from "./pages/MissionsPage";
 import Login from "./pages/Login";
 import WebCallPage from "./pages/WebCallPage";
@@ -45,6 +46,7 @@ const App = () => (
                       <Route path="/who" element={<WhoCanReachMe />} />
                       <Route path="/how" element={<HowToHandle />} />
                       <Route path="/when" element={<WhenToAlert />} />
+                      <Route path="/about-me" element={<AboutMePage />} />
                       <Route path="/history" element={<CallHistory />} />
                       <Route path="/calendar" element={<CalendarPage />} />
                       <Route path="/missions" element={<MissionsPage />} />

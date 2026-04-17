@@ -10,6 +10,7 @@ import {
   PlayCircle,
   LogOut,
   PhoneOutgoing,
+  UserCircle,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -35,6 +36,7 @@ const mainNav = [
 ];
 
 const configNav = [
+  { title: "À propos de moi", url: "/about-me", icon: UserCircle },
   { title: "Qui peut me joindre", url: "/who", icon: Users },
   { title: "Comment gérer les appels", url: "/how", icon: PhoneCall },
   { title: "Quand me prévenir", url: "/when", icon: Bell },
