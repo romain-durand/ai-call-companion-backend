@@ -230,27 +230,30 @@ export default function CallHistory() {
 
   return (
     <div className="space-y-5 sm:space-y-6 max-w-3xl">
-      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 className="text-2xl font-semibold tracking-tight">Historique des appels</h1>
-        <p className="text-sm text-muted-foreground mt-2">
-          {isLoading ? "Chargement…" : `${filteredCalls.length} appel${filteredCalls.length > 1 ? "s" : ""} · Cliquez pour voir les détails`}
-        </p>
-      </motion.div>
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex items-start justify-between gap-3"
+      >
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold tracking-tight">Historique des appels</h1>
+          <p className="text-sm text-muted-foreground mt-2">
+            {isLoading ? "Chargement…" : `${filteredCalls.length} appel${filteredCalls.length > 1 ? "s" : ""} · Cliquez pour voir les détails`}
+          </p>
+        </div>
 
-      {/* Filter chips */}
-      <div>
         {(() => {
           const active = filterChips.find((c) => c.slug === activeFilter) ?? filterChips[0];
           return (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="rounded-full px-4 h-8 text-xs gap-1.5">
-                  <span>{active.icon}</span>
+                <Button variant="outline" className="rounded-full px-5 h-10 text-sm gap-2 shrink-0">
+                  <span className="text-base">{active.icon}</span>
                   {active.label}
-                  <ChevronDown className="w-3.5 h-3.5 ml-0.5 opacity-70" />
+                  <ChevronDown className="w-4 h-4 ml-0.5 opacity-70" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="min-w-[10rem]">
+              <DropdownMenuContent align="end" className="min-w-[10rem]">
                 {filterChips.map((chip) => (
                   <DropdownMenuItem
                     key={chip.slug}
@@ -266,7 +269,7 @@ export default function CallHistory() {
             </DropdownMenu>
           );
         })()}
-      </div>
+      </motion.div>
 
       {/* List */}
       {isLoading && (
