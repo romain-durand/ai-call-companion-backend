@@ -75,16 +75,21 @@ function derivePriority(urgencyLevel: string): string {
 }
 
 export async function getLiveCallHistory(accountIds: string[]): Promise<CallHistoryItem[]> {
-  const { data: sessions } = await supabase
+  const { data: sessionsRaw } = await supabase
     .from("call_sessions")
     .select(
-      "id, caller_name_raw, caller_phone_e164, final_outcome, summary_short, summary_long, summary_llm, urgency_level, started_at, duration_seconds, caller_group_id, detected_intent, escalated_to_user, contact_id"
+      "id, caller_name_raw, caller_phone_e164, final_outcome, summary_short, summary_long, summary_llm, urgency_level, started_at, duration_seconds, caller_group_id, detected_intent, escalated_to_user, contact_id, metadata"
     )
     .in("account_id", accountIds)
     .order("started_at", { ascending: false })
-    .limit(50);
+    .limit(80);
 
-  if (!sessions || sessions.length === 0) return [];
+  // Exclude owner self-calls (chat with own assistant) — they don't belong in history.
+  const sessions = (sessionsRaw || [])
+    .filter((s) => (s.metadata as { session_type?: string } | null)?.session_type !== "owner_self_call")
+    .slice(0, 50);
+
+  if (sessions.length === 0) return [];
 
   const sessionIds = sessions.map((s) => s.id);
 
