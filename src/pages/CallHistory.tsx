@@ -155,16 +155,6 @@ function CallRow({ call, onDelete, defaultOpen, scrollIntoView }: { call: CallHi
               className="overflow-hidden"
             >
               <div className="px-5 pb-5 space-y-4 border-t border-border/30 pt-4">
-                {call.reasoning && (
-                  <div className="flex items-start gap-3 p-3 rounded-lg bg-primary/5 border border-primary/10">
-                    <Brain className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                    <div>
-                      <p className="text-[11px] font-medium text-primary mb-1">Raisonnement d'Aria</p>
-                      <p className="text-xs text-muted-foreground leading-relaxed">{call.reasoning}</p>
-                    </div>
-                  </div>
-                )}
-
                 {call.actions.length > 0 && (
                   <div>
                     <div className="flex items-center gap-1.5 mb-2">
