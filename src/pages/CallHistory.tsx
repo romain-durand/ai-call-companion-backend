@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Phone, Clock, ChevronDown, ChevronUp, Brain, Zap, X, Bell, BellOff } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -48,11 +49,22 @@ const detailActionIcons: Record<string, string> = {
 };
 
 // ── Call Row ────────────────────────────────────────────────────────────────
-function CallRow({ call, onDelete }: { call: CallHistoryItem; onDelete: (id: string) => void }) {
-  const [open, setOpen] = useState(false);
+function CallRow({ call, onDelete, defaultOpen, scrollIntoView }: { call: CallHistoryItem; onDelete: (id: string) => void; defaultOpen?: boolean; scrollIntoView?: boolean }) {
+  const [open, setOpen] = useState(!!defaultOpen);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (defaultOpen) setOpen(true);
+  }, [defaultOpen]);
+
+  useEffect(() => {
+    if (scrollIntoView && rootRef.current) {
+      rootRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [scrollIntoView]);
 
   return (
-    <Card className="bg-card/40 border-border/40 hover:border-border/70 transition-all">
+    <Card ref={rootRef} id={`call-${call.id}`} className="bg-card/40 border-border/40 hover:border-border/70 transition-all scroll-mt-24">
       <CardContent className="p-0">
         <div
           className="flex items-start sm:items-center gap-2.5 sm:gap-3 p-3 sm:p-4 cursor-pointer group"
