@@ -102,7 +102,34 @@ const OWNER_TOOL_DECLARATIONS = [
     },
   },
   {
-    name: "set_group_instructions",
+    name: "create_contact",
+    description: "Crée un nouveau contact dans le carnet d'adresses. Le numéro français commençant par 0 est automatiquement converti en +33 côté serveur.",
+    parameters: {
+      type: "object",
+      properties: {
+        first_name: { type: "string", description: "Prénom du contact." },
+        last_name: { type: "string", description: "Nom de famille du contact." },
+        phone: { type: "string", description: "Numéro de téléphone (format libre, ex: '0663859064' ou '+33663859064')." },
+        group_query: { type: "string", description: "Optionnel : nom (ou bout de nom) d'un groupe existant pour y ajouter le contact." },
+      },
+      required: ["phone"],
+    },
+  },
+  {
+    name: "create_caller_group",
+    description: "Crée un nouveau groupe d'appelants (custom) pour pouvoir y rattacher des contacts et y associer des règles ou des instructions spéciales.",
+    parameters: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Nom du groupe (ex: 'Clients VIP', 'Voisins')." },
+        description: { type: "string", description: "Description courte du groupe (optionnel)." },
+        custom_instructions: { type: "string", description: "Instructions spéciales pour ce groupe (optionnel)." },
+        priority_rank: { type: "number", description: "Rang de priorité (0 = normal, plus haut = plus prioritaire). Optionnel, défaut 0." },
+      },
+      required: ["name"],
+    },
+  },
+  {
     description: "Met à jour les instructions spéciales pour un groupe d'appelants (recherche par nom).",
     parameters: {
       type: "object",
