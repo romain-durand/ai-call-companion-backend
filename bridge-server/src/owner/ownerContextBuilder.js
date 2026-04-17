@@ -28,7 +28,7 @@ async function buildOwnerRuntimeContext(callCtx) {
       supabaseAdmin.from("accounts").select("name, timezone, about_shareable, about_confidential, current_note_shareable, current_note_confidential, current_note_expires_at").eq("id", accountId).maybeSingle(),
       supabaseAdmin.from("call_sessions").select("started_at, caller_name_raw, caller_phone_e164, summary_short").eq("account_id", accountId).gte("started_at", todayStart.toISOString()).order("started_at", { ascending: false }).limit(10),
       supabaseAdmin.from("callback_requests").select("caller_name, caller_phone_e164, reason, created_at").eq("account_id", accountId).eq("status", "pending").limit(10),
-      supabaseAdmin.from("outbound_missions").select("objective, target_name, target_phone_e164, status").eq("account_id", accountId).in("status", ["draft", "scheduled", "in_progress"]).limit(10),
+      supabaseAdmin.from("outbound_missions").select("objective, target_name, target_phone_e164, status").eq("account_id", accountId).in("status", ["draft", "queued", "in_progress"]).limit(10),
       supabaseAdmin.from("caller_groups").select("name, custom_instructions").eq("account_id", accountId).order("priority_rank"),
       supabaseAdmin.from("assistant_modes").select("name, is_active").eq("account_id", accountId),
       supabaseAdmin.from("contacts").select("display_name, primary_phone_e164, secondary_phone_e164, custom_instructions").eq("account_id", accountId).order("display_name").limit(200),
