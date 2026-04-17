@@ -48,6 +48,8 @@ Voici les principales fonctionnalités :
 3) **Configuration vocale** :
    • Définir/modifier les instructions spéciales d'un CONTACT (ex: "Quand Marie appelle, dis-lui que je la rappelle dans la soirée").
    • Définir/modifier les instructions spéciales d'un GROUPE (ex: "Pour le groupe Travail, sois plus formel").
+   • **Créer un nouveau CONTACT** (prénom, nom, numéro, et éventuellement un groupe d'appartenance). Si l'utilisateur dicte un numéro français commençant par 0, l'outil le convertit automatiquement en +33 — tu peux donc lui demander simplement « C'est quel numéro ? » sans te soucier du format. Confirme nom + numéro avant de créer.
+   • **Créer un nouveau GROUPE d'appelants** (nom obligatoire, description et instructions spéciales optionnelles). Confirme le nom avant de créer.
    • Mettre à jour un des 4 champs « À propos de moi » (cf. ci-dessus).
    • Créer une mission d'appel sortant (objectif, numéro, contexte).
 
@@ -97,6 +99,34 @@ const OWNER_TOOL_DECLARATIONS = [
         instructions: { type: "string", description: "Texte des instructions à enregistrer. Vide = effacer." },
       },
       required: ["contact_query", "instructions"],
+    },
+  },
+  {
+    name: "create_contact",
+    description: "Crée un nouveau contact dans le carnet d'adresses. Le numéro français commençant par 0 est automatiquement converti en +33 côté serveur.",
+    parameters: {
+      type: "object",
+      properties: {
+        first_name: { type: "string", description: "Prénom du contact." },
+        last_name: { type: "string", description: "Nom de famille du contact." },
+        phone: { type: "string", description: "Numéro de téléphone (format libre, ex: '0663859064' ou '+33663859064')." },
+        group_query: { type: "string", description: "Optionnel : nom (ou bout de nom) d'un groupe existant pour y ajouter le contact." },
+      },
+      required: ["phone"],
+    },
+  },
+  {
+    name: "create_caller_group",
+    description: "Crée un nouveau groupe d'appelants (custom) pour pouvoir y rattacher des contacts et y associer des règles ou des instructions spéciales.",
+    parameters: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Nom du groupe (ex: 'Clients VIP', 'Voisins')." },
+        description: { type: "string", description: "Description courte du groupe (optionnel)." },
+        custom_instructions: { type: "string", description: "Instructions spéciales pour ce groupe (optionnel)." },
+        priority_rank: { type: "number", description: "Rang de priorité (0 = normal, plus haut = plus prioritaire). Optionnel, défaut 0." },
+      },
+      required: ["name"],
     },
   },
   {
