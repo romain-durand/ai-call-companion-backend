@@ -208,6 +208,16 @@ export default function CallHistory() {
   const { data: calls, isLoading } = useCallHistory();
   const queryClient = useQueryClient();
   const [activeFilter, setActiveFilter] = useState("all");
+  const location = useLocation();
+  const targetCallId = useMemo(() => {
+    const h = location.hash || "";
+    return h.startsWith("#call-") ? h.slice("#call-".length) : null;
+  }, [location.hash]);
+
+  // If deep-linked to a specific call, ensure it isn't hidden by an active filter.
+  useEffect(() => {
+    if (targetCallId) setActiveFilter("all");
+  }, [targetCallId]);
 
   const filteredCalls = useMemo(() => {
     if (!calls) return [];
@@ -276,7 +286,12 @@ export default function CallHistory() {
         <div className="space-y-2">
           {filteredCalls.map((call, i) => (
             <motion.div key={call.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
-              <CallRow call={call} onDelete={handleDelete} />
+              <CallRow
+                call={call}
+                onDelete={handleDelete}
+                defaultOpen={call.id === targetCallId}
+                scrollIntoView={call.id === targetCallId}
+              />
             </motion.div>
           ))}
         </div>
