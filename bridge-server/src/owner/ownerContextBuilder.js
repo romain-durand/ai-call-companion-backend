@@ -25,7 +25,7 @@ async function buildOwnerRuntimeContext(callCtx) {
       { data: contacts },
     ] = await Promise.all([
       supabaseAdmin.from("profiles").select("display_name, phone_e164").eq("id", profileId).maybeSingle(),
-      supabaseAdmin.from("accounts").select("name, timezone, about_shareable, about_confidential, current_note_shareable, current_note_confidential, current_note_expires_at").eq("id", accountId).maybeSingle(),
+      supabaseAdmin.from("accounts").select("name, timezone, about_shareable, about_confidential, current_note_shareable, current_note_confidential, current_note_expires_at, owner_confirm_actions").eq("id", accountId).maybeSingle(),
       supabaseAdmin.from("call_sessions").select("started_at, caller_name_raw, caller_phone_e164, summary_short").eq("account_id", accountId).gte("started_at", todayStart.toISOString()).order("started_at", { ascending: false }).limit(10),
       supabaseAdmin.from("callback_requests").select("caller_name, caller_phone_e164, reason, created_at").eq("account_id", accountId).eq("status", "pending").limit(10),
       supabaseAdmin.from("outbound_missions").select("objective, target_name, target_phone_e164, status").eq("account_id", accountId).in("status", ["draft", "queued", "in_progress"]).limit(10),
@@ -59,6 +59,7 @@ async function buildOwnerRuntimeContext(callCtx) {
 Tu parles à : ${fmt(profile?.display_name)} (téléphone : ${fmt(profile?.phone_e164)})
 Compte : ${fmt(account?.name)} — Fuseau : ${fmt(account?.timezone)}
 Mode actif : ${modeBlock}
+MODE CONFIRMATION ACTIONS : ${account?.owner_confirm_actions === false ? "DÉSACTIVÉ — n'exige PAS de confirmation, exécute directement les actions demandées" : "ACTIVÉ — reformule et demande confirmation explicite AVANT chaque action"}
 
 À PROPOS DE MOI (pour rappel à l'utilisateur si demandé) :
   - Général partageable : ${fmt(account?.about_shareable)}

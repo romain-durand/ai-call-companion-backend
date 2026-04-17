@@ -52,8 +52,10 @@ Voici les principales fonctionnalités :
    • Créer une mission d'appel sortant (objectif, numéro, contexte).
 
 RÈGLES STRICTES :
-- AVANT toute modification, REFORMULE clairement la valeur cible et demande confirmation explicite ("Tu veux que j'enregistre : « ... ». Je confirme ?").
-- DÈS QUE l'utilisateur confirme ("oui", "c'est bon", "vas-y", "confirmé"...), APPELLE IMMÉDIATEMENT l'outil correspondant (create_outbound_mission, set_about_me, set_contact_instructions, set_group_instructions). N'enchaîne PAS sur une nouvelle reformulation après un "oui" — exécute.
+- MODE CONFIRMATION : un réglage du compte (« MODE CONFIRMATION ACTIONS » dans le contexte runtime) détermine ton comportement :
+   • Si ACTIVÉ (défaut) : AVANT toute modification, REFORMULE la valeur cible et demande confirmation explicite ("Tu veux que j'enregistre : « ... ». Je confirme ?"). Dès que l'utilisateur confirme ("oui", "vas-y"...), APPELLE IMMÉDIATEMENT l'outil correspondant.
+   • Si DÉSACTIVÉ : exécute DIRECTEMENT l'action demandée sans demander de confirmation. Annonce brièvement ce que tu fais ("Je crée la mission...") et appelle l'outil tout de suite.
+- L'utilisateur peut basculer ce mode à tout moment (« arrête de me demander confirmation », « redemande-moi à chaque fois »...). Dans ce cas, appelle set_confirmation_mode avec enabled=true ou false.
 - RÉSOLUTION DE CONTACT : si l'utilisateur cite un nom de contact pour une mission ou autre, CHERCHE D'ABORD dans la liste CONTACTS DU COMPTE fournie dans le contexte runtime. Si tu trouves une correspondance unique, utilise directement le numéro sans redemander. Si plusieurs correspondent, demande de préciser. Si aucune ne correspond, demande le numéro à l'utilisateur. Ne dis JAMAIS « je n'ai pas accès à tes contacts » — tu les as dans le contexte.
 - Pour une mission : confirme objectif + nom + numéro avant de créer. Demande TOUJOURS si la mission doit être lancée immédiatement (dès que possible) ou programmée à une date/heure précise. **Si l'utilisateur dit "immédiatement", "tout de suite", "maintenant", "dès que possible" ou équivalent : N'ENVOIE PAS le paramètre scheduled_at — laisse-le complètement absent de l'appel d'outil.** Ne le remplis JAMAIS avec l'heure courante ou une heure proche. Si programmée à une date/heure future explicite donnée par l'utilisateur, convertis en ISO 8601 avec le fuseau de l'utilisateur et passe-la dans scheduled_at. Demande aussi s'il y a un contexte partageable et/ou un contexte secret à ajouter avant la confirmation finale.
 - ÉPELLATION DES NUMÉROS DE TÉLÉPHONE : quand tu énonces un numéro à voix haute pour confirmation, lis-le à la française si c'est un numéro français (commençant par +33 ou 0). Convertis +33 en 0 puis groupe par paires : par exemple "+33663859064" se dit « zéro six, soixante-trois, quatre-vingt-cinq, quatre-vingt-dix, soixante-quatre ». Pour les autres pays, énonce le code pays puis groupe les chiffres de manière naturelle pour la langue.
@@ -140,6 +142,17 @@ const OWNER_TOOL_DECLARATIONS = [
         scheduled_at: { type: "string", description: "ISO date pour planifier l'appel (sinon : dès que possible)." },
       },
       required: ["objective", "target_phone"],
+    },
+  },
+  {
+    name: "set_confirmation_mode",
+    description: "Active ou désactive l'exigence de confirmation avant chaque action de l'assistant.",
+    parameters: {
+      type: "object",
+      properties: {
+        enabled: { type: "boolean", description: "true = demander confirmation avant chaque action ; false = exécuter directement." },
+      },
+      required: ["enabled"],
     },
   },
   {

@@ -99,6 +99,7 @@ export type Database = {
           is_demo: boolean
           locale: string
           name: string
+          owner_confirm_actions: boolean
           slug: string
           status: Database["public"]["Enums"]["record_status"]
           timezone: string
@@ -116,6 +117,7 @@ export type Database = {
           is_demo?: boolean
           locale?: string
           name: string
+          owner_confirm_actions?: boolean
           slug: string
           status?: Database["public"]["Enums"]["record_status"]
           timezone?: string
@@ -133,6 +135,7 @@ export type Database = {
           is_demo?: boolean
           locale?: string
           name?: string
+          owner_confirm_actions?: boolean
           slug?: string
           status?: Database["public"]["Enums"]["record_status"]
           timezone?: string
