@@ -138,16 +138,38 @@ async function setGroupInstructions(ctx, { group_query, instructions }) {
   return { success: true, message: `Instructions mises à jour pour le groupe ${matches[0].name}.`, group: matches[0].name };
 }
 
-async function setAboutMe(ctx, { field, content, expires_at }) {
+async function setAboutMe(ctx, { field, content, expires_at, mode }) {
   const allowed = ["about_shareable", "about_confidential", "current_note_shareable", "current_note_confidential"];
   if (!allowed.includes(field)) return { success: false, message: `Champ invalide : ${field}` };
-  const update = { [field]: content || null };
+
+  // Default behavior is APPEND so user-spoken context never silently overwrites prior content.
+  // Replacement only when caller explicitly passes mode === "replace".
+  const writeMode = mode === "replace" ? "replace" : "append";
+  const cleanContent = (content || "").trim();
+
+  let finalValue = cleanContent || null;
+
+  if (writeMode === "append" && cleanContent) {
+    const { data: existing, error: readErr } = await supabaseAdmin
+      .from("accounts")
+      .select(field)
+      .eq("id", ctx.accountId)
+      .maybeSingle();
+    if (readErr) return { success: false, message: readErr.message };
+    const prior = (existing?.[field] || "").trim();
+    finalValue = prior ? `${prior}\n${cleanContent}` : cleanContent;
+  }
+
+  const update = { [field]: finalValue };
   if (field.startsWith("current_note_") && expires_at) {
     update.current_note_expires_at = expires_at;
   }
   const { error } = await supabaseAdmin.from("accounts").update(update).eq("id", ctx.accountId);
   if (error) return { success: false, message: error.message };
-  return { success: true, message: `Champ ${field} mis à jour.` };
+  return {
+    success: true,
+    message: writeMode === "append" ? `Ajouté à ${field}.` : `Champ ${field} remplacé.`,
+  };
 }
 
 async function createOutboundMission(ctx, args) {
