@@ -229,6 +229,39 @@ function handleOutboundStreamConnection(twilioWs) {
             // Connect to Gemini normally
             geminiWs = connectOutboundGemini(callCtx, sendAudioToTwilio);
           }
+
+          // Schedule proactive greeting trigger 400ms after Twilio start.
+          // If the callee speaks first (caller transcription), cancel the timer
+          // and let the natural flow handle the response.
+          const PROACTIVE_GREETING_DELAY_MS = 400;
+          callCtx._onCallerSpeechDetected = () => {
+            if (callCtx._firstTurnTriggered) return;
+            if (callCtx._proactiveGreetingTimer) {
+              clearTimeout(callCtx._proactiveGreetingTimer);
+              callCtx._proactiveGreetingTimer = null;
+              log.call("outbound_proactive_greeting_cancelled", callCtx.traceId, "callee_spoke_first");
+            }
+            callCtx._firstTurnTriggered = true;
+          };
+
+          callCtx._proactiveGreetingTimer = setTimeout(() => {
+            if (callCtx._firstTurnTriggered) return;
+            if (!geminiWs || geminiWs.readyState !== WebSocket.OPEN) return;
+            callCtx._firstTurnTriggered = true;
+            callCtx._firstTurnTriggeredAt = Date.now();
+            try {
+              geminiWs.send(JSON.stringify({
+                realtimeInput: {
+                  text: "Système : l'appelé vient de décrocher. Salue-le brièvement (une phrase courte), présente-toi comme l'assistant de l'utilisateur, puis enchaîne sur l'objectif. Si tu l'entends parler en même temps, laisse-le finir.",
+                },
+              }));
+              log.call("outbound_first_turn_triggered", callCtx.traceId,
+                `delay_ms=${PROACTIVE_GREETING_DELAY_MS} since_start_ms=${callCtx._firstTurnTriggeredAt - callCtx._twilioStartAt}`);
+            } catch (e) {
+              log.error("outbound_first_turn_trigger_error", callCtx.traceId, e.message);
+            }
+          }, PROACTIVE_GREETING_DELAY_MS);
+
           break;
         }
 
