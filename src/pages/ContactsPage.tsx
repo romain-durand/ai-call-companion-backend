@@ -323,18 +323,7 @@ export default function ContactsPage({ forcedView }: { forcedView?: "list" | "gr
           </div>
         )}
         <div className="flex items-center gap-2 ml-auto">
-          {forcedView !== "groups" && (
-            <Button
-              variant="outline"
-              size="sm"
-              disabled
-              className="opacity-50 cursor-not-allowed"
-              title="Bientôt disponible"
-            >
-              <Upload className="w-4 h-4 mr-1.5" />
-              Importer
-            </Button>
-          )}
+          {forcedView !== "groups" && <ImportContactsMenu />}
           <Button
             size="sm"
             onClick={() =>
