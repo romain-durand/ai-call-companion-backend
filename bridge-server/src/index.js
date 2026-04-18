@@ -8,6 +8,11 @@ const { handleOutboundStreamConnection } = require("./outbound/outboundStreamHan
 const { startOutboundPoller } = require("./outbound/outboundPoller");
 const { handleWebCallConnection } = require("./web/webCallHandler");
 const { handleGoogleStart, handleGoogleCallback } = require("./auth/googleOAuth");
+const {
+  handleGoogleContactsStart,
+  handleGoogleContactsCallback,
+  handleGoogleContactsImport,
+} = require("./auth/googleContactsOAuth");
 const { handleTwilioVoice } = require("./twilio/twilioVoiceHandler");
 const log = require("./observability/logger");
 
@@ -18,8 +23,8 @@ const server = http.createServer((req, res) => {
   if (req.method === "OPTIONS") {
     res.writeHead(204, {
       "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, OPTIONS",
-      "Access-Control-Allow-Headers": "Authorization",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Authorization, Content-Type",
     });
     return res.end();
   }
@@ -35,6 +40,15 @@ const server = http.createServer((req, res) => {
   }
   if (pathname === "/auth/google/callback" && req.method === "GET") {
     return handleGoogleCallback(req, res);
+  }
+  if (pathname === "/auth/google/contacts/start" && req.method === "GET") {
+    return handleGoogleContactsStart(req, res);
+  }
+  if (pathname === "/auth/google/contacts/callback" && req.method === "GET") {
+    return handleGoogleContactsCallback(req, res);
+  }
+  if (pathname === "/contacts/google/import" && req.method === "POST") {
+    return handleGoogleContactsImport(req, res);
   }
 
   // Health check
