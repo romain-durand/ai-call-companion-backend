@@ -50,6 +50,7 @@ import { ContactFormDialog } from "@/components/contacts/ContactFormDialog";
 import { GroupAssignDialog } from "@/components/contacts/GroupAssignDialog";
 import { DeleteContactDialog } from "@/components/contacts/DeleteContactDialog";
 import { GroupFormDialog } from "@/components/contacts/GroupFormDialog";
+import { ImportContactsMenu } from "@/components/contacts/ImportContactsMenu";
 
 type ViewMode = "list" | "groups";
 
