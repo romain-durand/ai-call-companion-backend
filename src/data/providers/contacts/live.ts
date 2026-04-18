@@ -17,7 +17,7 @@ export async function getLiveContacts(accountIds: string[]): Promise<ContactItem
     .from("contacts")
     .select("*")
     .in("account_id", accountIds)
-    .order("created_at", { ascending: false });
+    .order("display_name", { ascending: true, nullsFirst: false });
 
   if (error) throw error;
   if (!contacts || contacts.length === 0) return [];
