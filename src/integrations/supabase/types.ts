@@ -1050,6 +1050,73 @@ export type Database = {
           },
         ]
       }
+      contact_import_connections: {
+        Row: {
+          access_token_encrypted: string | null
+          account_id: string
+          created_at: string
+          id: string
+          profile_id: string
+          provider: string
+          provider_account_id: string | null
+          refresh_token_encrypted: string | null
+          scopes: string[] | null
+          status: string
+          token_expires_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_token_encrypted?: string | null
+          account_id: string
+          created_at?: string
+          id?: string
+          profile_id: string
+          provider?: string
+          provider_account_id?: string | null
+          refresh_token_encrypted?: string | null
+          scopes?: string[] | null
+          status?: string
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_token_encrypted?: string | null
+          account_id?: string
+          created_at?: string
+          id?: string
+          profile_id?: string
+          provider?: string
+          provider_account_id?: string | null
+          refresh_token_encrypted?: string | null
+          scopes?: string[] | null
+          status?: string
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_import_connections_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_import_connections_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_import_connections_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contacts: {
         Row: {
           account_id: string
@@ -1906,6 +1973,8 @@ export type Database = {
         | "csv_import"
         | "call_history"
         | "other"
+        | "google_import"
+        | "vcard_import"
       currency_code: "eur" | "usd"
       escalation_event_status:
         | "pending"
@@ -2141,6 +2210,8 @@ export const Constants = {
         "csv_import",
         "call_history",
         "other",
+        "google_import",
+        "vcard_import",
       ],
       currency_code: ["eur", "usd"],
       escalation_event_status: [
