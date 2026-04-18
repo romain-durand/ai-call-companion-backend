@@ -130,17 +130,17 @@ function ContactCard({
               <MoreHorizontal className="w-4 h-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={onEdit}>
+          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+            <DropdownMenuItem onSelect={onEdit}>
               <Pencil className="w-4 h-4 mr-2" />
               Modifier
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={onGroups}>
+            <DropdownMenuItem onSelect={onGroups}>
               <Users className="w-4 h-4 mr-2" />
               Groupes
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={onDelete}
+              onSelect={onDelete}
               className="text-destructive focus:text-destructive"
             >
               <Trash2 className="w-4 h-4 mr-2" />
