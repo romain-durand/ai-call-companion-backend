@@ -92,10 +92,12 @@ export function useSetContactGroups() {
       if (!accountId) throw new Error("No account");
       return setLiveContactGroups(accountId, contactId, groupIds);
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["contacts"] });
-      qc.invalidateQueries({ queryKey: ["contact-groups"] });
-      qc.invalidateQueries({ queryKey: ["caller-groups"] });
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["contacts"], refetchType: "all" }),
+        qc.invalidateQueries({ queryKey: ["contact-groups"], refetchType: "all" }),
+        qc.invalidateQueries({ queryKey: ["caller-groups"], refetchType: "all" }),
+      ]);
     },
   });
 }
