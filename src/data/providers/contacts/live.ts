@@ -157,15 +157,27 @@ export async function getLiveContactGroups(
 }
 
 export async function setLiveContactGroups(
-  accountId: string,
+  _accountId: string,
   contactId: string,
   groupIds: string[],
 ): Promise<void> {
+  // Always derive account_id from the contact itself to satisfy the
+  // check_contact_group_membership_account trigger (the contact's account
+  // may differ from the user's "default" account when they have multiple).
+  const { data: contact, error: cErr } = await supabase
+    .from("contacts")
+    .select("account_id")
+    .eq("id", contactId)
+    .single();
+  if (cErr) throw cErr;
+  const accountId = contact.account_id;
+
   // Remove all existing memberships
-  await supabase
+  const { error: delErr } = await supabase
     .from("contact_group_memberships")
     .delete()
     .eq("contact_id", contactId);
+  if (delErr) throw delErr;
 
   // Insert new ones
   if (groupIds.length > 0) {
