@@ -298,6 +298,15 @@ async function importGoogleContacts(accountId, accessToken) {
     .eq("account_id", accountId);
   (existing || []).forEach((c) => c.primary_phone_e164 && seenPhones.add(c.primary_phone_e164));
 
+  // Find the "Non classés" default group for this account
+  const { data: defaultGroup } = await supabaseAdmin
+    .from("caller_groups")
+    .select("id")
+    .eq("account_id", accountId)
+    .eq("slug", "default_group")
+    .maybeSingle();
+  const defaultGroupId = defaultGroup ? defaultGroup.id : null;
+
   do {
     const page = await fetchPeoplePage(accessToken, pageToken);
     if (!page) break;
@@ -319,25 +328,36 @@ async function importGoogleContacts(accountId, accessToken) {
         continue;
       }
 
-      const { error } = await supabaseAdmin.from("contacts").insert({
-        account_id: accountId,
-        first_name: name.givenName || null,
-        last_name: name.familyName || null,
-        display_name: name.displayName || null,
-        primary_phone_e164: phone,
-        email,
-        company_name: org,
-        source: "google_import",
-        external_source_id: person.resourceName || null,
-        is_favorite: false,
-        is_blocked: false,
-      });
+      const { data: inserted, error } = await supabaseAdmin
+        .from("contacts")
+        .insert({
+          account_id: accountId,
+          first_name: name.givenName || null,
+          last_name: name.familyName || null,
+          display_name: name.displayName || null,
+          primary_phone_e164: phone,
+          email,
+          company_name: org,
+          source: "google_import",
+          external_source_id: person.resourceName || null,
+          is_favorite: false,
+          is_blocked: false,
+        })
+        .select("id")
+        .single();
 
-      if (error) {
+      if (error || !inserted) {
         skipped++;
       } else {
         imported++;
         if (phone) seenPhones.add(phone);
+        if (defaultGroupId) {
+          await supabaseAdmin.from("contact_group_memberships").insert({
+            account_id: accountId,
+            contact_id: inserted.id,
+            caller_group_id: defaultGroupId,
+          });
+        }
       }
     }
 
