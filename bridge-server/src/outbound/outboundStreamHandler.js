@@ -91,6 +91,13 @@ function handleOutboundStreamConnection(twilioWs) {
 
   function sendAudioToTwilio(mulawBase64) {
     if (twilioWs.readyState === WebSocket.OPEN && callCtx.streamSid) {
+      if (!callCtx._firstAudioEmittedAt) {
+        callCtx._firstAudioEmittedAt = Date.now();
+        const sinceStart = callCtx._twilioStartAt ? callCtx._firstAudioEmittedAt - callCtx._twilioStartAt : null;
+        const sinceTrigger = callCtx._firstTurnTriggeredAt ? callCtx._firstAudioEmittedAt - callCtx._firstTurnTriggeredAt : null;
+        log.call("outbound_first_audio_emitted", callCtx.traceId,
+          `since_twilio_start_ms=${sinceStart} since_first_turn_trigger_ms=${sinceTrigger}`);
+      }
       twilioWs.send(JSON.stringify({
         event: "media",
         streamSid: callCtx.streamSid,
