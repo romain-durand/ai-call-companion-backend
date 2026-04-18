@@ -420,7 +420,7 @@ export default function ContactsPage({ forcedView }: { forcedView?: "list" | "gr
         /* ── Grouped view (collapsible) ── */
         <div className="space-y-2">
           {groupedContacts.map((section) => (
-            <Collapsible key={section.groupId}>
+            <Collapsible key={section.groupId} defaultOpen>
               <div className="flex items-center">
                 <CollapsibleTrigger asChild>
                   <button className="flex items-center gap-2 flex-1 p-3 rounded-lg hover:bg-secondary/30 transition-colors text-left group">
