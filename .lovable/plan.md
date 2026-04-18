@@ -1,49 +1,61 @@
 
 
-## Plan : réduire la latence du premier mot de Gemini sur appels sortants
+## Plan : Importer les contacts (Google + Apple/vCard)
 
-### Objectif
-Faire en sorte que Gemini commence à parler **dans les ~800 ms** suivant le décrochage de l'appelé, au lieu de 2-5 s actuellement.
+### Approche
 
-### Approche retenue : Option 5 (greeting proactif + primer)
+Le bouton "Importer" devient un menu avec 2 options :
+1. **Google Contacts** — OAuth (People API), import direct.
+2. **Fichier vCard (.vcf)** — pour iCloud/Apple/autres. Apple ne fournit pas d'API publique ; la voie standard est l'export `.vcf` depuis iCloud.com ou l'app Contacts.
 
-### Changements à faire
+### Backend
 
-**1. `bridge-server/src/outbound/outboundStreamHandler.js`**
-- Lors de la réception du message Twilio `start` :
-  - Démarrer un timer de 400 ms.
-  - Au déclenchement : envoyer à Gemini un `realtimeInput.text` du type :
-    *"L'appelé vient de décrocher. Salue-le brièvement (1 phrase courte), présente-toi, puis enchaîne sur l'objectif."*
-  - Passer `awaitingOutboundFirstTurn = false` et `outboundFirstTurnTriggered = true`.
-- Si une transcription de l'appelé arrive AVANT le déclenchement du timer (ex : il a dit "Allô" très vite) : annuler le timer, laisser le flux normal "input puis réponse" prendre le relais (logique actuelle).
+**Edge function `import-google-contacts`**
+- Reçoit le `account_id` (JWT vérifié).
+- Lance le flux OAuth Google avec scope `https://www.googleapis.com/auth/contacts.readonly` (réutilise la logique de `bridge-server/src/auth/googleOAuth.js` mais en edge function pour rester dans le scope Lovable, OU étend la table `calendar_connections` pour stocker aussi le scope contacts).
+- **Décision retenue** : nouvelle table `contact_import_connections` (provider, account_id, encrypted tokens) pour ne pas mélanger avec calendrier. Plus propre.
+- Une fois autorisé : appelle `people.connections.list` (champs `names,phoneNumbers,emailAddresses,organizations`), normalise, insère dans `contacts` avec `source = 'google_import'`.
+- Normalisation téléphone : si commence par `0` → `+33`, sinon garde tel quel. Skip les contacts sans téléphone ni email.
+- Déduplication : si `primary_phone_e164` existe déjà pour ce compte → skip (ou update si flag).
 
-**2. `bridge-server/src/outbound/outboundGeminiConfig.js`**
-- Ajouter dans `OUTBOUND_SYSTEM_INSTRUCTION` une consigne :
-  *"Si l'appelé parle en même temps que ta première phrase d'introduction, interromps-toi poliment et laisse-le finir avant de reprendre."*
-- Préciser le format du greeting initial (ex : "Bonjour, je suis l'assistant de [USER_NAME], j'appelle pour [OBJECTIVE court]. Vous avez un instant ?").
+**Edge function `import-vcard`**
+- Reçoit le contenu du fichier `.vcf` + `account_id`.
+- Parse vCard (FN, N, TEL, EMAIL, ORG, NOTE).
+- Même logique de normalisation/déduplication que Google.
+- Retourne `{ imported, skipped, errors }`.
 
-**3. `bridge-server/src/outbound/outboundGeminiConnection.js`**
-- Juste après réception de `setupComplete`, envoyer un primer texte silencieux pour préchauffer le pipeline audio de Gemini :
-  - Un message système-like court, sans demander de réponse audio (ex : un `realtimeInput.text` du contexte mission lui-même, ce qui est déjà fait → ajouter en plus une note "tiens-toi prêt à parler dès que l'appelé décroche").
-- Logger précisément le timestamp `setupComplete` vs. premier audio sortant pour mesurer le gain.
+### Frontend
 
-**4. Observabilité**
-- Ajouter des logs avec timestamps dans `outboundStreamHandler.js` :
-  - `outbound_twilio_start_received`
-  - `outbound_first_turn_triggered`
-  - `outbound_first_audio_emitted` (premier paquet audio renvoyé à Twilio)
-- Permet de mesurer avant/après et d'itérer sur la valeur du délai (400 ms).
+**`src/pages/ContactsPage.tsx`**
+- Remplacer le bouton "Importer" désactivé par un `DropdownMenu` :
+  - "Depuis Google Contacts" → lance OAuth (popup ou redirection vers edge function `google-contacts-start`).
+  - "Depuis un fichier (.vcf)" → ouvre `<input type="file" accept=".vcf">`, lit le contenu, appelle l'edge function.
+- Toast de progression + résultat (`X contacts importés, Y ignorés`).
+- Invalide `["contacts"]` après succès.
 
-### Tests
-- Lancer 3-5 missions vers un numéro de test, mesurer le délai perçu entre décrochage et première parole de Gemini.
-- Vérifier qu'il n'y a pas de chevauchement gênant avec le "Allô" de l'appelé.
-- Comparer les logs `outbound_first_audio_emitted - outbound_twilio_start_received`.
+**Nouveau composant `src/components/contacts/ImportContactsMenu.tsx`**
+- Encapsule le menu + la logique de fichier + l'appel OAuth.
+- Gère le retour OAuth via `?import=google&status=success` (similar au pattern existant pour calendar).
 
-### Hors scope (à explorer si insuffisant)
-- Option 4 (statusCallback `answered`) : peut être ajouté en deuxième passe si les 400 ms restants posent problème.
-- Option 2 (filler audio) : à éviter sauf si le résultat de l'option 5 reste insatisfaisant.
+### Base de données
 
-### Risques
-- Si l'appelé a un répondeur qui décroche silencieusement, Gemini pourrait parler dans le vide → mais ce comportement existe déjà aujourd'hui dès qu'il commence à parler. Pas un régression.
-- Le délai de 400 ms est paramétrable, à ajuster selon retours.
+**Migration** :
+- Nouvelle table `contact_import_connections` : `id, account_id, profile_id, provider ('google'), access_token_encrypted, refresh_token_encrypted, token_expires_at, scope, created_at, updated_at`.
+- RLS : membres du compte uniquement.
+- Étendre l'enum `source` de `contacts` (si typé) pour accepter `google_import` et `vcard_import`. Sinon garder en text libre.
+
+### Détails techniques
+
+- **Chiffrement tokens** : réutiliser `bridge-server/src/auth/crypto.js` logic mais côté edge function (AES-256-GCM avec `ENCRYPTION_KEY`). Si pas dispo en edge → nouveau secret.
+- **OAuth callback** : edge function `google-contacts-callback` qui échange le code, chiffre, stocke, redirige vers `/who?import=success`.
+- **vCard parsing** : librairie légère `vcard4` ou parsing manuel (vCard est simple : split lignes, regex sur `TEL:`, `FN:`, etc.). Préférer parsing manuel pour éviter dépendance.
+
+### Hors scope
+- Sync continue (one-shot import seulement).
+- Assignation auto à un groupe (les contacts importés vont dans "Non classés", l'utilisateur peut les déplacer après).
+- Photos de contacts.
+
+### Risques / questions ouvertes
+- Le flux OAuth Google nécessite que les domaines de callback soient autorisés dans la Google Cloud Console du projet.
+- Pour iCloud spécifiquement : pas d'autre option que vCard. Documenter dans la UI : "Pour iCloud : Réglages → exporter vCard, puis importer ici".
 
