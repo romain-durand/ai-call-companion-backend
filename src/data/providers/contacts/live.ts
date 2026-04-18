@@ -22,13 +22,19 @@ export async function getLiveContacts(accountIds: string[]): Promise<ContactItem
   if (error) throw error;
   if (!contacts || contacts.length === 0) return [];
 
-  const contactIds = contacts.map((c) => c.id);
+  const contactIds = new Set(contacts.map((c) => c.id));
 
-  // Fetch group memberships with group details
-  const { data: memberships } = await supabase
+  // Fetch ALL memberships for these accounts in one shot — filtering by
+  // contact_id with .in() builds a URL that gets truncated when there are
+  // many contacts (HTTP 414). RLS still restricts to the user's accounts.
+  const { data: allMemberships, error: memErr } = await supabase
     .from("contact_group_memberships")
-    .select("contact_id, caller_group_id")
-    .in("contact_id", contactIds);
+    .select("contact_id, caller_group_id, account_id")
+    .in("account_id", accountIds);
+  if (memErr) console.error("[contacts] memberships fetch error", memErr);
+  const memberships = (allMemberships || []).filter((m) =>
+    contactIds.has(m.contact_id),
+  );
 
   // Fetch groups for those memberships
   const groupIds = [...new Set((memberships || []).map((m) => m.caller_group_id))];
