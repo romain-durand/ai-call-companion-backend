@@ -74,6 +74,10 @@ function handleOutboundStreamConnection(twilioWs) {
       clearTimeout(callCtx._firstCallerTurnTimer);
       callCtx._firstCallerTurnTimer = null;
     }
+    if (callCtx._proactiveGreetingTimer) {
+      clearTimeout(callCtx._proactiveGreetingTimer);
+      callCtx._proactiveGreetingTimer = null;
+    }
 
     if (callCtx._txBuffer) {
       await callCtx._txBuffer.flushAll();
