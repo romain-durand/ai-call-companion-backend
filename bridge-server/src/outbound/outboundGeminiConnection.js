@@ -91,6 +91,9 @@ function connectOutboundGemini(callCtx, onAudio) {
       if (msg.serverContent?.inputTranscription?.text) {
         const text = msg.serverContent.inputTranscription.text;
         log.transcript("🎤", "caller", traceId, text);
+        if (callCtx._onCallerSpeechDetected) {
+          try { callCtx._onCallerSpeechDetected(); } catch (_) {}
+        }
         if (callCtx._txBuffer) {
           callCtx._txBuffer.push("caller", text);
         }
