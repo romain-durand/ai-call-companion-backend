@@ -49,12 +49,26 @@ function connectOutboundGemini(callCtx, onAudio) {
       const msg = JSON.parse(data.toString());
 
       if (msg.setupComplete) {
-        log.gemini("outbound_setup_complete", traceId);
+        const setupCompleteAt = Date.now();
+        callCtx._setupCompleteAt = setupCompleteAt;
+        log.gemini("outbound_setup_complete", traceId, `at=${setupCompleteAt}`);
 
         callCtx.geminiReady = true;
         callCtx.lastAssistantActivityAt = 0;
-        log.gemini("outbound_waiting_for_callee", traceId, "Gemini will respond naturally to audio");
 
+        // Primer: warm Gemini's audio pipeline without producing audio yet.
+        try {
+          ws.send(JSON.stringify({
+            realtimeInput: {
+              text: "Système : la connexion est prête. Tiens-toi prêt à saluer brièvement l'appelé dès qu'il décroche. N'émets aucun son tant que tu n'as pas reçu le signal de décrochage.",
+            },
+          }));
+          log.gemini("outbound_primer_sent", traceId);
+        } catch (e) {
+          log.error("outbound_primer_error", traceId, e.message);
+        }
+
+        log.gemini("outbound_waiting_for_callee", traceId, "Will trigger proactive greeting on Twilio start");
         return;
       }
 
