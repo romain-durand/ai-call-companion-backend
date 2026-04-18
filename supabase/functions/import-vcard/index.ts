@@ -167,6 +167,15 @@ Deno.serve(async (req) => {
     let imported = 0;
     let skipped = 0;
 
+    // Find the "Non classés" default group for this account
+    const { data: defaultGroup } = await admin
+      .from("caller_groups")
+      .select("id")
+      .eq("account_id", accountId)
+      .eq("slug", "default_group")
+      .maybeSingle();
+    const defaultGroupId: string | null = defaultGroup?.id ?? null;
+
     for (const c of parsed) {
       const phone = normalizePhone(c.phone);
       if (!phone && !c.email) {
@@ -177,23 +186,34 @@ Deno.serve(async (req) => {
         skipped++;
         continue;
       }
-      const { error } = await admin.from("contacts").insert({
-        account_id: accountId,
-        first_name: c.firstName,
-        last_name: c.lastName,
-        display_name: c.displayName,
-        primary_phone_e164: phone,
-        email: c.email,
-        company_name: c.company,
-        source: "vcard_import",
-        is_favorite: false,
-        is_blocked: false,
-      });
-      if (error) {
+      const { data: inserted, error } = await admin
+        .from("contacts")
+        .insert({
+          account_id: accountId,
+          first_name: c.firstName,
+          last_name: c.lastName,
+          display_name: c.displayName,
+          primary_phone_e164: phone,
+          email: c.email,
+          company_name: c.company,
+          source: "vcard_import",
+          is_favorite: false,
+          is_blocked: false,
+        })
+        .select("id")
+        .single();
+      if (error || !inserted) {
         skipped++;
       } else {
         imported++;
         if (phone) seenPhones.add(phone);
+        if (defaultGroupId) {
+          await admin.from("contact_group_memberships").insert({
+            account_id: accountId,
+            contact_id: inserted.id,
+            caller_group_id: defaultGroupId,
+          });
+        }
       }
     }
 
