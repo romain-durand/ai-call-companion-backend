@@ -174,6 +174,8 @@ function handleOutboundStreamConnection(twilioWs) {
         case "start": {
           callCtx.streamSid = msg.start.streamSid;
           callCtx.startedAt = new Date().toISOString();
+          callCtx._twilioStartAt = Date.now();
+          log.call("outbound_twilio_start_received", callCtx.traceId, `at=${callCtx._twilioStartAt}`);
 
           // Extract outbound mission parameters
           const params = msg.start.customParameters || {};
