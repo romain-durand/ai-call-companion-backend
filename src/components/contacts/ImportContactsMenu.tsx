@@ -15,7 +15,7 @@ import { useUserAccountId } from "@/hooks/useUserAccountId";
 const BRIDGE_URL = "https://bridgeserver.ted.paris";
 
 export function ImportContactsMenu() {
-  const accountId = useUserAccountId();
+  const { data: accountId } = useUserAccountId();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
