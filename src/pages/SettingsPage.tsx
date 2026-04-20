@@ -1,14 +1,12 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, Copy, Check } from "lucide-react";
-import { QRCodeSVG } from "qrcode.react";
+import { Loader2 } from "lucide-react";
 import BackToSettingsButton from "@/components/BackToSettingsButton";
 
 export default function SettingsPage() {
@@ -17,17 +15,6 @@ export default function SettingsPage() {
   const [initialName, setInitialName] = useState("");
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [copied, setCopied] = useState(false);
-
-  const callUrl = user ? `${window.location.origin}/call/${user.id}` : "";
-
-  useEffect(() => {
-    if (window.location.hash === "#call-link") {
-      setTimeout(() => {
-        document.getElementById("call-link")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 100);
-    }
-  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -103,38 +90,6 @@ export default function SettingsPage() {
           )}
         </CardContent>
       </Card>
-
-      {/* Lien d'appel web */}
-      <Card id="call-link" className="bg-card/30 scroll-mt-4">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Mon lien d'appel</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-xs text-muted-foreground">
-            Partagez ce lien ou ce QR code pour permettre à vos contacts de vous joindre via le web.
-          </p>
-          <div className="flex items-center gap-2">
-            <Input value={callUrl} readOnly className="text-xs font-mono" />
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => {
-                navigator.clipboard.writeText(callUrl);
-                setCopied(true);
-                setTimeout(() => setCopied(false), 2000);
-              }}
-            >
-              {copied ? <Check className="w-4 h-4 text-primary" /> : <Copy className="w-4 h-4" />}
-            </Button>
-          </div>
-          {callUrl && (
-            <div className="flex justify-center py-2">
-              <QRCodeSVG value={callUrl} size={160} bgColor="transparent" fgColor="hsl(var(--foreground))" />
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
     </div>
   );
 }
