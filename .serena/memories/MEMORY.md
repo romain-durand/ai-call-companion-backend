@@ -6,3 +6,5 @@
 - [Project Structure](project_structure.md) — Directory layout and key files organization
 - [Audit Clarifications](audit_clarifications.md) — Lovable responses on route/tools/architecture
 - [Next Steps Roadmap](next_steps_roadmap.md) — Prioritized action plan (phases 1-10)
+- [Vite Mobile Build Config](vite_mobile_build_config.md) — Vite config optimized for Capacitor
+- [Capacitor Setup Completed](capacitor_setup_completed.md) — iOS/Android platforms configured
