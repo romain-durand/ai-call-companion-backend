@@ -1,21 +1,26 @@
 import { motion } from "framer-motion";
-import { Phone } from "lucide-react";
-import { useRecentCalls } from "@/data/providers/dashboard";
+import { Phone, UserCircle, Users, PhoneCall, ChevronRight } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useAccountMode } from "@/hooks/useAccountMode";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import ActivityTimeline from "@/components/ActivityTimeline";
+import { Card } from "@/components/ui/card";
 import DemoModeBadge from "@/components/DemoModeBadge";
 import ActiveModeSelector from "@/components/ActiveModeSelector";
 import LiveConsultBanner from "@/components/LiveConsultBanner";
 import TransferCallBanner from "@/components/TransferCallBanner";
 import { CallMyAssistantButton } from "@/components/CallMyAssistantButton";
 
+const configItems = [
+  { title: "À propos de moi", url: "/about-me", icon: UserCircle, description: "Votre identité et contexte personnel" },
+  { title: "Qui peut me joindre", url: "/who", icon: Users, description: "Contacts et groupes d'appelants" },
+  { title: "Comment gérer les appels", url: "/how", icon: PhoneCall, description: "Comportements par mode et groupe" },
+];
+
 export default function Dashboard() {
   const { user } = useAuth();
   const { data: mode } = useAccountMode();
-  const { data: recentCalls, isLoading: callsLoading } = useRecentCalls();
   const { data: profile } = useQuery({
     queryKey: ["profile-phone", user?.id],
     queryFn: async () => {
@@ -60,8 +65,31 @@ export default function Dashboard() {
       {/* Active mode selector */}
       <ActiveModeSelector />
 
-      {/* ACTIVITY TIMELINE */}
-      <ActivityTimeline items={recentCalls || []} isLoading={callsLoading} />
+      {/* Configuration shortcuts */}
+      <Card className="bg-card/30 overflow-hidden">
+        <ul className="divide-y divide-border/60">
+          {configItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <li key={item.url}>
+                <Link
+                  to={item.url}
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-muted/40 transition-colors"
+                >
+                  <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <Icon className="w-4 h-4 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium">{item.title}</div>
+                    <div className="text-xs text-muted-foreground truncate">{item.description}</div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </Card>
     </div>
   );
 }

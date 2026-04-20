@@ -23,10 +23,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const items = [
-  { title: "À propos de moi", url: "/about-me", icon: UserCircle, description: "Votre identité et contexte personnel" },
-  { title: "Qui peut me joindre", url: "/who", icon: Users, description: "Contacts et groupes d'appelants" },
-  { title: "Comment gérer les appels", url: "/how", icon: PhoneCall, description: "Comportements par mode et groupe" },
-  { title: "Quand me prévenir", url: "/when", icon: Bell, description: "Notifications et urgences" },
   { title: "Calendrier", url: "/calendar", icon: CalendarDays, description: "Disponibilités et rendez-vous" },
   { title: "Réglages", url: "/settings", icon: Settings, description: "Préférences générales" },
 ];
