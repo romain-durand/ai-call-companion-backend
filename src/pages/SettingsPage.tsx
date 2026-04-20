@@ -22,6 +22,14 @@ export default function SettingsPage() {
   const callUrl = user ? `${window.location.origin}/call/${user.id}` : "";
 
   useEffect(() => {
+    if (window.location.hash === "#call-link") {
+      setTimeout(() => {
+        document.getElementById("call-link")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    }
+  }, []);
+
+  useEffect(() => {
     if (!user) return;
     supabase
       .from("profiles")
@@ -97,7 +105,7 @@ export default function SettingsPage() {
       </Card>
 
       {/* Lien d'appel web */}
-      <Card className="bg-card/30">
+      <Card id="call-link" className="bg-card/30 scroll-mt-4">
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Mon lien d'appel</CardTitle>
         </CardHeader>
