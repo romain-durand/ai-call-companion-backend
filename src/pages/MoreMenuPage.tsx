@@ -15,12 +15,13 @@ import { QRCodeSVG } from "qrcode.react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const items = [
+  { title: "À propos de moi", url: "/about-me", icon: UserCircle, description: "Votre identité et contexte personnel" },
+  { title: "Mon lien d'appel", url: "#call-link", icon: PhoneCall, description: "Partager votre lien d'appel web" },
   { title: "Calendrier", url: "/calendar", icon: CalendarDays, description: "Disponibilités et rendez-vous" },
   { title: "Réglages", url: "/settings", icon: Settings, description: "Préférences générales" },
 ];
@@ -50,6 +51,11 @@ export default function MoreMenuPage() {
   const handleLogout = async () => {
     await signOut();
     navigate("/login");
+  };
+
+  const scrollToCallLink = (e: React.MouseEvent) => {
+    e.preventDefault();
+    document.getElementById("call-link")?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   return (
@@ -90,21 +96,37 @@ export default function MoreMenuPage() {
         <ul className="divide-y divide-border/60">
           {items.map((item) => {
             const Icon = item.icon;
+            const isAnchor = item.url.startsWith("#");
+            const inner = (
+              <>
+                <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <Icon className="w-4 h-4 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium">{item.title}</div>
+                  <div className="text-xs text-muted-foreground truncate">{item.description}</div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+              </>
+            );
             return (
               <li key={item.url}>
-                <Link
-                  to={item.url}
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-muted/40 transition-colors"
-                >
-                  <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                    <Icon className="w-4 h-4 text-primary" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium">{item.title}</div>
-                    <div className="text-xs text-muted-foreground truncate">{item.description}</div>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
-                </Link>
+                {isAnchor ? (
+                  <a
+                    href={item.url}
+                    onClick={scrollToCallLink}
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-muted/40 transition-colors"
+                  >
+                    {inner}
+                  </a>
+                ) : (
+                  <Link
+                    to={item.url}
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-muted/40 transition-colors"
+                  >
+                    {inner}
+                  </Link>
+                )}
               </li>
             );
           })}
@@ -112,7 +134,7 @@ export default function MoreMenuPage() {
       </Card>
 
       {/* Lien d'appel */}
-      <Card className="bg-card/30">
+      <Card id="call-link" className="bg-card/30 scroll-mt-4">
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Mon lien d'appel</CardTitle>
         </CardHeader>
@@ -140,18 +162,16 @@ export default function MoreMenuPage() {
               <QRCodeSVG value={callUrl} size={140} bgColor="transparent" fgColor="hsl(var(--foreground))" />
             </div>
           )}
+          <Button
+            variant="outline"
+            className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
+            onClick={handleLogout}
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            Se déconnecter
+          </Button>
         </CardContent>
       </Card>
-
-      {/* Logout */}
-      <Button
-        variant="outline"
-        className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
-        onClick={handleLogout}
-      >
-        <LogOut className="w-4 h-4 mr-2" />
-        Se déconnecter
-      </Button>
     </div>
   );
 }
