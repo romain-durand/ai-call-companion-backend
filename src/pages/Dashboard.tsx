@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Phone, UserCircle, Users, PhoneCall, ChevronRight } from "lucide-react";
+import { Users, PhoneCall, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAccountMode } from "@/hooks/useAccountMode";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,7 +13,6 @@ import TransferCallBanner from "@/components/TransferCallBanner";
 import { CallMyAssistantButton } from "@/components/CallMyAssistantButton";
 
 const configItems = [
-  { title: "À propos de moi", url: "/about-me", icon: UserCircle, description: "Votre identité et contexte personnel" },
   { title: "Qui peut me joindre", url: "/who", icon: Users, description: "Contacts et groupes d'appelants" },
   { title: "Comment gérer les appels", url: "/how", icon: PhoneCall, description: "Comportements par mode et groupe" },
 ];
@@ -42,15 +41,6 @@ export default function Dashboard() {
           <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">Bonjour{profile?.display_name ? `, ${profile.display_name}` : ""}</h1>
           {mode?.isDemo && <DemoModeBadge />}
         </div>
-        <p className="text-muted-foreground text-sm mt-2">
-          Aria est en ligne et gère vos appels
-        </p>
-        {profile?.phone_e164 && (
-          <p className="text-xs text-muted-foreground/70 mt-1 flex items-center gap-1.5">
-            <Phone className="w-3 h-3" />
-            {profile.phone_e164}
-          </p>
-        )}
       </motion.div>
 
       {/* Call my assistant */}
