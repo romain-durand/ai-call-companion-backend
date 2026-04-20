@@ -22,6 +22,7 @@ import Login from "./pages/Login";
 import WebCallPage from "./pages/WebCallPage";
 import ActivityPage from "./pages/ActivityPage";
 import MoreMenuPage from "./pages/MoreMenuPage";
+import CallLinkPage from "./pages/CallLinkPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -55,6 +56,7 @@ const App = () => (
                       <Route path="/calendar" element={<CalendarPage />} />
                       <Route path="/missions" element={<MissionsPage />} />
                       <Route path="/settings" element={<SettingsPage />} />
+                      <Route path="/call-link" element={<CallLinkPage />} />
                       <Route path="/test" element={<TestAssistant />} />
                       <Route path="*" element={<NotFound />} />
                     </Routes>

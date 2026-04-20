@@ -16,7 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 const items = [
   { title: "À propos de moi", url: "/about-me", icon: UserCircle, description: "Votre identité et contexte personnel" },
-  { title: "Mon lien d'appel", url: "/settings#call-link", icon: PhoneCall, description: "Partager votre lien d'appel web" },
+  { title: "Mon lien d'appel", url: "/call-link", icon: PhoneCall, description: "Partager votre lien d'appel web" },
   { title: "Calendrier", url: "/calendar", icon: CalendarDays, description: "Disponibilités et rendez-vous" },
   { title: "Réglages", url: "/settings", icon: Settings, description: "Préférences générales" },
 ];
