@@ -11,6 +11,7 @@ const BRIDGE_WS_URL = "wss://bridgeserver.ted.paris/web-call";
 interface OwnerCallDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  autoStart?: boolean;
 }
 
 type CallState = "idle" | "connecting" | "active" | "ended";
@@ -57,7 +58,7 @@ class PcmPlayer {
   }
 }
 
-export function OwnerCallDialog({ open, onOpenChange }: OwnerCallDialogProps) {
+export function OwnerCallDialog({ open, onOpenChange, autoStart = false }: OwnerCallDialogProps) {
   const { user } = useAuth();
   const { data: accountId } = useUserAccountId();
   const [callState, setCallState] = useState<CallState>("idle");
@@ -174,6 +175,13 @@ export function OwnerCallDialog({ open, onOpenChange }: OwnerCallDialogProps) {
       setCallState("idle");
     }
   }, [open, cleanup]);
+
+  // Auto-start the call when opened with autoStart=true
+  useEffect(() => {
+    if (open && autoStart && callState === "idle" && accountId && user) {
+      startCall();
+    }
+  }, [open, autoStart, callState, accountId, user, startCall]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
