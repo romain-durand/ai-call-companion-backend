@@ -99,7 +99,7 @@ export default function AboutMePage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>À propos de moi (permanent)</CardTitle>
+          <CardTitle>Informations générales</CardTitle>
           <CardDescription>
             Informations générales et durables sur vous. Transmises à l'assistant à chaque appel.
           </CardDescription>
@@ -145,7 +145,7 @@ export default function AboutMePage() {
         <CardHeader>
           <div className="flex items-start justify-between">
             <div>
-              <CardTitle>Note actuelle (ponctuelle)</CardTitle>
+              <CardTitle>Information temporaire</CardTitle>
               <CardDescription>
                 Information temporaire valable pour la période en cours (voyage, événement, indisponibilité…).
               </CardDescription>
