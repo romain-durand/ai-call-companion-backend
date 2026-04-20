@@ -25,17 +25,19 @@ export default function MoreMenuPage() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [displayName, setDisplayName] = useState("");
+  const [phoneE164, setPhoneE164] = useState<string | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
 
   useEffect(() => {
     if (!user) return;
     supabase
       .from("profiles")
-      .select("display_name")
+      .select("display_name, phone_e164")
       .eq("id", user.id)
       .maybeSingle()
       .then(({ data }) => {
         setDisplayName(data?.display_name ?? "");
+        setPhoneE164(data?.phone_e164 ?? null);
         setLoadingProfile(false);
       });
   }, [user]);
@@ -99,6 +101,9 @@ export default function MoreMenuPage() {
                 <div className="text-sm font-medium truncate">{displayName || "—"}</div>
               )}
               <div className="text-xs text-muted-foreground truncate">{user?.email}</div>
+              {phoneE164 && (
+                <div className="text-xs text-muted-foreground truncate">{phoneE164}</div>
+              )}
             </div>
           </div>
           <Button
