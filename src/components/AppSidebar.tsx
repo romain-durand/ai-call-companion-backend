@@ -42,10 +42,6 @@ const activityNav = [
 
 const settingsNav = [
   { title: "Vue d'ensemble", url: "/more", icon: SlidersHorizontal },
-  { title: "À propos de moi", url: "/about-me", icon: UserCircle },
-  { title: "Qui peut me joindre", url: "/who", icon: Users },
-  { title: "Comment gérer les appels", url: "/how", icon: PhoneCall },
-  { title: "Quand me prévenir", url: "/when", icon: Bell },
   { title: "Calendrier", url: "/calendar", icon: CalendarDays },
   { title: "Réglages", url: "/settings", icon: Settings },
 ];
