@@ -10,6 +10,7 @@ import { useUserAccountId } from "@/hooks/useUserAccountId";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { CalendarDays, CheckCircle2, ExternalLink, Loader2, Unplug, Radio } from "lucide-react";
+import BackToSettingsButton from "@/components/BackToSettingsButton";
 
 const BRIDGE_URL = "https://bridgeserver.ted.paris";
 
@@ -141,6 +142,7 @@ export default function CalendarPage() {
 
   return (
     <div className="space-y-8 max-w-3xl">
+      <BackToSettingsButton />
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Calendrier</h1>
         <p className="text-sm text-muted-foreground mt-1">
