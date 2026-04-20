@@ -89,7 +89,7 @@ export function CallMyAssistantButton() {
           </div>
         </Card>
       </motion.div>
-      <OwnerCallDialog open={open} onOpenChange={setOpen} />
+      <OwnerCallDialog open={open} onOpenChange={setOpen} autoStart />
     </>
   );
 }
