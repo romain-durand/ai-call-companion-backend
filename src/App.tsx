@@ -7,9 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import Dashboard from "./pages/Dashboard";
-import Assistant from "./pages/Assistant";
 import Profiles from "./pages/Profiles";
-import CallHistory from "./pages/CallHistory";
 import CalendarPage from "./pages/CalendarPage";
 import SettingsPage from "./pages/SettingsPage";
 import TestAssistant from "./pages/TestAssistant";
@@ -46,13 +44,11 @@ const App = () => (
                       <Route path="/" element={<Dashboard />} />
                       <Route path="/activity" element={<ActivityPage />} />
                       <Route path="/more" element={<MoreMenuPage />} />
-                      <Route path="/assistant" element={<Assistant />} />
                       <Route path="/profiles" element={<Profiles />} />
                       <Route path="/who" element={<WhoCanReachMe />} />
                       <Route path="/how" element={<HowToHandle />} />
                       <Route path="/when" element={<WhenToAlert />} />
                       <Route path="/about-me" element={<AboutMePage />} />
-                      <Route path="/history" element={<CallHistory />} />
                       <Route path="/calendar" element={<CalendarPage />} />
                       <Route path="/missions" element={<MissionsPage />} />
                       <Route path="/settings" element={<SettingsPage />} />

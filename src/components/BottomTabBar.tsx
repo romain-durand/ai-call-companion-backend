@@ -8,7 +8,7 @@ const tabs = [
     title: "Activité",
     url: "/activity",
     icon: History,
-    match: (p: string) => p.startsWith("/activity") || p.startsWith("/history") || p.startsWith("/missions"),
+    match: (p: string) => p.startsWith("/activity") || p.startsWith("/missions"),
   },
   {
     title: "Réglages",

@@ -65,7 +65,7 @@ export default function ActivityTimeline({ items, isLoading }: Props) {
     <div>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-medium">Activité récente</h2>
-        <Button variant="ghost" size="sm" className="text-muted-foreground text-xs" onClick={() => navigate("/history")}>
+        <Button variant="ghost" size="sm" className="text-muted-foreground text-xs" onClick={() => navigate("/activity")}>
           Tout voir <ArrowRight className="w-3.5 h-3.5 ml-1" />
         </Button>
       </div>
@@ -96,9 +96,9 @@ export default function ActivityTimeline({ items, isLoading }: Props) {
                 transition={{ delay: i * 0.03 }}
                 onClick={() => {
                   if (canOpenDetail && targetId) {
-                    navigate(`/history#call-${targetId}`);
+                    navigate(`/activity#call-${targetId}`);
                   } else {
-                    navigate("/history");
+                    navigate("/activity");
                   }
                 }}
                 className="flex items-start gap-2.5 sm:gap-3 p-3 sm:p-3.5 rounded-xl border border-border/40 bg-card/30 hover:bg-card/60 transition-all group cursor-pointer"

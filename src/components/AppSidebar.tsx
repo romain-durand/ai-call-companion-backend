@@ -36,7 +36,6 @@ const mainNav = [
 
 const activityNav = [
   { title: "Activité", url: "/activity", icon: History },
-  { title: "Historique", url: "/history", icon: History },
   { title: "Missions", url: "/missions", icon: PhoneOutgoing },
 ];
 
