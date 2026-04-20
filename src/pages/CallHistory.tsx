@@ -77,38 +77,38 @@ function CallRow({ call, onDelete, defaultOpen, scrollIntoView }: { call: CallHi
           {/* Main content */}
           <div className="flex-1 min-w-0">
             {/* Row 1: Identity + badges */}
-            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-              <span className="text-sm font-medium">{call.callerName}</span>
+            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+              <span className="text-base font-medium">{call.callerName}</span>
               {call.callerNumber && call.callerName !== call.callerNumber && (
-                <span className="text-[10px] text-muted-foreground/60 font-mono hidden sm:inline">{call.callerNumber}</span>
+                <span className="text-xs text-muted-foreground/60 font-mono hidden sm:inline">{call.callerNumber}</span>
               )}
               {/* Identity mismatch */}
               {call.contactName && (
-                <span className="text-[10px] text-muted-foreground/50 italic">
+                <span className="text-xs text-muted-foreground/50 italic">
                   (contact: {call.contactName})
                 </span>
               )}
             </div>
 
             {/* Row 2: Action + priority badges */}
-            <div className="flex items-center gap-1.5 mt-1">
-              <Badge className={`text-[10px] h-4 px-1.5 rounded-full border ${actionStyles[call.actionType] || actionStyles.call_handled}`}>
+            <div className="flex items-center gap-2 mt-2">
+              <Badge className={`text-xs h-5 px-2 rounded-full border ${actionStyles[call.actionType] || actionStyles.call_handled}`}>
                 {call.actionLabel}
               </Badge>
               {call.priority !== "low" && (
-                <Badge className={`text-[10px] h-4 px-1.5 rounded-full border ${priorityStyles[call.priority]}`}>
+                <Badge className={`text-xs h-5 px-2 rounded-full border ${priorityStyles[call.priority]}`}>
                   {priorityLabels[call.priority]}
                 </Badge>
               )}
               {call.groupIcon && call.groupName && (
-                <span className="text-[10px] text-muted-foreground/50 flex items-center gap-0.5 ml-1">
+                <span className="text-xs text-muted-foreground/50 flex items-center gap-0.5 ml-1">
                   {call.groupIcon} {call.groupName}
                 </span>
               )}
             </div>
 
             {/* Row 3: Summary */}
-            <p className="text-xs text-muted-foreground mt-1">{call.summary}</p>
+            <p className="text-sm text-muted-foreground mt-2">{call.summary}</p>
 
             {/* Row 4: Impact indicator */}
             <p className="text-[10px] text-muted-foreground/50 flex items-center gap-1 mt-0.5">
@@ -236,8 +236,8 @@ export default function CallHistory() {
         className="flex items-start justify-between gap-3"
       >
         <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight">Historique des appels</h1>
-          <p className="text-sm text-muted-foreground mt-2">
+          <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight">Historique des appels</h1>
+          <p className="text-base text-muted-foreground mt-2">
             {isLoading ? "Chargement…" : `${filteredCalls.length} appel${filteredCalls.length > 1 ? "s" : ""} · Cliquez pour voir les détails`}
           </p>
         </div>

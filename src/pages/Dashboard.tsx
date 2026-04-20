@@ -38,7 +38,7 @@ export default function Dashboard() {
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
         <div className="flex items-center gap-3">
-          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">Bonjour{profile?.display_name ? `, ${profile.display_name}` : ""}</h1>
+          <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight">Bonjour{profile?.display_name ? `, ${profile.display_name}` : ""}</h1>
           {mode?.isDemo && <DemoModeBadge />}
         </div>
       </motion.div>
@@ -64,16 +64,16 @@ export default function Dashboard() {
               <li key={item.url}>
                 <Link
                   to={item.url}
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-muted/40 transition-colors"
+                  className="flex items-center gap-4 px-4 py-4 hover:bg-muted/40 transition-colors"
                 >
-                  <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                    <Icon className="w-4 h-4 text-primary" />
+                  <div className="w-11 h-11 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <Icon className="w-6 h-6 text-primary" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium">{item.title}</div>
-                    <div className="text-xs text-muted-foreground truncate">{item.description}</div>
+                    <div className="text-base font-medium">{item.title}</div>
+                    <div className="text-sm text-muted-foreground truncate">{item.description}</div>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+                  <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
                 </Link>
               </li>
             );

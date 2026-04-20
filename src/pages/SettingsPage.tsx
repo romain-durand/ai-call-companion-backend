@@ -53,8 +53,8 @@ export default function SettingsPage() {
     <div className="space-y-8 max-w-3xl">
       <BackToSettingsButton />
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Réglages</h1>
-        <p className="text-sm text-muted-foreground mt-1">Paramètres généraux de votre assistant.</p>
+        <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight">Réglages</h1>
+        <p className="text-base text-muted-foreground mt-2">Paramètres généraux de votre assistant.</p>
       </div>
 
       {/* Mon profil */}

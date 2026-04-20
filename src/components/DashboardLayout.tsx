@@ -9,7 +9,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   if (isMobile) {
     return (
       <div className="min-h-screen flex flex-col w-full">
-        <main className="flex-1 overflow-auto p-4 pb-24">{children}</main>
+        <main className="flex-1 overflow-auto p-4 pt-20 pb-24">{children}</main>
         <BottomTabBar />
       </div>
     );
