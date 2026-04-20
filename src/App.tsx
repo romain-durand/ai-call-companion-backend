@@ -20,6 +20,8 @@ import AboutMePage from "./pages/AboutMePage";
 import MissionsPage from "./pages/MissionsPage";
 import Login from "./pages/Login";
 import WebCallPage from "./pages/WebCallPage";
+import ActivityPage from "./pages/ActivityPage";
+import MoreMenuPage from "./pages/MoreMenuPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -41,6 +43,8 @@ const App = () => (
                   <DashboardLayout>
                     <Routes>
                       <Route path="/" element={<Dashboard />} />
+                      <Route path="/activity" element={<ActivityPage />} />
+                      <Route path="/more" element={<MoreMenuPage />} />
                       <Route path="/assistant" element={<Assistant />} />
                       <Route path="/profiles" element={<Profiles />} />
                       <Route path="/who" element={<WhoCanReachMe />} />
