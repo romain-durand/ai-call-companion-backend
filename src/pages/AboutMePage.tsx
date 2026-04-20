@@ -13,6 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import BackToSettingsButton from "@/components/BackToSettingsButton";
 
 const MAX = 4000;
 
@@ -88,6 +89,7 @@ export default function AboutMePage() {
 
   return (
     <div className="container max-w-4xl py-8 space-y-6">
+      <BackToSettingsButton />
       <div>
         <h1 className="text-3xl font-bold tracking-tight">À propos de moi</h1>
         <p className="text-muted-foreground mt-1">

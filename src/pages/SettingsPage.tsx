@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, Copy, Check } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
+import BackToSettingsButton from "@/components/BackToSettingsButton";
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -19,6 +20,14 @@ export default function SettingsPage() {
   const [copied, setCopied] = useState(false);
 
   const callUrl = user ? `${window.location.origin}/call/${user.id}` : "";
+
+  useEffect(() => {
+    if (window.location.hash === "#call-link") {
+      setTimeout(() => {
+        document.getElementById("call-link")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    }
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -55,6 +64,7 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-8 max-w-3xl">
+      <BackToSettingsButton />
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Réglages</h1>
         <p className="text-sm text-muted-foreground mt-1">Paramètres généraux de votre assistant.</p>
@@ -95,7 +105,7 @@ export default function SettingsPage() {
       </Card>
 
       {/* Lien d'appel web */}
-      <Card className="bg-card/30">
+      <Card id="call-link" className="bg-card/30 scroll-mt-4">
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Mon lien d'appel</CardTitle>
         </CardHeader>
