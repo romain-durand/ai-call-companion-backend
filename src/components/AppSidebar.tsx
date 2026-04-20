@@ -7,10 +7,10 @@ import {
   Settings,
   PhoneCall,
   Bell,
-  PlayCircle,
   LogOut,
   PhoneOutgoing,
   UserCircle,
+  SlidersHorizontal,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -30,20 +30,21 @@ import {
 } from "@/components/ui/sidebar";
 
 const mainNav = [
-  { title: "Tableau de bord", url: "/", icon: LayoutDashboard },
-  { title: "Missions", url: "/missions", icon: PhoneOutgoing },
-  { title: "Historique", url: "/history", icon: History },
+  { title: "Accueil", url: "/", icon: LayoutDashboard },
 ];
 
-const configNav = [
+const activityNav = [
+  { title: "Activité", url: "/activity", icon: History },
+  { title: "Historique", url: "/history", icon: History },
+  { title: "Missions", url: "/missions", icon: PhoneOutgoing },
+];
+
+const settingsNav = [
+  { title: "Vue d'ensemble", url: "/more", icon: SlidersHorizontal },
   { title: "À propos de moi", url: "/about-me", icon: UserCircle },
   { title: "Qui peut me joindre", url: "/who", icon: Users },
   { title: "Comment gérer les appels", url: "/how", icon: PhoneCall },
   { title: "Quand me prévenir", url: "/when", icon: Bell },
-];
-
-const secondaryNav = [
-  { title: "Tester", url: "/test", icon: PlayCircle },
   { title: "Calendrier", url: "/calendar", icon: CalendarDays },
   { title: "Réglages", url: "/settings", icon: Settings },
 ];
@@ -101,23 +102,23 @@ export function AppSidebar() {
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-medium">Vue d'ensemble</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-medium">Accueil</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>{renderNav(mainNav)}</SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-medium">Configuration</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-medium">Activité</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>{renderNav(configNav)}</SidebarMenu>
+            <SidebarMenu>{renderNav(activityNav)}</SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-medium">Système</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-medium">Réglages</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>{renderNav(secondaryNav)}</SidebarMenu>
+            <SidebarMenu>{renderNav(settingsNav)}</SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>

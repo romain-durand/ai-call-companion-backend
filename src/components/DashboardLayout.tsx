@@ -1,7 +1,20 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
+import { BottomTabBar } from "@/components/BottomTabBar";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const isMobile = useIsMobile();
+
+  if (isMobile) {
+    return (
+      <div className="min-h-screen flex flex-col w-full">
+        <main className="flex-1 overflow-auto p-4 pb-24">{children}</main>
+        <BottomTabBar />
+      </div>
+    );
+  }
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
