@@ -1,61 +1,58 @@
 
 
-## Plan : Importer les contacts (Google + Apple/vCard)
+## Refonte navigation : barre d'onglets en bas (3 onglets)
 
-### Approche
+### Structure finale
 
-Le bouton "Importer" devient un menu avec 2 options :
-1. **Google Contacts** — OAuth (People API), import direct.
-2. **Fichier vCard (.vcf)** — pour iCloud/Apple/autres. Apple ne fournit pas d'API publique ; la voie standard est l'export `.vcf` depuis iCloud.com ou l'app Contacts.
+3 onglets en bas sur mobile, sidebar conservée sur desktop.
 
-### Backend
+| Onglet | Icône | Route | Contenu |
+|---|---|---|---|
+| **Accueil** | `LayoutDashboard` | `/` | Tableau de bord actuel |
+| **Activité** | `History` | `/activity` | Sous-onglets : Historique + Missions |
+| **Réglages** | `SlidersHorizontal` | `/more` | Hub liste : À propos de moi, Qui peut me joindre, Comment gérer, Quand me prévenir, Calendrier, Réglages, Profil/Compte (email + lien d'appel + déconnexion) |
 
-**Edge function `import-google-contacts`**
-- Reçoit le `account_id` (JWT vérifié).
-- Lance le flux OAuth Google avec scope `https://www.googleapis.com/auth/contacts.readonly` (réutilise la logique de `bridge-server/src/auth/googleOAuth.js` mais en edge function pour rester dans le scope Lovable, OU étend la table `calendar_connections` pour stocker aussi le scope contacts).
-- **Décision retenue** : nouvelle table `contact_import_connections` (provider, account_id, encrypted tokens) pour ne pas mélanger avec calendrier. Plus propre.
-- Une fois autorisé : appelle `people.connections.list` (champs `names,phoneNumbers,emailAddresses,organizations`), normalise, insère dans `contacts` avec `source = 'google_import'`.
-- Normalisation téléphone : si commence par `0` → `+33`, sinon garde tel quel. Skip les contacts sans téléphone ni email.
-- Déduplication : si `primary_phone_e164` existe déjà pour ce compte → skip (ou update si flag).
+La page `/test` (Tester l'assistant) est retirée de la navigation (route conservée mais sans entrée visible).
 
-**Edge function `import-vcard`**
-- Reçoit le contenu du fichier `.vcf` + `account_id`.
-- Parse vCard (FN, N, TEL, EMAIL, ORG, NOTE).
-- Même logique de normalisation/déduplication que Google.
-- Retourne `{ imported, skipped, errors }`.
+### Ergonomie
 
-### Frontend
-
-**`src/pages/ContactsPage.tsx`**
-- Remplacer le bouton "Importer" désactivé par un `DropdownMenu` :
-  - "Depuis Google Contacts" → lance OAuth (popup ou redirection vers edge function `google-contacts-start`).
-  - "Depuis un fichier (.vcf)" → ouvre `<input type="file" accept=".vcf">`, lit le contenu, appelle l'edge function.
-- Toast de progression + résultat (`X contacts importés, Y ignorés`).
-- Invalide `["contacts"]` après succès.
-
-**Nouveau composant `src/components/contacts/ImportContactsMenu.tsx`**
-- Encapsule le menu + la logique de fichier + l'appel OAuth.
-- Gère le retour OAuth via `?import=google&status=success` (similar au pattern existant pour calendar).
-
-### Base de données
-
-**Migration** :
-- Nouvelle table `contact_import_connections` : `id, account_id, profile_id, provider ('google'), access_token_encrypted, refresh_token_encrypted, token_expires_at, scope, created_at, updated_at`.
-- RLS : membres du compte uniquement.
-- Étendre l'enum `source` de `contacts` (si typé) pour accepter `google_import` et `vcard_import`. Sinon garder en text libre.
+- **Mobile (< 768px)** : barre fixe en bas (~64px + safe-area iOS), icône + label, état actif coloré en `primary` avec petit indicateur. Sidebar masquée, header simplifié sans `SidebarTrigger`.
+- **Desktop (≥ 768px)** : sidebar latérale actuelle conservée intacte, mais réorganisée en 3 sections miroir (Accueil / Activité / Réglages) pour cohérence avec le mobile.
+- **Sous-navigation Activité** : `<Tabs>` shadcn en haut de page (Historique | Missions).
+- **Hub Réglages** : liste verticale style iOS Settings, chaque item = ligne cliquable avec icône à gauche, label, chevron à droite. Section "Compte" en bas avec email, bouton déconnexion, et lien d'appel (QR code).
+- **Safe-area iOS** : `pb-[env(safe-area-inset-bottom)]` sur la barre, `pb-20` sur `<main>` mobile pour éviter le recouvrement.
 
 ### Détails techniques
 
-- **Chiffrement tokens** : réutiliser `bridge-server/src/auth/crypto.js` logic mais côté edge function (AES-256-GCM avec `ENCRYPTION_KEY`). Si pas dispo en edge → nouveau secret.
-- **OAuth callback** : edge function `google-contacts-callback` qui échange le code, chiffre, stocke, redirige vers `/who?import=success`.
-- **vCard parsing** : librairie légère `vcard4` ou parsing manuel (vCard est simple : split lignes, regex sur `TEL:`, `FN:`, etc.). Préférer parsing manuel pour éviter dépendance.
+1. **Nouveau** `src/components/BottomTabBar.tsx` : 3 `NavLink`, fixe `bottom-0`, visible uniquement mobile via `md:hidden`.
+2. **Modifier** `src/components/DashboardLayout.tsx` :
+   - Utiliser `useIsMobile()` (déjà existant).
+   - Mobile → masquer sidebar/trigger, afficher `<BottomTabBar>`, `<main>` avec `pb-20`.
+   - Desktop → comportement actuel.
+3. **Nouvelle page** `src/pages/ActivityPage.tsx` (route `/activity`) :
+   - `<Tabs>` shadcn avec deux `TabsContent` qui rendent `<CallHistory />` et `<MissionsPage />` (réutilisation des composants existants tels quels, sans duplication).
+4. **Nouvelle page** `src/pages/MoreMenuPage.tsx` (route `/more`) :
+   - Liste de liens vers `/about-me`, `/who`, `/how`, `/when`, `/calendar`, `/settings`.
+   - Section "Compte" intégrée en bas : email utilisateur, lien d'appel + QR (extrait de `SettingsPage`), bouton "Se déconnecter".
+5. **Modifier** `src/App.tsx` : ajouter routes `/activity` et `/more`. Conserver toutes les routes existantes pour compatibilité (les pages restent accessibles depuis le hub Réglages).
+6. **Modifier** `src/components/AppSidebar.tsx` (desktop) : regrouper les entrées en 3 sections (Accueil, Activité, Réglages) cohérentes avec la barre du bas. Retirer "Tester" de la sidebar.
 
-### Hors scope
-- Sync continue (one-shot import seulement).
-- Assignation auto à un groupe (les contacts importés vont dans "Non classés", l'utilisateur peut les déplacer après).
-- Photos de contacts.
+### Aperçu mobile
 
-### Risques / questions ouvertes
-- Le flux OAuth Google nécessite que les domaines de callback soient autorisés dans la Google Cloud Console du projet.
-- Pour iCloud spécifiquement : pas d'autre option que vCard. Documenter dans la UI : "Pour iCloud : Réglages → exporter vCard, puis importer ici".
+```text
+┌─────────────────────────┐
+│ Bonjour Victor          │
+│ [contenu page]          │
+│                         │
+│                         │
+├─────────────────────────┤
+│   🏠      📊      ⚙️    │
+│ Accueil Activité Réglag │
+└─────────────────────────┘
+```
+
+### Fichiers touchés
+
+- Créés : `src/components/BottomTabBar.tsx`, `src/pages/ActivityPage.tsx`, `src/pages/MoreMenuPage.tsx`
+- Modifiés : `src/components/DashboardLayout.tsx`, `src/components/AppSidebar.tsx`, `src/App.tsx`
 
