@@ -208,6 +208,7 @@ function handleOutboundStreamConnection(twilioWs) {
           // Try to reuse pre-connected Gemini WS
           const preconnectKey = callCtx.missionId ? `preconnect:${callCtx.missionId}` : null;
           const preconnect = preconnectKey ? callStore.get(preconnectKey) : null;
+          const preconnectCheckAt = Date.now();
 
           if (preconnect && preconnect.ws && preconnect.ws.readyState === WebSocket.OPEN && preconnect.ctx.geminiReady) {
             // Reuse the pre-warmed connection
@@ -218,8 +219,11 @@ function handleOutboundStreamConnection(twilioWs) {
             geminiWs.setCallCtx(callCtx);
             geminiWs.setAudioCallback(sendAudioToTwilio);
 
+            const preconnectAgeMs = preconnectCheckAt - preconnect.createdAt;
+            const geminiReadyAt = preconnect.ctx._setupCompleteAt || 0;
+            const sinceGeminiReady = geminiReadyAt ? preconnectCheckAt - geminiReadyAt : null;
             log.call("outbound_gemini_preconnect_reused", callCtx.traceId,
-              `preconnect_age_ms=${Date.now() - preconnect.createdAt}`);
+              `preconnect_age_ms=${preconnectAgeMs} since_gemini_ready_ms=${sinceGeminiReady}`);
           } else {
             // Fallback: clean up stale preconnect if any
             if (preconnect) {
@@ -227,10 +231,16 @@ function handleOutboundStreamConnection(twilioWs) {
               if (preconnect.ws && preconnect.ws.readyState === WebSocket.OPEN) {
                 preconnect.ws.close(1000, "fallback_to_new_connection");
               }
-              log.call("outbound_gemini_preconnect_not_ready", callCtx.traceId, "falling back to new connection");
+              const wsState = preconnect.ws?.readyState || "unknown";
+              const geminiReady = preconnect.ctx?.geminiReady || false;
+              log.call("outbound_gemini_preconnect_not_ready", callCtx.traceId,
+                `ws_state=${wsState} gemini_ready=${geminiReady}`);
+            } else {
+              log.call("outbound_gemini_preconnect_not_found", callCtx.traceId, `no_preconnect_in_store`);
             }
 
             // Connect to Gemini normally
+            log.call("outbound_gemini_new_connection_starting", callCtx.traceId);
             geminiWs = connectOutboundGemini(callCtx, sendAudioToTwilio);
           }
 
@@ -243,14 +253,21 @@ function handleOutboundStreamConnection(twilioWs) {
             if (callCtx._proactiveGreetingTimer) {
               clearTimeout(callCtx._proactiveGreetingTimer);
               callCtx._proactiveGreetingTimer = null;
-              log.call("outbound_proactive_greeting_cancelled", callCtx.traceId, "callee_spoke_first");
+              const cancelledAt = Date.now();
+              log.call("outbound_proactive_greeting_cancelled", callCtx.traceId,
+                `cancelled_at=${cancelledAt} since_start_ms=${cancelledAt - callCtx._twilioStartAt}`);
             }
             callCtx._firstTurnTriggered = true;
           };
 
+          log.call("outbound_proactive_greeting_scheduled", callCtx.traceId, `delay_ms=${PROACTIVE_GREETING_DELAY_MS}`);
+
           callCtx._proactiveGreetingTimer = setTimeout(() => {
             if (callCtx._firstTurnTriggered) return;
-            if (!geminiWs || geminiWs.readyState !== WebSocket.OPEN) return;
+            if (!geminiWs || geminiWs.readyState !== WebSocket.OPEN) {
+              log.call("outbound_proactive_greeting_skipped", callCtx.traceId, `ws_not_ready`);
+              return;
+            }
             callCtx._firstTurnTriggered = true;
             callCtx._firstTurnTriggeredAt = Date.now();
             try {
@@ -259,8 +276,9 @@ function handleOutboundStreamConnection(twilioWs) {
                   text: "Système : l'appelé vient de décrocher. Salue-le brièvement (une phrase courte), présente-toi comme l'assistant de l'utilisateur, puis enchaîne sur l'objectif. Si tu l'entends parler en même temps, laisse-le finir.",
                 },
               }));
+              const sinceStart = callCtx._firstTurnTriggeredAt - callCtx._twilioStartAt;
               log.call("outbound_first_turn_triggered", callCtx.traceId,
-                `delay_ms=${PROACTIVE_GREETING_DELAY_MS} since_start_ms=${callCtx._firstTurnTriggeredAt - callCtx._twilioStartAt}`);
+                `triggered_at=${callCtx._firstTurnTriggeredAt} since_start_ms=${sinceStart}`);
             } catch (e) {
               log.error("outbound_first_turn_trigger_error", callCtx.traceId, e.message);
             }
@@ -269,8 +287,21 @@ function handleOutboundStreamConnection(twilioWs) {
           break;
         }
 
-        case "media":
-          if (!callCtx.geminiReady || !geminiWs || geminiWs.readyState !== WebSocket.OPEN) return;
+        case "media": {
+          if (!callCtx.geminiReady || !geminiWs || geminiWs.readyState !== WebSocket.OPEN) {
+            if (!callCtx._firstMediaDroppedLogged) {
+              callCtx._firstMediaDroppedLogged = true;
+              log.call("outbound_media_dropped_gemini_not_ready", callCtx.traceId,
+                `gemini_ready=${callCtx.geminiReady} ws_state=${geminiWs?.readyState || "null"}`);
+            }
+            return;
+          }
+
+          if (!callCtx._firstMediaReceivedAt) {
+            callCtx._firstMediaReceivedAt = Date.now();
+            const sinceStart = callCtx._firstMediaReceivedAt - callCtx._twilioStartAt;
+            log.call("outbound_first_media_received", callCtx.traceId, `at=${callCtx._firstMediaReceivedAt} since_start_ms=${sinceStart}`);
+          }
 
           const pcm8k = decodeMulaw(msg.media.payload);
           const pcm16k = upsample8to16(pcm8k);
@@ -285,6 +316,7 @@ function handleOutboundStreamConnection(twilioWs) {
             },
           }));
           break;
+        }
 
         case "stop":
           log.call("outbound_call_ended_stop", callCtx.traceId);

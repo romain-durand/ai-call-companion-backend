@@ -187,6 +187,9 @@ async function executeOutboundMission(mission) {
 
     // 5. Pre-connect Gemini while the phone is ringing
     try {
+      const preconnectStartAt = Date.now();
+      log.server("outbound_gemini_preconnect_start", `${traceId} at=${preconnectStartAt}`);
+
       const tempCtx = {
         traceId,
         missionId: mission.id,
@@ -206,13 +209,15 @@ async function executeOutboundMission(mission) {
         lastAssistantActivityAt: 0,
         isOutbound: true,
         allowConsultUser: !!mission.allow_consult_user,
+        _preconnectStartAt: preconnectStartAt,
       };
 
       const geminiWs = connectOutboundGemini(tempCtx, null);
       const storeKey = `preconnect:${mission.id}`;
-      callStore.set(storeKey, { ws: geminiWs, ctx: tempCtx, createdAt: Date.now() });
+      const storeAt = Date.now();
+      callStore.set(storeKey, { ws: geminiWs, ctx: tempCtx, createdAt: storeAt });
 
-      log.server("outbound_gemini_preconnect_started", `${traceId} key=${storeKey}`);
+      log.server("outbound_gemini_preconnect_stored", `${traceId} elapsed_ms=${storeAt - preconnectStartAt} key=${storeKey}`);
 
       // Safety: clean up pre-connection after 60s if never consumed
       setTimeout(() => {
