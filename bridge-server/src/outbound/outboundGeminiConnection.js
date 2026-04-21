@@ -35,14 +35,17 @@ function connectOutboundGemini(callCtx, onAudio) {
   };
 
   ws.on("open", () => {
-    const openAt = Date.now();
-    log.gemini("outbound_gemini_ws_open", traceId, `at=${openAt}`);
+    const wsOpenAt = Date.now();
+    callCtx._wsOpenAt = wsOpenAt;
+    const sincePreconnect = callCtx._preconnectStartAt ? wsOpenAt - callCtx._preconnectStartAt : null;
+    log.gemini("outbound_gemini_ws_open", traceId, `since_preconnect_ms=${sincePreconnect}`);
+
     const contextBlock = buildOutboundContext(callCtx);
     const setupPayload = buildOutboundSetupPayload(contextBlock, {
       allowConsultUser: !!callCtx.allowConsultUser,
     });
     ws.send(JSON.stringify(setupPayload));
-    log.gemini("outbound_setup_payload_sent", traceId, `context_length=${JSON.stringify(setupPayload).length}`);
+    log.gemini("outbound_setup_payload_sent", traceId, `payload_size=${JSON.stringify(setupPayload).length}`);
   });
 
   ws.on("message", (data) => {
@@ -52,7 +55,8 @@ function connectOutboundGemini(callCtx, onAudio) {
       if (msg.setupComplete) {
         const setupCompleteAt = Date.now();
         callCtx._setupCompleteAt = setupCompleteAt;
-        log.gemini("outbound_setup_complete", traceId, `setupCompleteAt=${setupCompleteAt}`);
+        const sinceWsOpen = callCtx._wsOpenAt ? setupCompleteAt - callCtx._wsOpenAt : null;
+        log.gemini("outbound_setup_complete", traceId, `since_ws_open_ms=${sinceWsOpen}`);
 
         callCtx.geminiReady = true;
         callCtx.lastAssistantActivityAt = 0;
@@ -80,7 +84,10 @@ function connectOutboundGemini(callCtx, onAudio) {
           if (part.inlineData?.data) {
             if (audioChunkCount === 0) {
               const audioAt = Date.now();
-              log.gemini("outbound_audio_from_gemini_first", traceId, `at=${audioAt}`);
+              const sinceTwilio = callCtx._twilioStartAt ? audioAt - callCtx._twilioStartAt : null;
+              const sinceFirstTurn = callCtx._firstTurnTriggeredAt ? audioAt - callCtx._firstTurnTriggeredAt : null;
+              log.gemini("outbound_audio_from_gemini_first", traceId,
+                `since_twilio_start_ms=${sinceTwilio} since_first_turn_ms=${sinceFirstTurn}`);
             }
             callCtx.lastAssistantActivityAt = Date.now();
             if (_onAudio) {
@@ -100,9 +107,7 @@ function connectOutboundGemini(callCtx, onAudio) {
       // Transcriptions
       if (msg.serverContent?.inputTranscription?.text) {
         const text = msg.serverContent.inputTranscription.text;
-        const transcribedAt = Date.now();
         log.transcript("🎤", "caller", traceId, text);
-        log.gemini("outbound_caller_transcription_received", traceId, `at=${transcribedAt}`);
         if (callCtx._onCallerSpeechDetected) {
           try { callCtx._onCallerSpeechDetected(); } catch (_) {}
         }
@@ -112,10 +117,8 @@ function connectOutboundGemini(callCtx, onAudio) {
       }
       if (msg.serverContent?.outputTranscription?.text) {
         const text = msg.serverContent.outputTranscription.text;
-        const assistantAt = Date.now();
-        callCtx.lastAssistantActivityAt = assistantAt;
+        callCtx.lastAssistantActivityAt = Date.now();
         log.transcript("🤖", "assistant", traceId, text);
-        log.gemini("outbound_assistant_transcription_received", traceId, `at=${assistantAt}`);
         if (callCtx._txBuffer) {
           callCtx._txBuffer.push("assistant", text);
         }

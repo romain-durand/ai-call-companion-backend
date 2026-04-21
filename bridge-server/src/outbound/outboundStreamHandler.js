@@ -179,7 +179,7 @@ function handleOutboundStreamConnection(twilioWs) {
           callCtx.streamSid = msg.start.streamSid;
           callCtx.startedAt = new Date().toISOString();
           callCtx._twilioStartAt = Date.now();
-          log.call("outbound_twilio_start_received", callCtx.traceId, `at=${callCtx._twilioStartAt}`);
+          log.call("outbound_twilio_start_received", callCtx.traceId);
 
           // Extract outbound mission parameters
           const params = msg.start.customParameters || {};
@@ -254,8 +254,9 @@ function handleOutboundStreamConnection(twilioWs) {
               clearTimeout(callCtx._proactiveGreetingTimer);
               callCtx._proactiveGreetingTimer = null;
               const cancelledAt = Date.now();
+              const sinceStart = cancelledAt - callCtx._twilioStartAt;
               log.call("outbound_proactive_greeting_cancelled", callCtx.traceId,
-                `cancelled_at=${cancelledAt} since_start_ms=${cancelledAt - callCtx._twilioStartAt}`);
+                `since_start_ms=${sinceStart}`);
             }
             callCtx._firstTurnTriggered = true;
           };
@@ -278,7 +279,7 @@ function handleOutboundStreamConnection(twilioWs) {
               }));
               const sinceStart = callCtx._firstTurnTriggeredAt - callCtx._twilioStartAt;
               log.call("outbound_first_turn_triggered", callCtx.traceId,
-                `triggered_at=${callCtx._firstTurnTriggeredAt} since_start_ms=${sinceStart}`);
+                `since_start_ms=${sinceStart}`);
             } catch (e) {
               log.error("outbound_first_turn_trigger_error", callCtx.traceId, e.message);
             }
@@ -300,7 +301,7 @@ function handleOutboundStreamConnection(twilioWs) {
           if (!callCtx._firstMediaReceivedAt) {
             callCtx._firstMediaReceivedAt = Date.now();
             const sinceStart = callCtx._firstMediaReceivedAt - callCtx._twilioStartAt;
-            log.call("outbound_first_media_received", callCtx.traceId, `at=${callCtx._firstMediaReceivedAt} since_start_ms=${sinceStart}`);
+            log.call("outbound_first_media_received", callCtx.traceId, `since_start_ms=${sinceStart}`);
           }
 
           const pcm8k = decodeMulaw(msg.media.payload);
