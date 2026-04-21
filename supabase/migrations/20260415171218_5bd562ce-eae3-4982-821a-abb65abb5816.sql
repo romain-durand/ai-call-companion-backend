@@ -1,1 +1,0 @@
-ALTER TABLE public.outbound_missions ADD COLUMN allow_consult_user BOOLEAN NOT NULL DEFAULT false;

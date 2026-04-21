@@ -1,1 +1,0 @@
-ALTER TYPE public.assistant_control_mode ADD VALUE IF NOT EXISTS 'full_autonomy';

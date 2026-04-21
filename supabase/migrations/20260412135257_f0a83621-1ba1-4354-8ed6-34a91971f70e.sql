@@ -1,3 +1,0 @@
-ALTER TABLE public.calendar_connections
-ADD CONSTRAINT calendar_connections_account_provider_profile_unique
-UNIQUE (account_id, provider, profile_id);

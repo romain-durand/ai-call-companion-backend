@@ -1,1 +1,0 @@
-ALTER TABLE public.call_sessions ADD COLUMN summary_llm text DEFAULT NULL;

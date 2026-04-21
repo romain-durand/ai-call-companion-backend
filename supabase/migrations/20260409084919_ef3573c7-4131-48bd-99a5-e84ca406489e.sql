@@ -1,1 +1,0 @@
-UPDATE public.accounts SET is_demo = true WHERE id = 'de6eaf77-6dcf-428f-af9c-898671e83f7b';

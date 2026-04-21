@@ -1,6 +1,0 @@
-- [Project Overview](project_overview.md) — AI-call-companion React app for AI-assisted call handling
-- [Tech Stack](tech_stack.md) — React 18, TypeScript, Vite, TailwindCSS, Supabase, React Query
-- [Code Style & Conventions](code_style_and_conventions.md) — PascalCase components, @/ alias, TailwindCSS
-- [Suggested Commands](suggested_commands.md) — dev/build/test/lint workflow commands
-- [Post-Task Workflow](post_task_workflow.md) — Lint, test, verify, build, commit checklist
-- [Project Structure](project_structure.md) — Directory layout and key files organization

@@ -1,1 +1,0 @@
-ALTER TABLE public.accounts ADD COLUMN is_demo boolean NOT NULL DEFAULT false;
