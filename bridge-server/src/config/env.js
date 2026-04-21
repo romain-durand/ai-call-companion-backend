@@ -46,7 +46,7 @@ module.exports = {
   TWILIO_WEBHOOK_URL: optional("TWILIO_WEBHOOK_URL", ""),
   TWILIO_API_KEY_SID: optional("TWILIO_API_KEY_SID"),
   TWILIO_API_KEY_SECRET: optional("TWILIO_API_KEY_SECRET"),
-  TWILIO_BRIDGE_WS_URL: optional("TWILIO_BRIDGE_WS_URL", "wss://bridgeserver.ted.paris"),
+  TWILIO_BRIDGE_WS_URL: optional("TWILIO_BRIDGE_WS_URL", "wss://bridgeserver2.ted.paris"),
 
   // Temporary fallback for inbound calls not yet associated to an account
   DEFAULT_RUNTIME_ACCOUNT_ID: optional("DEFAULT_RUNTIME_ACCOUNT_ID", "122c09a9-8ad3-42bb-a7de-6d97342813a5"),

@@ -6,7 +6,7 @@ const { encrypt, decrypt, signState, verifyState } = require("./crypto");
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-const REDIRECT_URI = "https://bridgeserver.ted.paris/auth/google/contacts/callback";
+const REDIRECT_URI = "https://bridgeserver2.ted.paris/auth/google/contacts/callback";
 const DASHBOARD_URL = process.env.DASHBOARD_URL || "https://call-screening-bot.lovable.app";
 const SCOPES = ["https://www.googleapis.com/auth/contacts.readonly"].join(" ");
 
