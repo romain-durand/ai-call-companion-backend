@@ -1,6 +1,8 @@
 function fmt(icon, event, traceId, extra) {
+  const timestamp = new Date().toISOString();
   const base = traceId ? `[${traceId}] ${icon} ${event}` : `${icon} ${event}`;
-  return extra !== undefined ? `${base}: ${extra}` : base;
+  const msg = extra !== undefined ? `${base}: ${extra}` : base;
+  return `${timestamp} ${msg}`;
 }
 
 const logger = {
