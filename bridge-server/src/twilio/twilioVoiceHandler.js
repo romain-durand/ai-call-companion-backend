@@ -1,7 +1,28 @@
 const { supabaseAdmin } = require("../db/supabaseAdmin");
-const { TWILIO_BRIDGE_WS_URL } = require("../config/env");
-const { randomUUID } = require("crypto");
+const { TWILIO_BRIDGE_WS_URL, TWILIO_AUTH_TOKEN, TWILIO_WEBHOOK_URL } = require("../config/env");
+const crypto = require("crypto");
+const { randomUUID } = crypto;
 const log = require("../observability/logger");
+
+/**
+ * Validate Twilio request signature using HMAC-SHA1.
+ * Returns true if signature is valid, false otherwise.
+ */
+function validateTwilioSignature(headers, body, webhookUrl) {
+  const signature = headers["x-twilio-signature"];
+  if (!signature) return false;
+
+  const paramString = Object.keys(body)
+    .sort()
+    .reduce((str, key) => str + key + body[key], webhookUrl);
+
+  const expected = crypto
+    .createHmac("sha1", TWILIO_AUTH_TOKEN)
+    .update(paramString, "utf-8")
+    .digest("base64");
+
+  return signature === expected;
+}
 
 /**
  * Handle POST /twilio-voice — replaces the Supabase Edge Function.
@@ -27,6 +48,7 @@ async function handleTwilioVoice(req, res) {
   }
 
   // Parse Twilio POST form data
+  let body = {};
   let callerNumber = "unknown";
   let calledNumber = "unknown";
   let forwardedFrom = "";
@@ -34,7 +56,7 @@ async function handleTwilioVoice(req, res) {
   let callSid = "";
 
   try {
-    const body = await parseFormBody(req);
+    body = await parseFormBody(req);
     callerNumber = body.From || "unknown";
     calledNumber = body.To || "unknown";
     forwardedFrom = body.ForwardedFrom || "";
@@ -42,6 +64,16 @@ async function handleTwilioVoice(req, res) {
     callSid = body.CallSid || "";
   } catch (e) {
     log.error("twilio_voice_parse", null, e.message);
+  }
+
+  // Validate Twilio request signature (if both auth token and webhook URL are configured)
+  if (TWILIO_AUTH_TOKEN && TWILIO_WEBHOOK_URL) {
+    if (!validateTwilioSignature(req.headers, body, TWILIO_WEBHOOK_URL)) {
+      log.error("twilio_voice_invalid_signature", null,
+        `Rejected request from ${req.socket?.remoteAddress} — invalid X-Twilio-Signature`);
+      res.writeHead(403, { "Content-Type": "text/plain" });
+      return res.end("Forbidden");
+    }
   }
 
   // The number to route on: prefer ForwardedFrom/CalledVia (call-forwarding scenario),

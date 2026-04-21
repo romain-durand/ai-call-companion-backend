@@ -18,6 +18,7 @@ const {
   matchesWaitAnnouncement,
   resetConsultUserFlow,
 } = require("./consultUserFlow");
+const v = require("./validateArgs");
 
 /**
  * Route a Gemini tool call to the appropriate handler.
@@ -98,7 +99,15 @@ async function handleToolCall(call, traceId, callCtx) {
 // ─── get_caller_profile ──────────────────────────────────────
 
 async function handleGetCallerProfile(args, callCtx, traceId) {
-  const phone = args.phone_number || callCtx.callerNumber;
+  if (args?.phone_number) {
+    const r = v.validatePhone(args.phone_number);
+    if (!r.ok) {
+      log.tool("validation_error", traceId, `get_caller_profile: ${r.message}`);
+      return { success: false, message: r.message };
+    }
+  }
+
+  const phone = args?.phone_number?.trim() || callCtx.callerNumber;
   return await getCallerProfile(callCtx.accountId, phone, traceId);
 }
 
@@ -107,6 +116,16 @@ async function handleGetCallerProfile(args, callCtx, traceId) {
 async function handleCreateCallback(args, callCtx, traceId) {
   // Callback is always allowed — it's part of take_message flow
   // No policy guardrail needed since callback_allowed column was removed
+
+  const r1 = v.validatePriority(args?.priority);
+  const r2 = v.validateMaxLen(args?.reason, "reason", v.MAX_REASON);
+  const r3 = v.validateMaxLen(args?.preferred_time_note, "preferred_time_note", v.MAX_NOTE);
+  for (const r of [r1, r2, r3]) {
+    if (!r.ok) {
+      log.tool("validation_error", traceId, `create_callback: ${r.message}`);
+      return { success: false, message: r.message };
+    }
+  }
 
   const cbId = await createCallbackRequest(callCtx, args);
   if (cbId) {
@@ -185,6 +204,16 @@ async function resolveCallerGroupBehavior(callCtx, traceId) {
 // ─── notify_user ─────────────────────────────────────────────
 
 async function handleNotifyUser(args, callCtx, traceId) {
+  const r1 = v.validatePriority(args?.priority);
+  const r2 = v.validateMaxLen(args?.summary, "summary", 1000);
+  const r3 = v.validateMaxLen(args?.caller_name, "caller_name", v.MAX_NAME);
+  for (const r of [r1, r2, r3]) {
+    if (!r.ok) {
+      log.tool("validation_error", traceId, `notify_user: ${r.message}`);
+      return { success: false, message: r.message };
+    }
+  }
+
   return await createDirectNotification(callCtx, args);
 }
 
@@ -192,10 +221,21 @@ async function handleNotifyUser(args, callCtx, traceId) {
 // ─── generate_call_summary ───────────────────────────────────
 
 async function handleGenerateCallSummary(args, callCtx, traceId) {
-  const summary = args.summary;
-  if (!summary || !callCtx.callSessionId) {
-    log.tool("call_summary_llm_skipped", traceId, "missing summary or callSessionId");
-    return { success: false, message: "Missing summary text or call session." };
+  const summary = args?.summary;
+  if (typeof summary !== "string" || !summary.trim()) {
+    log.tool("validation_error", traceId, "generate_call_summary: summary is required and must be a non-empty string");
+    return { success: false, message: "summary is required and must be a non-empty string" };
+  }
+
+  if (!callCtx.callSessionId) {
+    log.tool("call_summary_llm_skipped", traceId, "missing callSessionId");
+    return { success: false, message: "Missing call session." };
+  }
+
+  const r = v.validateMaxLen(summary, "summary", v.MAX_SUMMARY);
+  if (!r.ok) {
+    log.tool("validation_error", traceId, `generate_call_summary: ${r.message}`);
+    return { success: false, message: r.message };
   }
 
   try {
@@ -220,7 +260,13 @@ async function handleGenerateCallSummary(args, callCtx, traceId) {
 // ─── end_call ────────────────────────────────────────────────
 
 async function handleEndCall(args, callCtx, traceId) {
-  const reason = args.reason || "end_call";
+  const r = v.validateMaxLen(args?.reason, "reason", 200);
+  if (!r.ok) {
+    log.tool("validation_error", traceId, `end_call: ${r.message}`);
+    return { success: false, message: r.message };
+  }
+
+  const reason = args?.reason || "end_call";
   log.tool("end_call", traceId, reason);
 
   // Give Gemini a moment to finish speaking before hanging up
@@ -236,7 +282,13 @@ async function handleEndCall(args, callCtx, traceId) {
 // ─── transfer_call ───────────────────────────────────────────
 
 async function handleTransferCall(args, callCtx, traceId) {
-  const reason = args.reason || "transfer requested";
+  const r = v.validateMaxLen(args?.reason, "reason", v.MAX_REASON);
+  if (!r.ok) {
+    log.tool("validation_error", traceId, `transfer_call: ${r.message}`);
+    return { success: false, message: r.message };
+  }
+
+  const reason = args?.reason || "transfer requested";
 
   if (!callCtx.callSessionId || !callCtx.accountId) {
     return { success: false, message: "Cannot transfer: missing session context." };
@@ -352,9 +404,16 @@ function observeRecentAssistantWaitAnnouncement(callCtx, consultFlow, traceId, m
 // ─── consult_user ────────────────────────────────────────────
 
 async function handleConsultUser(args, callCtx, traceId) {
-  const question = typeof args.question === "string" ? args.question.trim() : "";
+  const question = typeof args?.question === "string" ? args.question.trim() : "";
   if (!question) {
+    log.tool("validation_error", traceId, "consult_user: Missing question parameter");
     return { success: false, message: "Missing question parameter." };
+  }
+
+  const r = v.validateMaxLen(question, "question", v.MAX_QUESTION);
+  if (!r.ok) {
+    log.tool("validation_error", traceId, `consult_user: ${r.message}`);
+    return { success: false, message: r.message };
   }
 
   const consultFlow = callCtx.consultUserFlow || (callCtx.consultUserFlow = createConsultUserFlowState());
@@ -448,12 +507,39 @@ async function handleCheckAvailability(args, callCtx, traceId) {
     return { success: false, message: "No account context — cannot check availability." };
   }
 
+  // Validate required date parameter
+  const date = args?.date;
+  if (!date) {
+    log.tool("validation_error", traceId, "check_availability: date is required (YYYY-MM-DD)");
+    return { success: false, message: "date is required (YYYY-MM-DD)" };
+  }
+
+  const r1 = v.validateDate(date);
+  if (!r1.ok) {
+    log.tool("validation_error", traceId, `check_availability: ${r1.message}`);
+    return { success: false, message: r1.message };
+  }
+
+  const rangeStart = args?.time_range_start ?? "08:00";
+  const rangeEnd = args?.time_range_end ?? "18:00";
+
+  const r2 = v.validateTime(rangeStart, "time_range_start");
+  const r3 = v.validateTime(rangeEnd, "time_range_end");
+  for (const r of [r2, r3]) {
+    if (!r.ok) {
+      log.tool("validation_error", traceId, `check_availability: ${r.message}`);
+      return { success: false, message: r.message };
+    }
+  }
+
+  // Verify ordering: end must be after start
+  if (rangeStart >= rangeEnd) {
+    log.tool("validation_error", traceId, `check_availability: time_range_end (${rangeEnd}) must be after time_range_start (${rangeStart})`);
+    return { success: false, message: `time_range_end (${rangeEnd}) must be after time_range_start (${rangeStart})` };
+  }
+
   try {
     // Parse date and time range into ISO timestamps
-    const date = args.date; // e.g. "2026-04-15"
-    const rangeStart = args.time_range_start || "08:00"; // e.g. "09:00"
-    const rangeEnd = args.time_range_end || "18:00"; // e.g. "17:00"
-
     const timeMin = new Date(`${date}T${rangeStart}:00+02:00`).toISOString();
     const timeMax = new Date(`${date}T${rangeEnd}:00+02:00`).toISOString();
 
@@ -488,6 +574,62 @@ async function handleBookAppointment(args, callCtx, traceId) {
     return { success: false, message: "No account context — cannot book appointment." };
   }
 
+  // Validate required time parameters
+  const startTime = args?.start_time;
+  const endTime = args?.end_time;
+
+  if (!startTime) {
+    log.tool("validation_error", traceId, "book_appointment: start_time is required");
+    return { success: false, message: "start_time is required" };
+  }
+  if (!endTime) {
+    log.tool("validation_error", traceId, "book_appointment: end_time is required");
+    return { success: false, message: "end_time is required" };
+  }
+
+  const r1 = v.validateIsoDatetime(startTime, "start_time");
+  const r2 = v.validateIsoDatetime(endTime, "end_time");
+  if (!r1.ok) {
+    log.tool("validation_error", traceId, `book_appointment: ${r1.message}`);
+    return { success: false, message: r1.message };
+  }
+  if (!r2.ok) {
+    log.tool("validation_error", traceId, `book_appointment: ${r2.message}`);
+    return { success: false, message: r2.message };
+  }
+
+  const r3 = v.validateOrdering(startTime, endTime);
+  const r4 = v.validateBookingDuration(startTime, endTime);
+  if (!r3.ok) {
+    log.tool("validation_error", traceId, `book_appointment: ${r3.message}`);
+    return { success: false, message: r3.message };
+  }
+  if (!r4.ok) {
+    log.tool("validation_error", traceId, `book_appointment: ${r4.message}`);
+    return { success: false, message: r4.message };
+  }
+
+  // Validate optional phone number
+  if (args?.attendee_phone) {
+    const r5 = v.validatePhone(args.attendee_phone);
+    if (!r5.ok) {
+      log.tool("validation_error", traceId, `book_appointment: ${r5.message}`);
+      return { success: false, message: r5.message };
+    }
+  }
+
+  // Validate string length limits
+  const r6 = v.validateMaxLen(args?.title, "title", v.MAX_TITLE);
+  const r7 = v.validateMaxLen(args?.attendee_name, "attendee_name", v.MAX_NAME);
+  if (!r6.ok) {
+    log.tool("validation_error", traceId, `book_appointment: ${r6.message}`);
+    return { success: false, message: r6.message };
+  }
+  if (!r7.ok) {
+    log.tool("validation_error", traceId, `book_appointment: ${r7.message}`);
+    return { success: false, message: r7.message };
+  }
+
   // In full_autonomy mode, skip policy guardrail — the AI decides
   if (callCtx.controlMode !== "full_autonomy") {
     // Backend guardrail: check booking_allowed policy
@@ -503,11 +645,11 @@ async function handleBookAppointment(args, callCtx, traceId) {
     const result = await bookAppointment(
       callCtx.accountId,
       {
-        title: args.title || "Rendez-vous",
-        startTime: args.start_time,
-        endTime: args.end_time,
-        attendeeName: args.attendee_name || callCtx.callerName || null,
-        attendeePhone: args.attendee_phone || callCtx.callerNumber || null,
+        title: args?.title || "Rendez-vous",
+        startTime: startTime,
+        endTime: endTime,
+        attendeeName: args?.attendee_name || callCtx.callerName || null,
+        attendeePhone: args?.attendee_phone || callCtx.callerNumber || null,
         callSessionId: callCtx.callSessionId,
       },
       traceId

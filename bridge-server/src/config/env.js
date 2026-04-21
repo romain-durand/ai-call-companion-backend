@@ -43,6 +43,7 @@ module.exports = {
   MODEL: optional("GEMINI_MODEL", "models/gemini-3.1-flash-live-preview"),
   TWILIO_ACCOUNT_SID: optional("TWILIO_ACCOUNT_SID"),
   TWILIO_AUTH_TOKEN: optional("TWILIO_AUTH_TOKEN"),
+  TWILIO_WEBHOOK_URL: optional("TWILIO_WEBHOOK_URL", ""),
   TWILIO_API_KEY_SID: optional("TWILIO_API_KEY_SID"),
   TWILIO_API_KEY_SECRET: optional("TWILIO_API_KEY_SECRET"),
   TWILIO_BRIDGE_WS_URL: optional("TWILIO_BRIDGE_WS_URL", "wss://bridgeserver.ted.paris"),
