@@ -142,6 +142,9 @@ function handleOutboundStreamConnection(twilioWs) {
     if (callCtx._hangupRequested) return;
 
     const requestedAt = Date.now();
+    const QUIET_THRESHOLD_MS = 3500; // Increased from 2200 to give more audio buffer time
+    const MAX_WAIT_MS = 12000; // Increased from 9000 to allow longer messages
+
     const waitForSpeechEnd = () => {
       if (callCtx._hangupRequested) return;
 
@@ -149,11 +152,13 @@ function handleOutboundStreamConnection(twilioWs) {
       const quietForMs = lastAssistantActivityAt > 0
         ? Date.now() - lastAssistantActivityAt
         : Number.POSITIVE_INFINITY;
-      const maxWaitReached = Date.now() - requestedAt >= 9000;
+      const maxWaitReached = Date.now() - requestedAt >= MAX_WAIT_MS;
 
-      if (quietForMs >= 2200 || maxWaitReached) {
-        if (maxWaitReached && quietForMs < 2200) {
-          log.call("outbound_hangup_forced_after_timeout", callCtx.traceId, reason);
+      if (quietForMs >= QUIET_THRESHOLD_MS || maxWaitReached) {
+        if (maxWaitReached && quietForMs < QUIET_THRESHOLD_MS) {
+          log.call("outbound_hangup_forced_after_timeout", callCtx.traceId, `${reason} quiet_for_ms=${quietForMs}`);
+        } else {
+          log.call("outbound_hangup_ready", callCtx.traceId, `${reason} quiet_for_ms=${quietForMs}`);
         }
         callCtx._hangup(reason);
         return;
@@ -162,7 +167,8 @@ function handleOutboundStreamConnection(twilioWs) {
       callCtx._hangupWatcher = setTimeout(waitForSpeechEnd, 350);
     };
 
-    log.call("outbound_hangup_deferred", callCtx.traceId, reason);
+    const sinceStart = callCtx._twilioStartAt ? Date.now() - callCtx._twilioStartAt : null;
+    log.call("outbound_hangup_deferred", callCtx.traceId, `${reason} since_start_ms=${sinceStart}`);
     callCtx._hangupWatcher = setTimeout(waitForSpeechEnd, 350);
   };
 
