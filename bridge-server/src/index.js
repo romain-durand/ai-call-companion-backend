@@ -52,8 +52,17 @@ const server = http.createServer((req, res) => {
     return handleGoogleContactsImport(req, res);
   }
 
-  // Debug: call state stats
+  // Debug: call state stats (requires DEBUG_SECRET token)
   if (pathname === "/debug/call-stats" && req.method === "GET") {
+    const authHeader = req.headers["authorization"] || "";
+    const debugSecret = process.env.DEBUG_SECRET;
+    const expected = `Bearer ${debugSecret}`;
+
+    if (!debugSecret || authHeader !== expected) {
+      res.writeHead(401, { "Content-Type": "application/json" });
+      return res.end(JSON.stringify({ error: "Unauthorized" }));
+    }
+
     const stats = callStore.getStats();
     res.writeHead(200, { "Content-Type": "application/json" });
     return res.end(JSON.stringify(stats, null, 2));

@@ -8,6 +8,13 @@ const CLEANUP_CHECK_INTERVAL_MS = 5 * 60 * 1000; // Check every 5 minutes
 
 let cleanupIntervalId = null;
 
+function maskPhone(phone) {
+  if (!phone || phone.length < 8) return phone;
+  const start = phone.slice(0, 4);
+  const end = phone.slice(-3);
+  return `${start}${'*'.repeat(Math.max(0, phone.length - 7))}${end}`;
+}
+
 function startCleanupTimer() {
   if (cleanupIntervalId) return; // Already running
 
@@ -71,7 +78,7 @@ module.exports = {
         traceId,
         durationMin: Math.round((now - context.createdAt) / 1000 / 60),
         inactiveMin: Math.round((now - context.lastActivityTime) / 1000 / 60),
-        callerNumber: context.callerNumber,
+        callerNumber: maskPhone(context.callerNumber),
         finalized: context.finalized,
       });
     }
