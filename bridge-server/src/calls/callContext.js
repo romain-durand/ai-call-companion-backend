@@ -3,6 +3,7 @@ const { createConsultUserFlowState } = require("../tools/consultUserFlow");
 
 function createCallContext() {
   let _seqNo = 0;
+  const now = Date.now();
 
   const ctx = {
     traceId: crypto.randomUUID().slice(0, 8),
@@ -29,6 +30,8 @@ function createCallContext() {
     _hangupRequested: false,
     _hangupWatcher: null,
     _firstCallerTurnTimer: null,
+    createdAt: now,
+    lastActivityTime: now,
 
     /** Returns the next unique seq_no for this call. */
     nextSeqNo() {

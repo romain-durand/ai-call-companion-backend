@@ -27,13 +27,18 @@ function handleTwilioConnection(twilioWs) {
     }
     callCtx.finalized = true; // set BEFORE async work to prevent races
 
-    if (callCtx._txBuffer) {
-      await callCtx._txBuffer.flushAll();
+    try {
+      if (callCtx._txBuffer) {
+        await callCtx._txBuffer.flushAll();
+      }
+      await finalizeCallSession(callCtx);
+      // Post-finalization: generate deterministic summary (fire-and-forget safe)
+      generateAndSaveSummary(callCtx.callSessionId, callCtx.traceId).catch(() => {});
+    } catch (err) {
+      log.error("call_finalization_error", callCtx.traceId, err.message);
+    } finally {
+      callStore.remove(callCtx.traceId);
     }
-    await finalizeCallSession(callCtx);
-    // Post-finalization: generate deterministic summary (fire-and-forget safe)
-    generateAndSaveSummary(callCtx.callSessionId, callCtx.traceId).catch(() => {});
-    callStore.remove(callCtx.traceId);
   }
 
   // Callback: send audio from Gemini back to Twilio

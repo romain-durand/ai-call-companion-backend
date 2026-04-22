@@ -79,18 +79,23 @@ function handleOutboundStreamConnection(twilioWs) {
       callCtx._proactiveGreetingTimer = null;
     }
 
-    if (callCtx._txBuffer) {
-      await callCtx._txBuffer.flushAll();
-    }
-    await finalizeCallSession(callCtx);
+    try {
+      if (callCtx._txBuffer) {
+        await callCtx._txBuffer.flushAll();
+      }
+      await finalizeCallSession(callCtx);
 
-    // Always finalize the outbound mission if not already completed
-    await finalizeOutboundMission(callCtx);
+      // Always finalize the outbound mission if not already completed
+      await finalizeOutboundMission(callCtx);
 
-    if (callCtx.callSessionId) {
-      generateAndSaveSummary(callCtx.callSessionId, callCtx.traceId).catch(() => {});
+      if (callCtx.callSessionId) {
+        generateAndSaveSummary(callCtx.callSessionId, callCtx.traceId).catch(() => {});
+      }
+    } catch (err) {
+      log.error("outbound_stream_finalization_error", callCtx.traceId, err.message);
+    } finally {
+      callStore.remove(callCtx.traceId);
     }
-    callStore.remove(callCtx.traceId);
   }
 
   function sendAudioToTwilio(mulawBase64) {

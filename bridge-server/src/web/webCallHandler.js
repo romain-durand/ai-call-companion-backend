@@ -32,10 +32,15 @@ function handleWebCallConnection(ws) {
     if (callCtx.finalized) return;
     callCtx.finalized = true;
 
-    if (callCtx._txBuffer) await callCtx._txBuffer.flushAll();
-    await finalizeCallSession(callCtx);
-    generateAndSaveSummary(callCtx.callSessionId, callCtx.traceId).catch(() => {});
-    callStore.remove(callCtx.traceId);
+    try {
+      if (callCtx._txBuffer) await callCtx._txBuffer.flushAll();
+      await finalizeCallSession(callCtx);
+      generateAndSaveSummary(callCtx.callSessionId, callCtx.traceId).catch(() => {});
+    } catch (err) {
+      log.error("web_call_finalization_error", callCtx.traceId, err.message);
+    } finally {
+      callStore.remove(callCtx.traceId);
+    }
   }
 
   // ── Send Gemini audio back to browser (PCM 24kHz base64) ──

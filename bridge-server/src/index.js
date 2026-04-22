@@ -15,6 +15,7 @@ const {
 } = require("./auth/googleContactsOAuth");
 const { handleTwilioVoice } = require("./twilio/twilioVoiceHandler");
 const log = require("./observability/logger");
+const callStore = require("./calls/callStateStore");
 
 const server = http.createServer((req, res) => {
   const pathname = url.parse(req.url).pathname;
@@ -49,6 +50,13 @@ const server = http.createServer((req, res) => {
   }
   if (pathname === "/contacts/google/import" && req.method === "POST") {
     return handleGoogleContactsImport(req, res);
+  }
+
+  // Debug: call state stats
+  if (pathname === "/debug/call-stats" && req.method === "GET") {
+    const stats = callStore.getStats();
+    res.writeHead(200, { "Content-Type": "application/json" });
+    return res.end(JSON.stringify(stats, null, 2));
   }
 
   // Health check
