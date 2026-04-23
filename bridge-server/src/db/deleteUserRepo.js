@@ -20,29 +20,46 @@ async function deleteUser(userId) {
 
   const accountId = membership.account_id;
 
-  // 2. Supprimer les données dans l'ordre correct (éviter FK violations)
-  await supabaseAdmin.from('outbound_missions').delete().eq('account_id', accountId);
-  await supabaseAdmin.from('contacts').delete().eq('account_id', accountId);
-  await supabaseAdmin.from('call_handling_rules').delete().eq('account_id', accountId);
-  await supabaseAdmin.from('booking_rules').delete().eq('account_id', accountId);
-  await supabaseAdmin.from('contact_group_memberships').delete().eq('account_id', accountId);
+  // 2. Vérifier si d'autres membres partagent cet account
+  const { data: otherMembers } = await supabaseAdmin
+    .from('account_members')
+    .select('profile_id')
+    .eq('account_id', accountId)
+    .neq('profile_id', userId);
 
-  // 3. Note: caller_groups et account cascades are blocked by trigger protect_system_group_deletion
-  // We'll delete account WITHOUT the groups (they stay orphaned but isolated by account_id)
-  // This is acceptable for test user cleanup
+  const hasOtherMembers = otherMembers && otherMembers.length > 0;
 
-  // 4. Supprimer l'account (cascade sur les autres tables, mais groupes resteront)
-  const { error: accountErr } = await supabaseAdmin
-    .from('accounts')
-    .delete()
-    .eq('id', accountId)
-    .not('id', 'is', null); // Extra safety check
+  if (!hasOtherMembers) {
+    // 3a. Seul membre → supprimer les données de l'account puis l'account
+    await supabaseAdmin.from('outbound_missions').delete().eq('account_id', accountId);
+    await supabaseAdmin.from('contacts').delete().eq('account_id', accountId);
+    await supabaseAdmin.from('call_handling_rules').delete().eq('account_id', accountId);
+    await supabaseAdmin.from('booking_rules').delete().eq('account_id', accountId);
+    await supabaseAdmin.from('contact_group_memberships').delete().eq('account_id', accountId);
 
-  if (accountErr && !accountErr.message.includes('default group')) {
-    throw new Error(`Failed to delete account: ${accountErr.message}`);
+    // Note: caller_groups stay orphaned but isolated by account_id (protected by trigger)
+    const { error: accountErr } = await supabaseAdmin
+      .from('accounts')
+      .delete()
+      .eq('id', accountId)
+      .not('id', 'is', null);
+
+    if (accountErr && !accountErr.message.includes('default group')) {
+      throw new Error(`Failed to delete account: ${accountErr.message}`);
+    }
+  } else {
+    // 3b. Autres membres → retirer seulement la membership
+    await supabaseAdmin
+      .from('account_members')
+      .delete()
+      .eq('profile_id', userId)
+      .eq('account_id', accountId);
   }
 
-  // 5. Supprimer l'utilisateur auth (cascade vers profiles)
+  // 4. Supprimer le profile explicitement (pas de CASCADE dans le schéma)
+  await supabaseAdmin.from('profiles').delete().eq('id', userId);
+
+  // 5. Supprimer l'utilisateur auth
   const { error: authErr } = await supabaseAdmin.auth.admin.deleteUser(userId);
 
   if (authErr) {
