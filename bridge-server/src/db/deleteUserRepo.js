@@ -56,12 +56,12 @@ async function deleteUser(userId) {
       .eq('account_id', accountId);
   }
 
-  // 4. Supprimer le profile explicitement (pas de CASCADE dans le schéma)
-  const { error: profileErr, count: profileDeletedCount } = await supabaseAdmin.from('profiles').delete().eq('id', userId);
+  // 4. Supprimer le profile explicitement via RPC (problème avec .delete().eq() sur Supabase)
+  const { error: profileErr } = await supabaseAdmin.rpc('delete_profile_by_id', { profile_id: userId });
   if (profileErr) {
-    log.error('delete_profile_error', null, `Failed to delete profile: ${profileErr.message}`);
+    log.error('delete_profile_error', null, `Failed to delete profile via RPC: ${profileErr.message}`);
   } else {
-    log.info('profile_deleted', null, `Profile ${userId} deleted (${profileDeletedCount} rows affected)`);
+    log.info('profile_deleted', null, `Profile ${userId} deleted via RPC`);
   }
 
   // 5. Supprimer l'utilisateur auth
