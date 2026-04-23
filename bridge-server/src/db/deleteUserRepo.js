@@ -20,40 +20,19 @@ async function deleteUser(userId) {
 
   const accountId = membership.account_id;
 
-  // 2. Vérifier si d'autres membres partagent cet account
-  const { data: otherMembers } = await supabaseAdmin
+  // 2. Supprimer la membership de l'utilisateur
+  await supabaseAdmin
     .from('account_members')
-    .select('profile_id')
-    .eq('account_id', accountId)
-    .neq('profile_id', userId);
+    .delete()
+    .eq('profile_id', userId)
+    .eq('account_id', accountId);
 
-  const hasOtherMembers = otherMembers && otherMembers.length > 0;
-
-  if (!hasOtherMembers) {
-    // 3a. Seul membre → supprimer les données de l'account puis l'account
-    await supabaseAdmin.from('outbound_missions').delete().eq('account_id', accountId);
-    await supabaseAdmin.from('contacts').delete().eq('account_id', accountId);
-    await supabaseAdmin.from('call_handling_rules').delete().eq('account_id', accountId);
-    await supabaseAdmin.from('booking_rules').delete().eq('account_id', accountId);
-    await supabaseAdmin.from('contact_group_memberships').delete().eq('account_id', accountId);
-
-    // Note: caller_groups stay orphaned but isolated by account_id (protected by trigger)
-    const { error: accountErr } = await supabaseAdmin
-      .from('accounts')
-      .delete()
-      .eq('id', accountId)
-      .not('id', 'is', null);
-
-    if (accountErr && !accountErr.message.includes('default group')) {
-      throw new Error(`Failed to delete account: ${accountErr.message}`);
-    }
+  // 3. Supprimer l'account et ses données si plus de membres (via RPC)
+  const { error: accountErr } = await supabaseAdmin.rpc('delete_account_and_data', { account_id: accountId });
+  if (accountErr) {
+    log.error('delete_account_error', null, `Failed to delete account: ${accountErr.message}`);
   } else {
-    // 3b. Autres membres → retirer seulement la membership
-    await supabaseAdmin
-      .from('account_members')
-      .delete()
-      .eq('profile_id', userId)
-      .eq('account_id', accountId);
+    log.info('account_deleted', null, `Account ${accountId} and related data deleted if no other members`);
   }
 
   // 4. Supprimer le profile explicitement via RPC (problème avec .delete().eq() sur Supabase)
