@@ -227,7 +227,69 @@ See `ARCHITECTURE_DECISIONS.md` for mitigation strategies.
 - **Health Check**: GET `/health` (if implemented)
 - **Graceful Shutdown**: Drain connections on SIGTERM (not fully implemented)
 
+## Admin Endpoints (DEBUG_SECRET Required)
+
+These endpoints are protected by the `DEBUG_SECRET` environment variable for development/testing only.
+
+### DELETE /admin/users/:userId
+**Delete a user and all associated data**
+
+Removes user account, profile, and all related data across ~25 tables. Useful for test user cleanup.
+
+```bash
+curl -X DELETE https://bridgeserver2.ted.paris/admin/users/{userId} \
+  -H "Authorization: Bearer {DEBUG_SECRET}"
+```
+
+**Response:**
+```json
+{
+  "userId": "05089e64-4058-478c-ac0e-d6fb91149255",
+  "accountId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "success": true
+}
+```
+
+**Implementation details:**
+- Deletes `outbound_missions` (manual, no ON DELETE CASCADE)
+- Deletes related data (contacts, rules, memberships)
+- Deletes account (cascades to ~25 tables)
+- Deletes auth user (cascades to profiles)
+- Note: `caller_groups` are left orphaned due to `prevent_system_group_deletion` trigger — they're isolated by account_id and don't interfere
+
 ---
 
-**Last Updated**: April 22, 2026  
+### GET /debug/call-stats
+**Retrieve active call statistics**
+
+Shows current WebSocket connections and in-memory call state.
+
+```bash
+curl -H "Authorization: Bearer {DEBUG_SECRET}" \
+  https://bridgeserver2.ted.paris/debug/call-stats
+```
+
+**Response:**
+```json
+{
+  "totalConnections": 3,
+  "activeCallsByType": {
+    "inbound": 2,
+    "outbound": 1
+  },
+  "callStoreSize": 3,
+  "details": [
+    {
+      "traceId": "abc123",
+      "callType": "inbound",
+      "duration_ms": 45000,
+      "state": "connected"
+    }
+  ]
+}
+```
+
+---
+
+**Last Updated**: April 23, 2026  
 **For architecture deep-dives**: See `ARCHITECTURE_DECISIONS.md`
