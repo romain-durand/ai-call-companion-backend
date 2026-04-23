@@ -13,6 +13,7 @@ const {
   handleGoogleContactsCallback,
   handleGoogleContactsImport,
 } = require("./auth/googleContactsOAuth");
+const { handleAppleSignInToken } = require("./auth/appleOAuth");
 const { handleTwilioVoice } = require("./twilio/twilioVoiceHandler");
 const { handleDeleteUser } = require("./admin/adminHandler");
 const log = require("./observability/logger");
@@ -57,6 +58,11 @@ const server = http.createServer((req, res) => {
   }
   if (pathname === "/contacts/google/import" && req.method === "POST") {
     return handleGoogleContactsImport(req, res);
+  }
+
+  // Apple Sign In with Apple (native iOS)
+  if (pathname === "/auth/apple/signin/token" && req.method === "POST") {
+    return handleAppleSignInToken(req, res);
   }
 
   // Admin: delete user and all data (requires DEBUG_SECRET token)
