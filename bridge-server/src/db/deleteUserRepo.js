@@ -30,7 +30,17 @@ async function deleteUser(userId) {
     throw new Error(`Failed to delete outbound_missions: ${missionsErr.message}`);
   }
 
-  // 3. Supprimer l'account (cascade automatique sur ~25 tables)
+  // 3. Supprimer les contacts d'abord (permet la suppression des groupes via cascade)
+  const { error: contactsErr } = await supabaseAdmin
+    .from('contacts')
+    .delete()
+    .eq('account_id', accountId);
+
+  if (contactsErr) {
+    throw new Error(`Failed to delete contacts: ${contactsErr.message}`);
+  }
+
+  // 4. Supprimer l'account (cascade automatique sur ~25 tables, groupes supprimés en cascade)
   const { error: accountErr } = await supabaseAdmin
     .from('accounts')
     .delete()
@@ -40,7 +50,7 @@ async function deleteUser(userId) {
     throw new Error(`Failed to delete account: ${accountErr.message}`);
   }
 
-  // 4. Supprimer l'utilisateur auth (cascade vers profiles)
+  // 5. Supprimer l'utilisateur auth (cascade vers profiles)
   const { error: authErr } = await supabaseAdmin.auth.admin.deleteUser(userId);
 
   if (authErr) {
