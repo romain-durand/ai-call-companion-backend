@@ -7,7 +7,7 @@ const { handleTransferAudioConnection } = require("./transfer/transferAudioHandl
 const { handleOutboundStreamConnection } = require("./outbound/outboundStreamHandler");
 const { startOutboundPoller } = require("./outbound/outboundPoller");
 const { handleWebCallConnection } = require("./web/webCallHandler");
-const { handleGoogleStart, handleGoogleCallback } = require("./auth/googleOAuth");
+const { handleGoogleStart, handleGoogleCallback, handleGoogleSignInStart, handleGoogleSignInCallback } = require("./auth/googleOAuth");
 const {
   handleGoogleContactsStart,
   handleGoogleContactsCallback,
@@ -41,6 +41,12 @@ const server = http.createServer((req, res) => {
   }
   if (pathname === "/auth/google/callback" && req.method === "GET") {
     return handleGoogleCallback(req, res);
+  }
+  if (pathname === "/auth/google/signin/start" && req.method === "GET") {
+    return handleGoogleSignInStart(req, res);
+  }
+  if (pathname === "/auth/google/signin/callback" && req.method === "GET") {
+    return handleGoogleSignInCallback(req, res);
   }
   if (pathname === "/auth/google/contacts/start" && req.method === "GET") {
     return handleGoogleContactsStart(req, res);

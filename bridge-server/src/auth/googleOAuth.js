@@ -7,10 +7,16 @@ const { encrypt, signState, verifyState } = require("./crypto");
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 const REDIRECT_URI = "https://bridgeserver2.ted.paris/auth/google/callback";
+const SIGNIN_REDIRECT_URI = "https://bridgeserver2.ted.paris/auth/google/signin/callback";
 const DASHBOARD_URL = process.env.DASHBOARD_URL || "https://call-screening-bot.lovable.app";
-const SCOPES = [
+const APP_DEEP_LINK = "com.ted.paris.victor://auth-callback";
+const CALENDAR_SCOPES = [
   "https://www.googleapis.com/auth/calendar.readonly",
   "https://www.googleapis.com/auth/calendar.events",
+].join(" ");
+const SIGNIN_SCOPES = [
+  "https://www.googleapis.com/auth/userinfo.email",
+  "https://www.googleapis.com/auth/userinfo.profile",
 ].join(" ");
 
 /**
@@ -58,7 +64,7 @@ async function handleGoogleStart(req, res) {
     authUrl.searchParams.set("client_id", GOOGLE_CLIENT_ID);
     authUrl.searchParams.set("redirect_uri", REDIRECT_URI);
     authUrl.searchParams.set("response_type", "code");
-    authUrl.searchParams.set("scope", SCOPES);
+    authUrl.searchParams.set("scope", CALENDAR_SCOPES);
     authUrl.searchParams.set("access_type", "offline");
     authUrl.searchParams.set("prompt", "consent select_account");
     authUrl.searchParams.set("state", state);
@@ -125,7 +131,7 @@ async function handleGoogleCallback(req, res) {
           access_token_encrypted: accessTokenEnc,
           refresh_token_encrypted: refreshTokenEnc,
           token_expires_at: expiresAt,
-          scopes: SCOPES.split(" "),
+          scopes: CALENDAR_SCOPES.split(" "),
           status: "active",
           provider_account_id: tokens.id_token ? null : null, // Could decode id_token later
           updated_at: new Date().toISOString(),
@@ -147,7 +153,7 @@ async function handleGoogleCallback(req, res) {
           access_token_encrypted: accessTokenEnc,
           refresh_token_encrypted: refreshTokenEnc,
           token_expires_at: expiresAt,
-          scopes: SCOPES.split(" "),
+          scopes: CALENDAR_SCOPES.split(" "),
           status: "active",
         })
         .select("id")
@@ -179,13 +185,13 @@ async function handleGoogleCallback(req, res) {
 /**
  * Exchange authorization code for tokens via Google's token endpoint.
  */
-function exchangeCodeForTokens(code) {
+function exchangeCodeForTokens(code, redirectUri = REDIRECT_URI) {
   return new Promise((resolve) => {
     const body = new URLSearchParams({
       code,
       client_id: GOOGLE_CLIENT_ID,
       client_secret: GOOGLE_CLIENT_SECRET,
-      redirect_uri: REDIRECT_URI,
+      redirect_uri: redirectUri,
       grant_type: "authorization_code",
     }).toString();
 
@@ -284,4 +290,134 @@ async function fetchAndStoreCalendars(accessToken, accountId, connectionId) {
   });
 }
 
-module.exports = { handleGoogleStart, handleGoogleCallback };
+/**
+ * GET /auth/google/signin/start
+ * No JWT required - for new signups or existing signins
+ */
+async function handleGoogleSignInStart(req, res) {
+  try {
+    // Generate signed state for signin flow
+    const state = signState({
+      flow: "signin",
+      nonce: Math.random().toString(36).slice(2),
+    });
+
+    const authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+    authUrl.searchParams.set("client_id", GOOGLE_CLIENT_ID);
+    authUrl.searchParams.set("redirect_uri", SIGNIN_REDIRECT_URI);
+    authUrl.searchParams.set("response_type", "code");
+    authUrl.searchParams.set("scope", SIGNIN_SCOPES);
+    authUrl.searchParams.set("access_type", "offline");
+    authUrl.searchParams.set("prompt", "select_account");
+    authUrl.searchParams.set("state", state);
+
+    log.info("google_signin_start", null, "Redirecting to Google OAuth");
+    res.writeHead(302, { Location: authUrl.toString() });
+    res.end();
+  } catch (err) {
+    log.error("google_signin_start_error", null, err.message);
+    const errorUrl = `${APP_DEEP_LINK}?error=internal_error`;
+    res.writeHead(302, { Location: errorUrl });
+    res.end();
+  }
+}
+
+/**
+ * GET /auth/google/signin/callback?code=xxx&state=yyy
+ * Creates user if new, authenticates if existing
+ */
+async function handleGoogleSignInCallback(req, res) {
+  try {
+    const query = url.parse(req.url, true).query;
+    const { code, state, error: oauthError } = query;
+
+    if (oauthError) {
+      log.error("google_signin_callback", null, `OAuth error: ${oauthError}`);
+      const errorUrl = `${APP_DEEP_LINK}?error=${oauthError}`;
+      res.writeHead(302, { Location: errorUrl });
+      return res.end();
+    }
+
+    // Verify state
+    const payload = verifyState(state);
+    if (!payload || payload.flow !== "signin") {
+      log.error("google_signin_callback", null, "Invalid state parameter");
+      const errorUrl = `${APP_DEEP_LINK}?error=invalid_state`;
+      res.writeHead(302, { Location: errorUrl });
+      return res.end();
+    }
+
+    // Exchange code for tokens (includes id_token with email)
+    const tokens = await exchangeCodeForTokens(code, SIGNIN_REDIRECT_URI);
+    if (!tokens || !tokens.id_token) {
+      log.error("google_signin_callback", null, "Failed to exchange code");
+      const errorUrl = `${APP_DEEP_LINK}?error=token_exchange_failed`;
+      res.writeHead(302, { Location: errorUrl });
+      return res.end();
+    }
+
+    // Decode id_token to get user email (basic decode, no verification needed here)
+    const idTokenParts = tokens.id_token.split(".");
+    const decoded = JSON.parse(Buffer.from(idTokenParts[1], "base64").toString());
+    const userEmail = decoded.email;
+    const userName = decoded.name || userEmail.split("@")[0];
+
+    if (!userEmail) {
+      log.error("google_signin_callback", null, "No email in id_token");
+      const errorUrl = `${APP_DEEP_LINK}?error=no_email`;
+      res.writeHead(302, { Location: errorUrl });
+      return res.end();
+    }
+
+    // Check if user exists
+    const { data: existingUser } = await supabaseAdmin.auth.admin.listUsers();
+    const user = existingUser?.users?.find((u) => u.email === userEmail);
+
+    let userId;
+    if (user) {
+      // User exists - sign in
+      userId = user.id;
+      log.info("google_signin_callback", null, `Existing user signed in: ${userId}`);
+    } else {
+      // New user - create account
+      const { data: newUser, error: createErr } = await supabaseAdmin.auth.admin.createUser({
+        email: userEmail,
+        user_metadata: { full_name: userName },
+        email_confirm: true, // Auto-confirm Google emails
+      });
+
+      if (createErr || !newUser) {
+        log.error("google_signin_create_user", null, createErr?.message || "Unknown error");
+        const errorUrl = `${APP_DEEP_LINK}?error=user_creation_failed`;
+        res.writeHead(302, { Location: errorUrl });
+        return res.end();
+      }
+
+      userId = newUser.id;
+      log.info("google_signin_callback", null, `New user created: ${userId}`);
+    }
+
+    // Generate session - use admin to create session token
+    const { data: { session }, error: sessionErr } = await supabaseAdmin.auth.admin.createSession(userId);
+
+    if (sessionErr || !session) {
+      log.error("google_signin_session", null, sessionErr?.message || "Failed to create session");
+      const errorUrl = `${APP_DEEP_LINK}?error=session_failed`;
+      res.writeHead(302, { Location: errorUrl });
+      return res.end();
+    }
+
+    // Return deep link with session
+    const deepLink = `${APP_DEEP_LINK}?session=${session.access_token}&refresh=${session.refresh_token}&user=${userId}`;
+    log.info("google_signin_success", null, `User ${userId} authenticated`);
+    res.writeHead(302, { Location: deepLink });
+    res.end();
+  } catch (err) {
+    log.error("google_signin_callback_error", null, err.message);
+    const errorUrl = `${APP_DEEP_LINK}?error=internal_error`;
+    res.writeHead(302, { Location: errorUrl });
+    res.end();
+  }
+}
+
+module.exports = { handleGoogleStart, handleGoogleCallback, handleGoogleSignInStart, handleGoogleSignInCallback };
