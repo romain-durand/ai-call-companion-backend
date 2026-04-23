@@ -16,6 +16,7 @@ const {
 const { handleAppleSignInToken } = require("./auth/appleOAuth");
 const { handleTwilioVoice } = require("./twilio/twilioVoiceHandler");
 const { handleDeleteUser } = require("./admin/adminHandler");
+const { handleRegisterDevice, handleNotifyTest } = require("./notifications/notificationsHandler");
 const log = require("./observability/logger");
 const callStore = require("./calls/callStateStore");
 
@@ -65,6 +66,11 @@ const server = http.createServer((req, res) => {
     return handleAppleSignInToken(req, res);
   }
 
+  // FCM: register device token (requires Supabase JWT)
+  if (pathname === "/devices/register" && req.method === "POST") {
+    return handleRegisterDevice(req, res);
+  }
+
   // Admin: delete user and all data (requires DEBUG_SECRET token)
   if (pathname.startsWith("/admin/users/") && req.method === "DELETE") {
     const authHeader = req.headers["authorization"] || "";
@@ -78,6 +84,11 @@ const server = http.createServer((req, res) => {
 
     const userId = pathname.split("/")[3];
     return handleDeleteUser(req, res, userId);
+  }
+
+  // Debug: send test push notification (requires DEBUG_SECRET token)
+  if (pathname === "/debug/notify-test" && req.method === "POST") {
+    return handleNotifyTest(req, res);
   }
 
   // Debug: call state stats (requires DEBUG_SECRET token)
