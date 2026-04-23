@@ -28,7 +28,7 @@ async function deleteUser(userId) {
     .eq('account_id', accountId);
 
   // 3. Supprimer l'account et ses données si plus de membres (via RPC)
-  const { error: accountErr } = await supabaseAdmin.rpc('delete_account_and_data', { account_id: accountId });
+  const { error: accountErr } = await supabaseAdmin.rpc('delete_account_and_data', { p_account_id: accountId });
   if (accountErr) {
     log.error('delete_account_error', null, `Failed to delete account: ${accountErr.message}`);
   } else {
