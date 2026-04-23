@@ -30,17 +30,37 @@ async function deleteUser(userId) {
     throw new Error(`Failed to delete outbound_missions: ${missionsErr.message}`);
   }
 
-  // 3. Supprimer les contacts d'abord (permet la suppression des groupes via cascade)
-  const { error: contactsErr } = await supabaseAdmin
+  // 3. Supprimer les contacts (pour que les groupes puissent être supprimés)
+  await supabaseAdmin
     .from('contacts')
     .delete()
     .eq('account_id', accountId);
 
-  if (contactsErr) {
-    throw new Error(`Failed to delete contacts: ${contactsErr.message}`);
-  }
+  // 4. Supprimer les call_handling_rules (référencent les groupes)
+  await supabaseAdmin
+    .from('call_handling_rules')
+    .delete()
+    .eq('account_id', accountId);
 
-  // 4. Supprimer l'account (cascade automatique sur ~25 tables, groupes supprimés en cascade)
+  // 5. Supprimer les booking_rules (référencent les groupes)
+  await supabaseAdmin
+    .from('booking_rules')
+    .delete()
+    .eq('account_id', accountId);
+
+  // 6. Supprimer les contact_group_memberships (référencent les groupes)
+  await supabaseAdmin
+    .from('contact_group_memberships')
+    .delete()
+    .eq('account_id', accountId);
+
+  // 7. Supprimer les caller_groups explicitement (bypass le trigger en les vidant d'abord)
+  await supabaseAdmin
+    .from('caller_groups')
+    .delete()
+    .eq('account_id', accountId);
+
+  // 8. Supprimer l'account (cascade automatique sur ~25 tables)
   const { error: accountErr } = await supabaseAdmin
     .from('accounts')
     .delete()
