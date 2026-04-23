@@ -57,11 +57,11 @@ async function deleteUser(userId) {
   }
 
   // 4. Supprimer le profile explicitement (pas de CASCADE dans le schéma)
-  const { error: profileErr } = await supabaseAdmin.from('profiles').delete().eq('id', userId);
+  const { error: profileErr, count: profileDeletedCount } = await supabaseAdmin.from('profiles').delete().eq('id', userId);
   if (profileErr) {
     log.error('delete_profile_error', null, `Failed to delete profile: ${profileErr.message}`);
   } else {
-    log.info('profile_deleted', null, `Profile ${userId} deleted`);
+    log.info('profile_deleted', null, `Profile ${userId} deleted (${profileDeletedCount} rows affected)`);
   }
 
   // 5. Supprimer l'utilisateur auth
