@@ -14,6 +14,7 @@ const {
   handleGoogleContactsImport,
 } = require("./auth/googleContactsOAuth");
 const { handleTwilioVoice } = require("./twilio/twilioVoiceHandler");
+const { handleDeleteUser } = require("./admin/adminHandler");
 const log = require("./observability/logger");
 const callStore = require("./calls/callStateStore");
 
@@ -56,6 +57,21 @@ const server = http.createServer((req, res) => {
   }
   if (pathname === "/contacts/google/import" && req.method === "POST") {
     return handleGoogleContactsImport(req, res);
+  }
+
+  // Admin: delete user and all data (requires DEBUG_SECRET token)
+  if (pathname.startsWith("/admin/users/") && req.method === "DELETE") {
+    const authHeader = req.headers["authorization"] || "";
+    const debugSecret = process.env.DEBUG_SECRET;
+    const expected = `Bearer ${debugSecret}`;
+
+    if (!debugSecret || authHeader !== expected) {
+      res.writeHead(401, { "Content-Type": "application/json" });
+      return res.end(JSON.stringify({ error: "Unauthorized" }));
+    }
+
+    const userId = pathname.split("/")[3];
+    return handleDeleteUser(req, res, userId);
   }
 
   // Debug: call state stats (requires DEBUG_SECRET token)
