@@ -356,49 +356,11 @@ async function handleGoogleSignInCallback(req, res) {
       return res.end();
     }
 
-    // Decode id_token to get user email (basic decode, no verification needed here)
-    const idTokenParts = tokens.id_token.split(".");
-    const decoded = JSON.parse(Buffer.from(idTokenParts[1], "base64").toString());
-    const userEmail = decoded.email;
-    const userName = decoded.name || userEmail.split("@")[0];
-
-    if (!userEmail) {
-      log.error("google_signin_callback", null, "No email in id_token");
-      const errorUrl = `${APP_DEEP_LINK}?error=no_email`;
-      res.writeHead(302, { Location: errorUrl });
-      return res.end();
-    }
-
-    // Check if user exists
-    const { data: existingUser } = await supabaseAdmin.auth.admin.listUsers();
-    const user = existingUser?.users?.find((u) => u.email === userEmail);
-
-    let userId;
-    if (user) {
-      // User exists - sign in
-      userId = user.id;
-      log.info("google_signin_callback", null, `Existing user signed in: ${userId}`);
-    } else {
-      // New user - create account
-      const { data: newUser, error: createErr } = await supabaseAdmin.auth.admin.createUser({
-        email: userEmail,
-        user_metadata: { full_name: userName },
-        email_confirm: true, // Auto-confirm Google emails
-      });
-
-      if (createErr || !newUser) {
-        log.error("google_signin_create_user", null, createErr?.message || "Unknown error");
-        const errorUrl = `${APP_DEEP_LINK}?error=user_creation_failed`;
-        res.writeHead(302, { Location: errorUrl });
-        return res.end();
-      }
-
-      userId = newUser.id;
-      log.info("google_signin_callback", null, `New user created: ${userId}`);
-    }
-
-    // Generate session - use admin to create session token
-    const { data: { session }, error: sessionErr } = await supabaseAdmin.auth.admin.createSession(userId);
+    // Use Supabase signInWithIdToken - handles signup and signin automatically
+    const { data: { session, user }, error: sessionErr } = await supabaseAdmin.auth.signInWithIdToken({
+      provider: "google",
+      token: tokens.id_token,
+    });
 
     if (sessionErr || !session) {
       log.error("google_signin_session", null, sessionErr?.message || "Failed to create session");
@@ -408,8 +370,8 @@ async function handleGoogleSignInCallback(req, res) {
     }
 
     // Return deep link with session
-    const deepLink = `${APP_DEEP_LINK}?session=${session.access_token}&refresh=${session.refresh_token}&user=${userId}`;
-    log.info("google_signin_success", null, `User ${userId} authenticated`);
+    const deepLink = `${APP_DEEP_LINK}?session=${session.access_token}&refresh=${session.refresh_token}&user=${user.id}`;
+    log.info("google_signin_success", null, `User ${user.id} authenticated via Google`);
     res.writeHead(302, { Location: deepLink });
     res.end();
   } catch (err) {
