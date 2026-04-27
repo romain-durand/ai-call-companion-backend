@@ -76,14 +76,28 @@ function getApp() {
   return app;
 }
 
-async function sendPushNotification({ token, title, body, data = {} }) {
+async function sendPushNotification({ token, title, body, data = {}, profileId = null }) {
   try {
     const messaging = getApp().messaging();
     const result = await messaging.send({ token, notification: { title, body }, data });
     log.info('fcm_sent', null, `Message sent: ${result}`);
     return { success: true, messageId: result };
   } catch (err) {
-    log.error('fcm_error', null, err.message);
+    log.error('fcm_error', null, `Token error: ${err.message}`);
+
+    // Auto-cleanup: if token is invalid, delete it from database
+    if (profileId && (err.message.includes('registration token is invalid') ||
+                      err.message.includes('Invalid registration token') ||
+                      err.message.includes('Third party auth error'))) {
+      try {
+        const { supabaseAdmin } = require('../db/supabaseAdmin');
+        await supabaseAdmin.from('device_tokens').delete().eq('token', token);
+        log.info('fcm_cleanup', null, `Deleted invalid token for profile ${profileId}`);
+      } catch (cleanupErr) {
+        log.error('fcm_cleanup_error', null, cleanupErr.message);
+      }
+    }
+
     return { success: false, error: err.message };
   }
 }

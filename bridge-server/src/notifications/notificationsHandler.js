@@ -62,7 +62,7 @@ async function handleNotifyTest(req, res) {
       }
 
       const results = await Promise.all(
-        tokens.map(({ token }) => sendPushNotification({ token, title, body: msgBody }))
+        tokens.map(({ token }) => sendPushNotification({ token, title, body: msgBody, profileId: profile_id }))
       );
 
       res.writeHead(200, { 'Content-Type': 'application/json' });
