@@ -14,20 +14,24 @@ function getApp() {
       serviceAccount = JSON.parse(raw);
       log.info('fcm_config', null, 'Loaded Firebase config from file');
     } catch (err) {
-      const envJson = process.env.FIREBASE_SERVICE_ACCOUNT;
-      if (!envJson) {
-        throw new Error('FIREBASE_SERVICE_ACCOUNT env var or file /app/bridge-server/firebase-service-account.json required');
-      }
-      log.info('fcm_config', null, `Env var length: ${envJson.length}, first 100 chars: ${envJson.substring(0, 100)}`);
-      try {
+      // Try base64-encoded env var first (more reliable with Coolify)
+      const envB64 = process.env.FIREBASE_SERVICE_ACCOUNT_B64;
+      if (envB64) {
+        try {
+          const decoded = Buffer.from(envB64, 'base64').toString('utf8');
+          serviceAccount = JSON.parse(decoded);
+          log.info('fcm_config', null, 'Loaded Firebase config from base64 env var');
+        } catch (b64Err) {
+          log.error('fcm_b64_error', null, b64Err.message);
+          throw b64Err;
+        }
+      } else {
+        const envJson = process.env.FIREBASE_SERVICE_ACCOUNT;
+        if (!envJson) {
+          throw new Error('FIREBASE_SERVICE_ACCOUNT_B64, FIREBASE_SERVICE_ACCOUNT, or file required');
+        }
+        log.info('fcm_config', null, `Using raw env var (length: ${envJson.length})`);
         serviceAccount = JSON.parse(envJson);
-      } catch (parseErr) {
-        log.error('fcm_parse_error', null, `Failed to parse JSON: ${parseErr.message}, trying to unescape...`);
-        // Coolify escapes quotes — undo that
-        let unescaped = envJson.replace(/\\\"/g, '"');
-        // Also fix literal \n that should be newlines
-        unescaped = unescaped.replace(/\\n/g, '\n');
-        serviceAccount = JSON.parse(unescaped);
       }
     }
 
