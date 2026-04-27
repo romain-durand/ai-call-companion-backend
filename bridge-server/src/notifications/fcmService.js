@@ -14,28 +14,61 @@ function getApp() {
       serviceAccount = JSON.parse(raw);
       log.info('fcm_config', null, 'Loaded Firebase config from file');
     } catch (err) {
-      // Try base64-encoded env var first (more reliable with Coolify)
-      const envB64 = process.env.FIREBASE_SERVICE_ACCOUNT_B64;
-      if (envB64) {
+      // Try programmatic construction from individual env vars (most reliable)
+      if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_CLIENT_EMAIL) {
         try {
-          const decoded = Buffer.from(envB64, 'base64').toString('utf8');
-          serviceAccount = JSON.parse(decoded);
-          log.info('fcm_config', null, 'Loaded Firebase config from base64 env var');
-        } catch (b64Err) {
-          log.error('fcm_b64_error', null, b64Err.message);
-          throw b64Err;
+          serviceAccount = {
+            type: 'service_account',
+            project_id: process.env.FIREBASE_PROJECT_ID,
+            private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID || '',
+            private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+            client_email: process.env.FIREBASE_CLIENT_EMAIL,
+            client_id: process.env.FIREBASE_CLIENT_ID || '',
+            auth_uri: 'https://accounts.google.com/o/oauth2/auth',
+            token_uri: 'https://oauth2.googleapis.com/token',
+            auth_provider_x509_cert_url: 'https://www.googleapis.com/oauth2/v1/certs',
+            client_x509_cert_url: process.env.FIREBASE_CLIENT_X509_CERT_URL || '',
+            universe_domain: 'googleapis.com'
+          };
+          log.info('fcm_config', null, 'Loaded Firebase config from individual env vars');
+        } catch (envErr) {
+          log.error('fcm_env_error', null, `Failed to construct from env vars: ${envErr.message}`);
+          throw envErr;
         }
       } else {
-        const envJson = process.env.FIREBASE_SERVICE_ACCOUNT;
-        if (!envJson) {
-          throw new Error('FIREBASE_SERVICE_ACCOUNT_B64, FIREBASE_SERVICE_ACCOUNT, or file required');
+        // Try base64-encoded env var as fallback
+        const envB64 = process.env.FIREBASE_SERVICE_ACCOUNT_B64;
+        if (envB64) {
+          try {
+            log.info('fcm_config', null, `Base64 env var length: ${envB64.length}`);
+            const decoded = Buffer.from(envB64, 'base64').toString('utf8');
+            log.info('fcm_config', null, `Decoded JSON length: ${decoded.length}`);
+            serviceAccount = JSON.parse(decoded);
+            const keyStart = serviceAccount.private_key.substring(0, 50);
+            const keyEnd = serviceAccount.private_key.substring(serviceAccount.private_key.length - 50);
+            log.info('fcm_config', null, `Loaded Firebase config from base64 env var. Key starts with: ${keyStart}... Key ends with: ...${keyEnd}`);
+          } catch (b64Err) {
+            log.error('fcm_b64_error', null, b64Err.message);
+            throw b64Err;
+          }
+        } else {
+          const envJson = process.env.FIREBASE_SERVICE_ACCOUNT;
+          if (!envJson) {
+            throw new Error('FIREBASE_PROJECT_ID + FIREBASE_PRIVATE_KEY + FIREBASE_CLIENT_EMAIL, or FIREBASE_SERVICE_ACCOUNT_B64, or FIREBASE_SERVICE_ACCOUNT, or file required');
+          }
+          log.info('fcm_config', null, `Using raw env var (length: ${envJson.length})`);
+          serviceAccount = JSON.parse(envJson);
         }
-        log.info('fcm_config', null, `Using raw env var (length: ${envJson.length})`);
-        serviceAccount = JSON.parse(envJson);
       }
     }
 
-    app = admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+    try {
+      app = admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+      log.info('fcm_config', null, 'Firebase Admin SDK initialized successfully');
+    } catch (initErr) {
+      log.error('fcm_init_error', null, `Firebase init failed: ${initErr.message}`);
+      throw initErr;
+    }
   }
   return app;
 }
