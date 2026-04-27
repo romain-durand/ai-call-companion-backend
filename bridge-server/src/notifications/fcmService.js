@@ -1,24 +1,15 @@
 const admin = require('firebase-admin');
-const fs = require('fs');
-const path = require('path');
 const log = require('../observability/logger');
 
 let app;
 
 function getApp() {
   if (!app) {
-    let serviceAccount;
-
-    if (process.env.FIREBASE_SERVICE_ACCOUNT_PATH) {
-      const filePath = path.resolve(process.env.FIREBASE_SERVICE_ACCOUNT_PATH);
-      const raw = fs.readFileSync(filePath, 'utf8');
-      serviceAccount = JSON.parse(raw);
-    } else if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-      serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-    } else {
-      throw new Error('FIREBASE_SERVICE_ACCOUNT_PATH or FIREBASE_SERVICE_ACCOUNT env var required');
+    const rawJson = process.env.FIREBASE_SERVICE_ACCOUNT;
+    if (!rawJson) {
+      throw new Error('FIREBASE_SERVICE_ACCOUNT env var required');
     }
-
+    const serviceAccount = JSON.parse(rawJson);
     app = admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
   }
   return app;
