@@ -22,10 +22,10 @@ function getApp() {
       try {
         serviceAccount = JSON.parse(envJson);
       } catch (parseErr) {
-        log.error('fcm_parse_error', null, `Failed to parse JSON: ${parseErr.message}, trying to fix...`);
-        // Try removing BOM or other invisible characters
-        const cleaned = envJson.trim();
-        serviceAccount = JSON.parse(cleaned);
+        log.error('fcm_parse_error', null, `Failed to parse JSON: ${parseErr.message}, trying to unescape...`);
+        // Coolify escapes quotes — undo that
+        const unescaped = envJson.replace(/\\\"/g, '"');
+        serviceAccount = JSON.parse(unescaped);
       }
     }
 
