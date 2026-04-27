@@ -5,7 +5,10 @@ let app;
 
 function getApp() {
   if (!app) {
-    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    const raw = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64
+      ? Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64, 'base64').toString('utf8')
+      : process.env.FIREBASE_SERVICE_ACCOUNT;
+    const serviceAccount = JSON.parse(raw);
     app = admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
   }
   return app;
