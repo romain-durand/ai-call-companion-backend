@@ -24,7 +24,9 @@ function getApp() {
       } catch (parseErr) {
         log.error('fcm_parse_error', null, `Failed to parse JSON: ${parseErr.message}, trying to unescape...`);
         // Coolify escapes quotes — undo that
-        const unescaped = envJson.replace(/\\\"/g, '"');
+        let unescaped = envJson.replace(/\\\"/g, '"');
+        // Also fix literal \n that should be newlines
+        unescaped = unescaped.replace(/\\n/g, '\n');
         serviceAccount = JSON.parse(unescaped);
       }
     }
