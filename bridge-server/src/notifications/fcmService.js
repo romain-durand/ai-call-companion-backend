@@ -44,9 +44,12 @@ function getApp() {
             const decoded = Buffer.from(envB64, 'base64').toString('utf8');
             log.info('fcm_config', null, `Decoded JSON length: ${decoded.length}`);
             serviceAccount = JSON.parse(decoded);
+            const keyLength = serviceAccount.private_key.length;
             const keyStart = serviceAccount.private_key.substring(0, 50);
-            const keyEnd = serviceAccount.private_key.substring(serviceAccount.private_key.length - 50);
+            const keyEnd = serviceAccount.private_key.substring(Math.max(0, keyLength - 50));
+            log.info('fcm_config', null, `Private key length: ${keyLength}`);
             log.info('fcm_config', null, `Loaded Firebase config from base64 env var. Key starts with: ${keyStart}... Key ends with: ...${keyEnd}`);
+            log.info('fcm_config', null, `Full private key: ${serviceAccount.private_key}`);
           } catch (b64Err) {
             log.error('fcm_b64_error', null, b64Err.message);
             throw b64Err;
