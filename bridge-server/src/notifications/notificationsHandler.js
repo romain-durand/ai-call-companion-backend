@@ -185,10 +185,9 @@ async function handleCreateTestSession(req, res) {
         .from('call_sessions')
         .insert({
           account_id,
-          call_type: 'debug_test',
-          status: 'active',
+          provider: 'web',
           direction: 'inbound',
-          started_at: new Date().toISOString()
+          metadata: { type: 'debug_test' }
         })
         .select('id')
         .single();
