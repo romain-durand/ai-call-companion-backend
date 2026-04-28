@@ -12,7 +12,6 @@ function getApp() {
       const filePath = '/app/bridge-server/firebase-service-account.json';
       const raw = fs.readFileSync(filePath, 'utf8');
       serviceAccount = JSON.parse(raw);
-      log.info('fcm_config', null, 'Loaded Firebase config from file');
     } catch (err) {
       // Try programmatic construction from individual env vars (most reliable)
       if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_CLIENT_EMAIL) {
@@ -30,7 +29,6 @@ function getApp() {
             client_x509_cert_url: process.env.FIREBASE_CLIENT_X509_CERT_URL || '',
             universe_domain: 'googleapis.com'
           };
-          log.info('fcm_config', null, 'Loaded Firebase config from individual env vars');
         } catch (envErr) {
           log.error('fcm_env_error', null, `Failed to construct from env vars: ${envErr.message}`);
           throw envErr;
@@ -40,16 +38,8 @@ function getApp() {
         const envB64 = process.env.FIREBASE_SERVICE_ACCOUNT_B64;
         if (envB64) {
           try {
-            log.info('fcm_config', null, `Base64 env var length: ${envB64.length}`);
             const decoded = Buffer.from(envB64, 'base64').toString('utf8');
-            log.info('fcm_config', null, `Decoded JSON length: ${decoded.length}`);
             serviceAccount = JSON.parse(decoded);
-            const keyLength = serviceAccount.private_key.length;
-            const keyStart = serviceAccount.private_key.substring(0, 50);
-            const keyEnd = serviceAccount.private_key.substring(Math.max(0, keyLength - 50));
-            log.info('fcm_config', null, `Private key length: ${keyLength}`);
-            log.info('fcm_config', null, `Loaded Firebase config from base64 env var. Key starts with: ${keyStart}... Key ends with: ...${keyEnd}`);
-            log.info('fcm_config', null, `Full private key: ${serviceAccount.private_key}`);
           } catch (b64Err) {
             log.error('fcm_b64_error', null, b64Err.message);
             throw b64Err;
@@ -59,7 +49,6 @@ function getApp() {
           if (!envJson) {
             throw new Error('FIREBASE_PROJECT_ID + FIREBASE_PRIVATE_KEY + FIREBASE_CLIENT_EMAIL, or FIREBASE_SERVICE_ACCOUNT_B64, or FIREBASE_SERVICE_ACCOUNT, or file required');
           }
-          log.info('fcm_config', null, `Using raw env var (length: ${envJson.length})`);
           serviceAccount = JSON.parse(envJson);
         }
       }
@@ -67,7 +56,6 @@ function getApp() {
 
     try {
       app = admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
-      log.info('fcm_config', null, 'Firebase Admin SDK initialized successfully');
     } catch (initErr) {
       log.error('fcm_init_error', null, `Firebase init failed: ${initErr.message}`);
       throw initErr;
