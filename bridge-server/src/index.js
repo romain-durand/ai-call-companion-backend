@@ -16,7 +16,7 @@ const {
 const { handleAppleSignInToken } = require("./auth/appleOAuth");
 const { handleTwilioVoice } = require("./twilio/twilioVoiceHandler");
 const { handleDeleteUser } = require("./admin/adminHandler");
-const { handleRegisterDevice, handleNotifyTest } = require("./notifications/notificationsHandler");
+const { handleRegisterDevice, handleNotifyTest, handleConsultTest } = require("./notifications/notificationsHandler");
 const log = require("./observability/logger");
 const callStore = require("./calls/callStateStore");
 
@@ -89,6 +89,11 @@ const server = http.createServer((req, res) => {
   // Debug: send test push notification (requires DEBUG_SECRET token)
   if (pathname === "/debug/notify-test" && req.method === "POST") {
     return handleNotifyTest(req, res);
+  }
+
+  // Debug: test consult_user notification (requires DEBUG_SECRET token)
+  if (pathname === "/debug/consult-test" && req.method === "POST") {
+    return handleConsultTest(req, res);
   }
 
   // Debug: call state stats (requires DEBUG_SECRET token)

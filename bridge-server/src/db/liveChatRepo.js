@@ -145,4 +145,4 @@ async function sendConsultUserNotification(accountId, callerName, traceId) {
   }
 }
 
-module.exports = { consultUser };
+module.exports = { consultUser, sendConsultUserNotification };

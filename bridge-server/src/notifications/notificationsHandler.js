@@ -75,4 +75,46 @@ async function handleNotifyTest(req, res) {
   });
 }
 
-module.exports = { handleRegisterDevice, handleNotifyTest };
+async function handleConsultTest(req, res) {
+  let body = '';
+  req.on('data', chunk => (body += chunk));
+  req.on('end', async () => {
+    try {
+      const authHeader = req.headers['authorization'] || '';
+      const debugSecret = process.env.DEBUG_SECRET;
+      const expected = `Bearer ${debugSecret}`;
+
+      if (!debugSecret || authHeader !== expected) {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ error: 'Unauthorized' }));
+      }
+
+      const { account_id, caller_name } = JSON.parse(body);
+      if (!account_id) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ error: 'account_id is required' }));
+      }
+
+      // Import here to avoid circular dependencies
+      const { sendConsultUserNotification } = require('../db/liveChatRepo');
+      const traceId = 'debug-consult-' + Date.now();
+
+      await sendConsultUserNotification(account_id, caller_name || 'Test Caller', traceId);
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        success: true,
+        message: 'Consult notification sent',
+        account_id,
+        caller_name: caller_name || 'Test Caller',
+        traceId
+      }));
+    } catch (err) {
+      log.error('consult_test_error', null, err.message);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: err.message }));
+    }
+  });
+}
+
+module.exports = { handleRegisterDevice, handleNotifyTest, handleConsultTest };
