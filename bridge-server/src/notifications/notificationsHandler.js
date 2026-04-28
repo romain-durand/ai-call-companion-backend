@@ -99,21 +99,23 @@ async function handleConsultTest(req, res) {
       const { supabaseAdmin } = require('../db/supabaseAdmin');
       const traceId = 'debug-consult-' + Date.now();
 
-      // Create a fake call session if not provided
+      // Use provided session or find first active one
       let sessionId = call_session_id;
       if (!sessionId) {
-        const { data: session, error: sessionErr } = await supabaseAdmin
+        const { data: sessions } = await supabaseAdmin
           .from('call_sessions')
-          .insert({
-            account_id,
-            call_type: 'debug_test',
-            status: 'active'
-          })
           .select('id')
-          .single();
+          .eq('account_id', account_id)
+          .eq('status', 'active')
+          .limit(1);
 
-        if (!sessionErr && session) {
-          sessionId = session.id;
+        if (sessions && sessions.length > 0) {
+          sessionId = sessions[0].id;
+        } else {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({
+            error: 'No active call session found for this account. Pass call_session_id or create a call first.'
+          }));
         }
       }
 
