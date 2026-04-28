@@ -16,7 +16,7 @@ const {
 const { handleAppleSignInToken } = require("./auth/appleOAuth");
 const { handleTwilioVoice } = require("./twilio/twilioVoiceHandler");
 const { handleDeleteUser } = require("./admin/adminHandler");
-const { handleRegisterDevice, handleNotifyTest, handleConsultTest } = require("./notifications/notificationsHandler");
+const { handleRegisterDevice, handleNotifyTest, handleConsultTest, handleCreateTestSession } = require("./notifications/notificationsHandler");
 const log = require("./observability/logger");
 const callStore = require("./calls/callStateStore");
 
@@ -94,6 +94,11 @@ const server = http.createServer((req, res) => {
   // Debug: test consult_user notification (requires DEBUG_SECRET token)
   if (pathname === "/debug/consult-test" && req.method === "POST") {
     return handleConsultTest(req, res);
+  }
+
+  // Debug: create a test call session (requires DEBUG_SECRET token)
+  if (pathname === "/debug/create-test-session" && req.method === "POST") {
+    return handleCreateTestSession(req, res);
   }
 
   // Debug: call state stats (requires DEBUG_SECRET token)

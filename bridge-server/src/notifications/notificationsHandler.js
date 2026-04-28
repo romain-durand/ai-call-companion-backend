@@ -159,4 +159,57 @@ async function handleConsultTest(req, res) {
   });
 }
 
-module.exports = { handleRegisterDevice, handleNotifyTest, handleConsultTest };
+async function handleCreateTestSession(req, res) {
+  let body = '';
+  req.on('data', chunk => (body += chunk));
+  req.on('end', async () => {
+    try {
+      const authHeader = req.headers['authorization'] || '';
+      const debugSecret = process.env.DEBUG_SECRET;
+      const expected = `Bearer ${debugSecret}`;
+
+      if (!debugSecret || authHeader !== expected) {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ error: 'Unauthorized' }));
+      }
+
+      const { account_id } = JSON.parse(body);
+      if (!account_id) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ error: 'account_id is required' }));
+      }
+
+      const { supabaseAdmin } = require('../db/supabaseAdmin');
+
+      const { data: session, error: insertErr } = await supabaseAdmin
+        .from('call_sessions')
+        .insert({
+          account_id,
+          call_type: 'debug_test',
+          status: 'active',
+          direction: 'inbound',
+          started_at: new Date().toISOString()
+        })
+        .select('id')
+        .single();
+
+      if (insertErr) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ error: insertErr.message }));
+      }
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        success: true,
+        session_id: session.id,
+        message: `Created test session. Use this in /debug/consult-test with call_session_id: "${session.id}"`
+      }));
+    } catch (err) {
+      log.error('create_test_session_error', null, err.message);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: err.message }));
+    }
+  });
+}
+
+module.exports = { handleRegisterDevice, handleNotifyTest, handleConsultTest, handleCreateTestSession };
