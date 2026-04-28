@@ -89,25 +89,65 @@ async function handleConsultTest(req, res) {
         return res.end(JSON.stringify({ error: 'Unauthorized' }));
       }
 
-      const { account_id, caller_name } = JSON.parse(body);
+      const { account_id, caller_name, call_session_id } = JSON.parse(body);
       if (!account_id) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         return res.end(JSON.stringify({ error: 'account_id is required' }));
       }
 
-      // Import here to avoid circular dependencies
       const { sendConsultUserNotification } = require('../db/liveChatRepo');
+      const { supabaseAdmin } = require('../db/supabaseAdmin');
       const traceId = 'debug-consult-' + Date.now();
 
+      // Create a fake call session if not provided
+      let sessionId = call_session_id;
+      if (!sessionId) {
+        const { data: session, error: sessionErr } = await supabaseAdmin
+          .from('call_sessions')
+          .insert({
+            account_id,
+            call_type: 'debug_test',
+            status: 'active'
+          })
+          .select('id')
+          .single();
+
+        if (!sessionErr && session) {
+          sessionId = session.id;
+        }
+      }
+
+      // Insert question into live_chat_messages (this is what the real flow does)
+      const question = 'This is a test question from your AI assistant';
+      const { data: msg, error: insertErr } = await supabaseAdmin
+        .from('live_chat_messages')
+        .insert({
+          call_session_id: sessionId,
+          account_id,
+          direction: 'to_user',
+          content: question,
+          status: 'pending'
+        })
+        .select('id')
+        .single();
+
+      if (insertErr) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ error: `Failed to create message: ${insertErr.message}` }));
+      }
+
+      // Send the notification
       await sendConsultUserNotification(account_id, caller_name || 'Test Caller', traceId);
 
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({
         success: true,
-        message: 'Consult notification sent',
+        message: 'Consult message created and notification sent',
+        message_id: msg.id,
+        call_session_id: sessionId,
         account_id,
         caller_name: caller_name || 'Test Caller',
-        traceId
+        question
       }));
     } catch (err) {
       log.error('consult_test_error', null, err.message);
