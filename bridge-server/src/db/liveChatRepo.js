@@ -100,6 +100,8 @@ function sleep(ms) {
 }
 
 async function sendConsultUserNotification(accountId, callerName, traceId) {
+  log.info("consult_notification_start", traceId, `accountId=${accountId}, caller=${callerName}`);
+
   // Get account owner's profile_id
   const { data: account, error: accountErr } = await supabaseAdmin
     .from("accounts")
@@ -107,16 +109,24 @@ async function sendConsultUserNotification(accountId, callerName, traceId) {
     .eq("id", accountId)
     .single();
 
-  if (accountErr || !account?.owner_id) {
-    log.error("consult_notification_no_owner", traceId, accountErr?.message || "owner_id not found");
+  if (accountErr) {
+    log.error("consult_notification_account_lookup_failed", traceId, `${accountErr.code}: ${accountErr.message}`);
+    return;
+  }
+
+  if (!account?.owner_id) {
+    log.error("consult_notification_no_owner", traceId, `Account found but no owner_id. Account: ${JSON.stringify(account)}`);
     return;
   }
 
   const profileId = account.owner_id;
+  log.info("consult_notification_owner_found", traceId, `profileId=${profileId}`);
 
   // Get all device tokens for the owner
   try {
     const tokens = await getTokensForProfile(profileId);
+    log.info("consult_notification_tokens_fetched", traceId, `Found ${tokens.length} token(s)`);
+
     if (tokens.length === 0) {
       log.info("consult_notification_no_tokens", traceId, `No tokens registered for profile ${profileId}`);
       return;
@@ -126,6 +136,8 @@ async function sendConsultUserNotification(accountId, callerName, traceId) {
     const callerDisplay = callerName && callerName.trim() ? ` from ${callerName}` : "";
     const title = "Incoming Call";
     const body = `Your AI assistant needs your input${callerDisplay}`;
+
+    log.info("consult_notification_sending", traceId, `title="${title}", body="${body}"`);
 
     await Promise.all(
       tokens.map(({ token }) =>
@@ -142,6 +154,7 @@ async function sendConsultUserNotification(accountId, callerName, traceId) {
     log.info("consult_notification_sent", traceId, `Sent to ${tokens.length} device(s)`);
   } catch (err) {
     log.error("consult_notification_error", traceId, err.message);
+    throw err;
   }
 }
 
