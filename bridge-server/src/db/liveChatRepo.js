@@ -1,5 +1,7 @@
 const { supabaseAdmin } = require("./supabaseAdmin");
 const log = require("../observability/logger");
+const { sendPushNotification } = require("../notifications/fcmService");
+const { getTokensForProfile } = require("./deviceTokensRepo");
 
 /**
  * Insert a consult question (direction=to_user) and poll for the user's reply.
@@ -32,6 +34,11 @@ async function consultUser(callCtx, question, traceId, timeoutMs = 30000) {
   const questionId = msg.id;
   const questionCreatedAt = msg.created_at || new Date().toISOString();
   log.tool("consult_user_question_sent", traceId, `id=${questionId} "${question.slice(0, 60)}"`);
+
+  // Send push notification to account owner (fire-and-forget)
+  sendConsultUserNotification(callCtx.accountId, callCtx.callerName, traceId).catch((err) => {
+    log.error("consult_user_notification_failed", traceId, err.message);
+  });
 
   // 2. Poll for reply (direction=to_assistant) created AFTER this question
   const pollInterval = 2000;
@@ -90,6 +97,52 @@ async function consultUser(callCtx, question, traceId, timeoutMs = 30000) {
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function sendConsultUserNotification(accountId, callerName, traceId) {
+  // Get account owner's profile_id
+  const { data: account, error: accountErr } = await supabaseAdmin
+    .from("accounts")
+    .select("owner_id")
+    .eq("id", accountId)
+    .single();
+
+  if (accountErr || !account?.owner_id) {
+    log.error("consult_notification_no_owner", traceId, accountErr?.message || "owner_id not found");
+    return;
+  }
+
+  const profileId = account.owner_id;
+
+  // Get all device tokens for the owner
+  try {
+    const tokens = await getTokensForProfile(profileId);
+    if (tokens.length === 0) {
+      log.info("consult_notification_no_tokens", traceId, `No tokens registered for profile ${profileId}`);
+      return;
+    }
+
+    // Send notification to all devices
+    const callerDisplay = callerName && callerName.trim() ? ` from ${callerName}` : "";
+    const title = "Incoming Call";
+    const body = `Your AI assistant needs your input${callerDisplay}`;
+
+    await Promise.all(
+      tokens.map(({ token }) =>
+        sendPushNotification({
+          token,
+          title,
+          body,
+          data: { type: "consult_user" },
+          profileId,
+        })
+      )
+    );
+
+    log.info("consult_notification_sent", traceId, `Sent to ${tokens.length} device(s)`);
+  } catch (err) {
+    log.error("consult_notification_error", traceId, err.message);
+  }
 }
 
 module.exports = { consultUser };
