@@ -102,24 +102,25 @@ function sleep(ms) {
 async function sendConsultUserNotification(accountId, callerName, traceId) {
   log.info("consult_notification_start", traceId, `accountId=${accountId}, caller=${callerName}`);
 
-  // Get account owner's profile_id
-  const { data: account, error: accountErr } = await supabaseAdmin
-    .from("accounts")
-    .select("owner_id")
-    .eq("id", accountId)
-    .single();
+  // Get account owner's profile_id from account_members (role='owner')
+  const { data: members, error: membersErr } = await supabaseAdmin
+    .from("account_members")
+    .select("profile_id")
+    .eq("account_id", accountId)
+    .eq("role", "owner")
+    .limit(1);
 
-  if (accountErr) {
-    log.error("consult_notification_account_lookup_failed", traceId, `${accountErr.code}: ${accountErr.message}`);
+  if (membersErr) {
+    log.error("consult_notification_lookup_failed", traceId, `${membersErr.code}: ${membersErr.message}`);
     return;
   }
 
-  if (!account?.owner_id) {
-    log.error("consult_notification_no_owner", traceId, `Account found but no owner_id. Account: ${JSON.stringify(account)}`);
+  if (!members || members.length === 0) {
+    log.error("consult_notification_no_owner", traceId, `No owner found in account_members for account ${accountId}`);
     return;
   }
 
-  const profileId = account.owner_id;
+  const profileId = members[0].profile_id;
   log.info("consult_notification_owner_found", traceId, `profileId=${profileId}`);
 
   // Get all device tokens for the owner
